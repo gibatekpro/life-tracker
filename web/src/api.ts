@@ -1,4 +1,4 @@
-import type { Transaction, CreateTransaction } from './types';
+import type { Transaction, CreateTransaction, MonthlySummary } from './types';
 
 export async function getTransactions(): Promise<Transaction[]> {
   const res = await fetch('/api/transactions');
@@ -13,5 +13,11 @@ export async function createTransaction(t: CreateTransaction): Promise<Transacti
     body: JSON.stringify(t),
   });
   if (!res.ok) throw new Error('Failed to save transaction');
+  return res.json();
+}
+
+export async function getMonthlySummary(): Promise<MonthlySummary> {
+  const res = await fetch('/api/summary/monthly');
+  if (!res.ok) throw new Error('Failed to load summary');
   return res.json();
 }

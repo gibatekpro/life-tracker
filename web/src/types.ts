@@ -8,3 +8,17 @@ export interface Transaction {
 }
 
 export type CreateTransaction = Omit<Transaction, 'id' | 'createdAt'>;
+
+export interface CategoryTotal {
+  category: string;
+  total: number;
+}
+
+export interface MonthlySummary {
+  year: number;
+  month: number;
+  totalSpent: number;
+  monthlyIncome: number;
+  remaining: number;
+  byCategory: CategoryTotal[];
+}

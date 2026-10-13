@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { SubmitEvent } from 'react';
-import { getTransactions, createTransaction } from './api';
-import type { Transaction } from './types';
+import { getTransactions, createTransaction, getMonthlySummary } from './api';
+import type { Transaction, MonthlySummary } from './types';
+import SummaryCard from './components/SummaryCard';
 
 const categories = ['Food', 'Transport', 'Bills', 'Rent', 'Shopping', 'Entertainment', 'Other'];
 const today = () => new Date().toLocaleDateString('en-CA');
@@ -13,10 +14,12 @@ export default function App() {
   const [category, setCategory] = useState(categories[0]);
   const [date, setDate] = useState(today());
   const [error, setError] = useState<string | null>(null);
+  const [summary, setSummary] = useState<MonthlySummary | null>(null);
 
-  useEffect(() => {
-    getTransactions().then(setTransactions).catch((e) => setError(e.message));
-  }, []);
+useEffect(() => {
+  getTransactions().then(setTransactions).catch((e) => setError(e.message));
+  getMonthlySummary().then(setSummary).catch((e) => setError(e.message));
+}, []);
 
   async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -29,6 +32,7 @@ export default function App() {
         date,
       });
       setTransactions((prev) => [created, ...prev]);
+      setSummary(await getMonthlySummary());
       setAmount('');
       setDescription('');
     } catch (err) {
@@ -56,14 +60,7 @@ export default function App() {
 
       {error && <p style={{ color: 'crimson' }}>{error}</p>}
 
-      <h2>Total: £{total.toFixed(2)}</h2>
-      <ul>
-        {transactions.map((t) => (
-          <li key={t.id}>
-            {t.date} · {t.category} · {t.description} · £{t.amount.toFixed(2)}
-          </li>
-        ))}
-      </ul>
+      {summary && <SummaryCard summary={summary} />}
     </main>
   );
 }
