@@ -2,7 +2,7 @@ using LifeTracker.Api.Data;
 using LifeTracker.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
-namespace LifeTracker.Api.Endpoints;
+namespace LifeTracker.Api.Features.Transactions;
 
 public static class TransactionEndpoints
 {
