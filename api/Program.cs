@@ -1,6 +1,7 @@
 
 using LifeTracker.Api.Data;
 using LifeTracker.Api.Features.Transactions;
+using LifeTracker.Api.Features.Summary;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -8,6 +9,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("LifeTracker")));
+builder.Services.Configure<BudgetOptions>(builder.Configuration.GetSection("Budget"));
+
+builder.Services.AddScoped<SummaryService>();
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -25,6 +29,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.MapTransactionEndpoints();
+app.MapSummaryEndpoints();
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
