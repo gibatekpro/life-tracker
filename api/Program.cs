@@ -2,6 +2,7 @@
 using LifeTracker.Api.Data;
 using LifeTracker.Api.Features.Transactions;
 using LifeTracker.Api.Features.Summary;
+using LifeTracker.Api.Features.Debts;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -30,6 +31,7 @@ app.UseHttpsRedirection();
 
 app.MapTransactionEndpoints();
 app.MapSummaryEndpoints();
+app.MapDebtEndpoints();
 app.Run();
 
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)

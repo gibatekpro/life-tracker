@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { SubmitEvent } from 'react';
-import { getTransactions, createTransaction, getMonthlySummary } from './api';
-import type { Transaction, MonthlySummary } from './types';
+import { getTransactions, createTransaction, getMonthlySummary, getDebts } from './api';
+import type { Transaction, MonthlySummary, DebtsOverview } from './types';
 import SummaryCard from './components/SummaryCard';
+import DebtsCard from './components/DebtsCard';
 
 const categories = ['Food', 'Transport', 'Bills', 'Rent', 'Shopping', 'Entertainment', 'Other'];
 const today = () => new Date().toLocaleDateString('en-CA');
@@ -15,10 +16,12 @@ export default function App() {
   const [date, setDate] = useState(today());
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
+  const [debts, setDebts] = useState<DebtsOverview | null>(null);
 
 useEffect(() => {
   getTransactions().then(setTransactions).catch((e) => setError(e.message));
   getMonthlySummary().then(setSummary).catch((e) => setError(e.message));
+  getDebts().then(setDebts).catch((e) => setError(e.message));
 }, []);
 
   async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
@@ -61,6 +64,8 @@ useEffect(() => {
       {error && <p style={{ color: 'crimson' }}>{error}</p>}
 
       {summary && <SummaryCard summary={summary} />}
+
+      {debts && <DebtsCard overview={debts} />}
     </main>
   );
 }
