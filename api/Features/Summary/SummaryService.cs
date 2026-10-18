@@ -17,6 +17,7 @@ public record MonthlySummary(
 public class BudgetOptions
 {
     public decimal MonthlyIncome { get; set; }
+    public decimal? MonthlyDebtBudget { get; set; }
 }
 
 public class SummaryService(AppDbContext db, IOptions<BudgetOptions> budget)

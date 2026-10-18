@@ -16,12 +16,17 @@ public static class AvalanchePlanner
 {
     private const int MaxMonths = 600;
 
-    public static AvalanchePlan Plan(IEnumerable<PlannerDebt> debts, DateOnly start, decimal extraPerMonth = 0)
+    public static AvalanchePlan Plan(
+        IEnumerable<PlannerDebt> debts,
+        DateOnly start,
+        decimal extraPerMonth = 0,
+        decimal? monthlyBudget = null)
     {
         var open = debts.Where(d => d.Balance > 0).Select(d => new Working(d)).ToList();
 
-        // The budget stays the same every month, so a cleared debt's payment rolls on to the others.
-        var budget = open.Sum(d => d.Source.MonthlyPayment) + extraPerMonth;
+        // Use the fixed budget if one is set, but never less than the planned payments.
+        var planned = open.Sum(d => d.Source.MonthlyPayment);
+        var budget = Math.Max(monthlyBudget ?? 0, planned) + extraPerMonth;
 
         var payoffs = new List<PlannedPayoff>();
         decimal totalInterest = 0;

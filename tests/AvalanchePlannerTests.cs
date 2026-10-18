@@ -55,4 +55,30 @@ public class AvalanchePlannerTests
         Assert.Equal(11, plan.Months);
         Assert.Equal(174.00m, plan.TotalInterest);
     }
+
+    [Fact]
+    public void FixedBudget_KeepsAClearedDebtsPaymentWorking()
+    {
+        PlannerDebt[] debts =
+        [
+            new(1, "Already cleared", 0m, 0m, 100m),
+        new(2, "B", 600m, 0m, 100m)
+        ];
+
+        var withoutBudget = AvalanchePlanner.Plan(debts, Start);
+        var withBudget = AvalanchePlanner.Plan(debts, Start, monthlyBudget: 200m);
+
+        Assert.Equal(6, withoutBudget.Months); // the cleared debt's £100 is lost
+        Assert.Equal(3, withBudget.Months);    // the £100 keeps working on B
+    }
+
+    [Fact]
+    public void BudgetBelowPlannedPayments_UsesThePlannedPayments()
+    {
+        var plan = AvalanchePlanner.Plan(
+            [new PlannerDebt(1, "A", 600m, 0m, 100m)], Start, monthlyBudget: 50m);
+
+        Assert.Equal(100m, plan.MonthlyBudget);
+        Assert.Equal(6, plan.Months);
+    }
 }

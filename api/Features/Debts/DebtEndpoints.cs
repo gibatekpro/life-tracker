@@ -1,6 +1,8 @@
 using LifeTracker.Api.Data;
+using LifeTracker.Api.Features.Summary;
 using LifeTracker.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace LifeTracker.Api.Features.Debts;
 
@@ -112,14 +114,14 @@ public static class DebtEndpoints
                 current.TotalInterest - whatIf.TotalInterest));
         });
 
-        group.MapGet("/avalanche", async (decimal? extra, AppDbContext db) =>
+        group.MapGet("/avalanche", async (decimal? extra, AppDbContext db, IOptions<BudgetOptions> budget) =>
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
             var debts = await db.Debts
-            .Select(d => new PlannerDebt(d.Id, d.Name, d.Balance, d.Apr, d.MonthlyPayment))
-            .ToListAsync();
+                .Select(d => new PlannerDebt(d.Id, d.Name, d.Balance, d.Apr, d.MonthlyPayment))
+                .ToListAsync();
 
-            return AvalanchePlanner.Plan(debts, today, extra ?? 0);
+            return AvalanchePlanner.Plan(debts, today, extra ?? 0, budget.Value.MonthlyDebtBudget);
         });
 
         return group;
