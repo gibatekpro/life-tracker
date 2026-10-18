@@ -53,3 +53,20 @@ export interface DebtsOverview {
   debtFreeDate: string | null;
   debts: DebtWithProjection[];
 }
+
+export interface PlannedPayoff {
+  id: number;
+  name: string;
+  month: number;
+  payoffDate: string;
+  interestPaid: number;
+}
+
+export interface AvalanchePlan {
+  canBePaidOff: boolean;
+  months: number;
+  debtFreeDate: string | null;
+  totalInterest: number;
+  monthlyBudget: number;
+  payoffs: PlannedPayoff[];
+}

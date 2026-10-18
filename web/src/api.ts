@@ -1,4 +1,4 @@
-import type { Transaction, CreateTransaction, MonthlySummary, DebtsOverview } from './types';
+import type { Transaction, CreateTransaction, MonthlySummary, DebtsOverview, AvalanchePlan } from './types';
 
 export async function getTransactions(): Promise<Transaction[]> {
   const res = await fetch('/api/transactions');
@@ -25,5 +25,11 @@ export async function getMonthlySummary(): Promise<MonthlySummary> {
 export async function getDebts(): Promise<DebtsOverview> {
   const res = await fetch('/api/debts');
   if (!res.ok) throw new Error('Failed to load debts');
+  return res.json();
+}
+
+export async function getAvalanchePlan(extra = 0): Promise<AvalanchePlan> {
+  const res = await fetch(`/api/debts/avalanche?extra=${extra}`);
+  if (!res.ok) throw new Error('Failed to load avalanche plan');
   return res.json();
 }

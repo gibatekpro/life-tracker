@@ -4,6 +4,7 @@ import { getTransactions, createTransaction, getMonthlySummary, getDebts } from 
 import type { Transaction, MonthlySummary, DebtsOverview } from './types';
 import SummaryCard from './components/SummaryCard';
 import DebtsCard from './components/DebtsCard';
+import AvalancheCard from './components/AvalancheCard';
 
 const categories = ['Food', 'Transport', 'Bills', 'Rent', 'Shopping', 'Entertainment', 'Other'];
 const today = () => new Date().toLocaleDateString('en-CA');
@@ -66,6 +67,8 @@ useEffect(() => {
       {summary && <SummaryCard summary={summary} />}
 
       {debts && <DebtsCard overview={debts} />}
+
+      <AvalancheCard />
     </main>
   );
 }
