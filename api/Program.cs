@@ -6,6 +6,8 @@ using LifeTracker.Api.Features.Debts;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using LifeTracker.Api.Features.Settings;
+using LifeTracker.Api.Security;
+using LifeTracker.Api.Features.Capture;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,13 +34,12 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.MapDebtEndpoints();
+app.MapCaptureEndpoints();
 app.MapSummaryEndpoints();
 app.MapSettingsEndpoints();
 app.MapTransactionEndpoints();
 
+app.UseMiddleware<NetworkApiKeyMiddleware>();
+
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
