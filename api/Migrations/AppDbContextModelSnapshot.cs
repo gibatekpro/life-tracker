@@ -22,6 +22,29 @@ namespace LifeTracker.Api.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("LifeTracker.Api.Models.AppSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("MonthlyDebtBudget")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("MonthlyIncome")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Settings", (string)null);
+                });
+
             modelBuilder.Entity("LifeTracker.Api.Models.Debt", b =>
                 {
                     b.Property<int>("Id")
@@ -59,6 +82,39 @@ namespace LifeTracker.Api.Migrations
                     b.ToTable("Debts");
                 });
 
+            modelBuilder.Entity("LifeTracker.Api.Models.DebtPayment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("DebtId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TransactionId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DebtId");
+
+                    b.HasIndex("TransactionId");
+
+                    b.ToTable("DebtPayments");
+                });
+
             modelBuilder.Entity("LifeTracker.Api.Models.Transaction", b =>
                 {
                     b.Property<int>("Id")
@@ -90,6 +146,24 @@ namespace LifeTracker.Api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Transactions");
+                });
+
+            modelBuilder.Entity("LifeTracker.Api.Models.DebtPayment", b =>
+                {
+                    b.HasOne("LifeTracker.Api.Models.Debt", "Debt")
+                        .WithMany()
+                        .HasForeignKey("DebtId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("LifeTracker.Api.Models.Transaction", "Transaction")
+                        .WithMany()
+                        .HasForeignKey("TransactionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Debt");
+
+                    b.Navigation("Transaction");
                 });
 #pragma warning restore 612, 618
         }

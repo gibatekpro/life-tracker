@@ -5,6 +5,7 @@ import type { Transaction, MonthlySummary, DebtsOverview } from './types';
 import SummaryCard from './components/SummaryCard';
 import DebtsCard from './components/DebtsCard';
 import AvalancheCard from './components/AvalancheCard';
+import SettingsCard from './components/SettingsCard';
 
 const categories = ['Food', 'Transport', 'Bills', 'Rent', 'Shopping', 'Entertainment', 'Other'];
 const today = () => new Date().toLocaleDateString('en-CA');
@@ -18,12 +19,14 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
   const [debts, setDebts] = useState<DebtsOverview | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-useEffect(() => {
-  getTransactions().then(setTransactions).catch((e) => setError(e.message));
-  getMonthlySummary().then(setSummary).catch((e) => setError(e.message));
-  getDebts().then(setDebts).catch((e) => setError(e.message));
-}, []);
+
+  useEffect(() => {
+    getTransactions().then(setTransactions).catch((e) => setError(e.message));
+    getMonthlySummary().then(setSummary).catch((e) => setError(e.message));
+    getDebts().then(setDebts).catch((e) => setError(e.message));
+  }, []);
 
   async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -43,6 +46,19 @@ useEffect(() => {
       setError((err as Error).message);
     }
   }
+
+  async function handleSettingsSaved() {
+    setSummary(await getMonthlySummary());
+    setRefreshKey((k) => k + 1);
+  }
+
+  async function refreshAll() {
+  const [t, s, d] = await Promise.all([getTransactions(), getMonthlySummary(), getDebts()]);
+  setTransactions(t);
+  setSummary(s);
+  setDebts(d);
+  setRefreshKey((k) => k + 1);
+}
 
   const total = transactions.reduce((sum, t) => sum + t.amount, 0);
 
@@ -66,9 +82,11 @@ useEffect(() => {
 
       {summary && <SummaryCard summary={summary} />}
 
-      {debts && <DebtsCard overview={debts} />}
+      {debts && <DebtsCard overview={debts} onChanged={refreshAll} />}
 
-      <AvalancheCard />
+      <AvalancheCard key={refreshKey} />
+
+      <SettingsCard onSaved={handleSettingsSaved} />
     </main>
   );
 }

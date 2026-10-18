@@ -70,3 +70,10 @@ export interface AvalanchePlan {
   monthlyBudget: number;
   payoffs: PlannedPayoff[];
 }
+
+export interface Settings {
+  id: number;
+  monthlyIncome: number;
+  monthlyDebtBudget: number | null;
+  updatedAt: string;
+}

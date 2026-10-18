@@ -1,4 +1,5 @@
 using LifeTracker.Api.Data;
+using LifeTracker.Api.Features.Settings;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -20,7 +21,9 @@ public class BudgetOptions
     public decimal? MonthlyDebtBudget { get; set; }
 }
 
-public class SummaryService(AppDbContext db, IOptions<BudgetOptions> budget)
+
+
+public class SummaryService(AppDbContext db, SettingsService settings)
 {
     public async Task<MonthlySummary> GetMonthlyAsync(int year, int month)
     {
@@ -39,7 +42,7 @@ public class SummaryService(AppDbContext db, IOptions<BudgetOptions> budget)
             .ToList();
 
         var spent = byCategory.Sum(c => c.Total);
-        var income = budget.Value.MonthlyIncome;
+        var income = (await settings.GetAsync()).MonthlyIncome;
 
         return new MonthlySummary(year, month, spent, income, income - spent, byCategory);
     }

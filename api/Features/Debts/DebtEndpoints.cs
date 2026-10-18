@@ -2,6 +2,7 @@ using LifeTracker.Api.Data;
 using LifeTracker.Api.Features.Summary;
 using LifeTracker.Api.Models;
 using Microsoft.EntityFrameworkCore;
+using LifeTracker.Api.Features.Settings;
 using Microsoft.Extensions.Options;
 
 namespace LifeTracker.Api.Features.Debts;
@@ -30,6 +31,9 @@ public record DebtsOverview(
     decimal TotalInterest,
     DateOnly? DebtFreeDate,
     IReadOnlyList<DebtWithProjection> Debts);
+public record RecordPaymentRequest(decimal Amount, DateOnly Date);
+public record RecordPaymentResponse(int PaymentId, int DebtId, decimal NewBalance);
+public record DebtPaymentDto(int Id, decimal Amount, DateOnly Date);
 
 public static class DebtEndpoints
 {
@@ -114,15 +118,60 @@ public static class DebtEndpoints
                 current.TotalInterest - whatIf.TotalInterest));
         });
 
-        group.MapGet("/avalanche", async (decimal? extra, AppDbContext db, IOptions<BudgetOptions> budget) =>
+        group.MapGet("/avalanche", async (decimal? extra, AppDbContext db, SettingsService settings) =>
         {
             var today = DateOnly.FromDateTime(DateTime.Today);
             var debts = await db.Debts
                 .Select(d => new PlannerDebt(d.Id, d.Name, d.Balance, d.Apr, d.MonthlyPayment))
                 .ToListAsync();
+            var s = await settings.GetAsync();
 
-            return AvalanchePlanner.Plan(debts, today, extra ?? 0, budget.Value.MonthlyDebtBudget);
+            return AvalanchePlanner.Plan(debts, today, extra ?? 0, s.MonthlyDebtBudget);
         });
+
+        group.MapPost("/{id:int}/payments", async (int id, RecordPaymentRequest req, AppDbContext db) =>
+{
+    if (req.Amount <= 0)
+        return Results.BadRequest(new { error = "Payment must be above zero." });
+
+    var debt = await db.Debts.FindAsync(id);
+    if (debt is null) return Results.NotFound();
+
+    if (req.Amount > debt.Balance)
+        return Results.BadRequest(new { error = $"That's more than the £{debt.Balance:0.00} owed." });
+
+    var transaction = new Transaction
+    {
+        Amount = req.Amount,
+        Description = $"Payment to {debt.Name}",
+        Category = "Debt",
+        Date = req.Date
+    };
+
+    var payment = new DebtPayment
+    {
+        Debt = debt,
+        Transaction = transaction,
+        Amount = req.Amount,
+        Date = req.Date
+    };
+
+    debt.Balance -= req.Amount;
+    db.DebtPayments.Add(payment);
+
+    // One SaveChangesAsync = one database transaction: all three changes save, or none do.
+    await db.SaveChangesAsync();
+
+    return Results.Created($"/debts/{id}/payments/{payment.Id}",
+        new RecordPaymentResponse(payment.Id, debt.Id, debt.Balance));
+});
+
+        group.MapGet("/{id:int}/payments", async (int id, AppDbContext db) =>
+            await db.DebtPayments
+                .Where(p => p.DebtId == id)
+                .OrderByDescending(p => p.Date)
+                .Select(p => new DebtPaymentDto(p.Id, p.Amount, p.Date))
+                .ToListAsync());
 
         return group;
     }
