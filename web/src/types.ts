@@ -5,9 +5,10 @@ export interface Transaction {
   category: string;
   date: string;
   createdAt: string;
+  countsAsSpending: boolean;
 }
 
-export type CreateTransaction = Omit<Transaction, 'id' | 'createdAt'>;
+export type CreateTransaction = Omit<Transaction, 'id' | 'createdAt' | 'countsAsSpending'> & { countsAsSpending?: boolean };
 
 export interface CategoryTotal {
   category: string;

@@ -1,8 +1,15 @@
 using LifeTracker.Api.Data;
+using LifeTracker.Api.Common;
 using LifeTracker.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace LifeTracker.Api.Features.Transactions;
+
+public record CreateTransactionRequest(
+    decimal Amount, string Description, string Category, DateOnly Date,
+    bool CountsAsSpending = true);
+
+public record SpendingFlagRequest(bool CountsAsSpending);
 
 public static class TransactionEndpoints
 {
@@ -25,15 +32,24 @@ public static class TransactionEndpoints
                 Amount = req.Amount,
                 Description = req.Description,
                 Category = req.Category,
-                Date = req.Date
+                Date = req.Date,
+                CountsAsSpending = req.CountsAsSpending
             };
             db.Transactions.Add(t);
             await db.SaveChangesAsync();
             return Results.Created($"/transactions/{t.Id}", t);
         });
 
+        group.MapPatch("/{id:int}/spending", async (int id, SpendingFlagRequest req, AppDbContext db) =>
+        {
+            var t = await db.Transactions.FindAsync(id);
+            if (t is null) return Results.NotFound();
+
+            t.CountsAsSpending = req.CountsAsSpending;
+            await db.SaveChangesAsync();
+            return Results.Ok(t);
+        });
+
         return group;
     }
 }
-
-public record CreateTransactionRequest(decimal Amount, string Description, string Category, DateOnly Date);

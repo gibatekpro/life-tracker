@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { SubmitEvent } from 'react';
-import { getTransactions, createTransaction, getMonthlySummary, getDebts } from './api';
+import { getTransactions, createTransaction, getMonthlySummary, getDebts, setCountsAsSpending } from './api';
 import type { Transaction, MonthlySummary, DebtsOverview } from './types';
 import SummaryCard from './components/SummaryCard';
 import DebtsCard from './components/DebtsCard';
@@ -53,14 +53,23 @@ export default function App() {
   }
 
   async function refreshAll() {
-  const [t, s, d] = await Promise.all([getTransactions(), getMonthlySummary(), getDebts()]);
-  setTransactions(t);
-  setSummary(s);
-  setDebts(d);
-  setRefreshKey((k) => k + 1);
-}
+    const [t, s, d] = await Promise.all([getTransactions(), getMonthlySummary(), getDebts()]);
+    setTransactions(t);
+    setSummary(s);
+    setDebts(d);
+    setRefreshKey((k) => k + 1);
+  }
 
-  const total = transactions.reduce((sum, t) => sum + t.amount, 0);
+  async function toggleSpending(t: Transaction) {
+    try {
+      await setCountsAsSpending(t.id, !t.countsAsSpending);
+      await refreshAll();
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  }
+
+  const categories = ['Food', 'Transport', 'Bills', 'Rent', 'Shopping', 'Entertainment', 'Debt', 'Transfer', 'Other'];
 
   return (
     <main style={{ maxWidth: 640, margin: '2rem auto', fontFamily: 'system-ui', padding: '0 16px' }}>
@@ -81,6 +90,25 @@ export default function App() {
       {error && <p style={{ color: 'crimson' }}>{error}</p>}
 
       {summary && <SummaryCard summary={summary} />}
+
+      <section style={{ marginBottom: 24 }}>
+        <h2>Transactions</h2>
+        {transactions.length === 0 ? (
+          <p>No transactions yet.</p>
+        ) : (
+          <ul>
+            {transactions.map((t) => (
+              <li key={t.id} style={{ opacity: t.countsAsSpending ? 1 : 0.5 }}>
+                {t.date} · {t.category} · {t.description} · £{t.amount.toFixed(2)}
+                {!t.countsAsSpending && ' (not counted)'}{' '}
+                <button onClick={() => toggleSpending(t)}>
+                  {t.countsAsSpending ? 'Exclude' : 'Include'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {debts && <DebtsCard overview={debts} onChanged={refreshAll} />}
 

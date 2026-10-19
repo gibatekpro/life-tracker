@@ -31,7 +31,7 @@ public class SummaryService(AppDbContext db, SettingsService settings)
         var end = start.AddMonths(1);
 
         var totals = await db.Transactions
-            .Where(t => t.Date >= start && t.Date < end)
+            .Where(t => t.Date >= start && t.Date < end && t.CountsAsSpending)
             .GroupBy(t => t.Category)
             .Select(g => new { Category = g.Key, Total = g.Sum(t => t.Amount) })
             .ToListAsync();

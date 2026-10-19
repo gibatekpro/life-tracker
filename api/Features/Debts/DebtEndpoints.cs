@@ -8,11 +8,8 @@ using LifeTracker.Api.Common;
 namespace LifeTracker.Api.Features.Debts;
 
 public record CreateDebtRequest(
-    string Name,
-    decimal Balance,
-    decimal Apr,
-    decimal MinimumPayment,
-    decimal MonthlyPayment);
+    string Name, decimal Balance, decimal Apr, decimal MinimumPayment, decimal MonthlyPayment,
+    bool PaymentsCountAsSpending = true);
 public record UpdateDebtRequest(
     decimal Balance,
     decimal MonthlyPayment);
@@ -34,6 +31,8 @@ public record DebtsOverview(
 public record RecordPaymentRequest(decimal Amount, DateOnly Date);
 public record RecordPaymentResponse(int PaymentId, int DebtId, decimal NewBalance);
 public record DebtPaymentDto(int Id, decimal Amount, DateOnly Date);
+
+public record DebtSpendingFlagRequest(bool PaymentsCountAsSpending);
 
 public static class DebtEndpoints
 {
@@ -130,41 +129,42 @@ public static class DebtEndpoints
         });
 
         group.MapPost("/{id:int}/payments", async (int id, RecordPaymentRequest req, AppDbContext db) =>
-{
-    if (req.Amount <= 0)
-        return Results.BadRequest(new { error = "Payment must be above zero." });
+        {
+            if (req.Amount <= 0)
+                return Results.BadRequest(new { error = "Payment must be above zero." });
 
-    var debt = await db.Debts.FindAsync(id);
-    if (debt is null) return Results.NotFound();
+            var debt = await db.Debts.FindAsync(id);
+            if (debt is null) return Results.NotFound();
 
-    if (req.Amount > debt.Balance)
-        return Results.BadRequest(new { error = $"That's more than the £{debt.Balance:0.00} owed." });
+            if (req.Amount > debt.Balance)
+                return Results.BadRequest(new { error = $"That's more than the £{debt.Balance:0.00} owed." });
 
-    var transaction = new Transaction
-    {
-        Amount = req.Amount,
-        Description = $"Payment to {debt.Name}",
-        Category = "Debt",
-        Date = req.Date
-    };
+            var transaction = new Transaction
+            {
+                Amount = req.Amount,
+                Description = $"Payment to {debt.Name}",
+                Category = "Debt",
+                Date = req.Date,
+                CountsAsSpending = debt.PaymentsCountAsSpending   // ← add this
+            };
 
-    var payment = new DebtPayment
-    {
-        Debt = debt,
-        Transaction = transaction,
-        Amount = req.Amount,
-        Date = req.Date
-    };
+            var payment = new DebtPayment
+            {
+                Debt = debt,
+                Transaction = transaction,
+                Amount = req.Amount,
+                Date = req.Date
+            };
 
-    debt.Balance -= req.Amount;
-    db.DebtPayments.Add(payment);
+            debt.Balance -= req.Amount;
+            db.DebtPayments.Add(payment);
 
-    // One SaveChangesAsync = one database transaction: all three changes save, or none do.
-    await db.SaveChangesAsync();
+            // One SaveChangesAsync = one database transaction: all three changes save, or none do.
+            await db.SaveChangesAsync();
 
-    return Results.Created($"/debts/{id}/payments/{payment.Id}",
-        new RecordPaymentResponse(payment.Id, debt.Id, debt.Balance));
-});
+            return Results.Created($"/debts/{id}/payments/{payment.Id}",
+                new RecordPaymentResponse(payment.Id, debt.Id, debt.Balance));
+        });
 
         group.MapGet("/{id:int}/payments", async (int id, AppDbContext db) =>
             await db.DebtPayments
@@ -173,6 +173,16 @@ public static class DebtEndpoints
                 .Select(p => new DebtPaymentDto(p.Id, p.Amount, p.Date))
                 .ToListAsync());
 
+
+        group.MapPatch("/{id:int}/spending", async (int id, DebtSpendingFlagRequest req, AppDbContext db) =>
+        {
+            var debt = await db.Debts.FindAsync(id);
+            if (debt is null) return Results.NotFound();
+
+            debt.PaymentsCountAsSpending = req.PaymentsCountAsSpending;
+            await db.SaveChangesAsync();
+            return Results.NoContent();
+        });
         return group;
     }
 }

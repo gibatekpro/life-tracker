@@ -65,3 +65,12 @@ export async function recordDebtPayment(debtId: number, amount: number, date: st
   }
   return res.json();
 }
+
+export async function setCountsAsSpending(id: number, countsAsSpending: boolean) {
+  const res = await fetch(`/api/transactions/${id}/spending`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ countsAsSpending }),
+  });
+  if (!res.ok) throw new Error('Failed to update transaction');
+}
