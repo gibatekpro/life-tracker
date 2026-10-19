@@ -3,7 +3,7 @@ import type { SubmitEvent } from 'react';
 import { getTransactions, createTransaction, getMonthlySummary, getDebts, getAccounts } from './api';
 import type { Transaction, MonthlySummary, DebtsOverview, Account, TransactionType } from './types';
 import SummaryCard from './components/SummaryCard';
-import DebtsCard from './components/DebtsCard';
+import AccountsCard from './components/AccountsCard';
 import AvalancheCard from './components/AvalancheCard';
 import SettingsCard from './components/SettingsCard';
 
@@ -143,7 +143,7 @@ export default function App() {
         )}
       </section>
 
-      {debts && <DebtsCard overview={debts} onChanged={refreshAll} />}
+      {debts && <AccountsCard accounts={accounts} overview={debts} onChanged={refreshAll} />}
 
       <AvalancheCard key={refreshKey} />
 

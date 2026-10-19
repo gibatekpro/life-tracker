@@ -61,16 +61,3 @@ export async function updateSettings(s: {
   if (!res.ok) throw new Error('Failed to save settings');
   return res.json();
 }
-
-export async function recordDebtPayment(debtId: number, amount: number, date: string) {
-  const res = await fetch(`/api/debts/${debtId}/payments`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount, date }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new Error(body?.error ?? 'Failed to record payment');
-  }
-  return res.json();
-}

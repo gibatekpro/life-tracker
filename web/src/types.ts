@@ -59,16 +59,6 @@ export interface MonthlySummary {
   byCategory: CategoryTotal[];
 }
 
-export interface Debt {
-  id: number;
-  name: string;
-  balance: number;
-  apr: number;
-  minimumPayment: number;
-  monthlyPayment: number;
-  createdAt: string;
-}
-
 export interface PayoffProjection {
   canBePaidOff: boolean;
   months: number;
@@ -78,7 +68,7 @@ export interface PayoffProjection {
 }
 
 export interface DebtWithProjection {
-  debt: Debt;
+  debt: Account; // a CreditCard or Loan account
   projection: PayoffProjection;
 }
 
