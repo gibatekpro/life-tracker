@@ -427,3 +427,6 @@ FodyWeavers.xsd
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
 api/appsettings.Development.json
+
+*.DS_Store
+.DS_Store

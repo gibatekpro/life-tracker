@@ -74,7 +74,8 @@ public static class DebtEndpoints
                 Balance = req.Balance,
                 Apr = req.Apr,
                 MinimumPayment = req.MinimumPayment,
-                MonthlyPayment = req.MonthlyPayment
+                MonthlyPayment = req.MonthlyPayment,
+                PaymentsCountAsSpending = req.PaymentsCountAsSpending
             };
             db.Debts.Add(debt);
             await db.SaveChangesAsync();
@@ -145,7 +146,7 @@ public static class DebtEndpoints
                 Description = $"Payment to {debt.Name}",
                 Category = "Debt",
                 Date = req.Date,
-                CountsAsSpending = debt.PaymentsCountAsSpending   // ← add this
+                CountsAsSpending = debt.PaymentsCountAsSpending
             };
 
             var payment = new DebtPayment

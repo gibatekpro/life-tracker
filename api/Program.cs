@@ -24,14 +24,20 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+app.UseMiddleware<NetworkApiKeyMiddleware>();
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference();
 }
+else
+{
+   app.UseHttpsRedirection(); 
+}
 
-app.UseHttpsRedirection();
+
 
 app.MapDebtEndpoints();
 app.MapCaptureEndpoints();
@@ -39,7 +45,6 @@ app.MapSummaryEndpoints();
 app.MapSettingsEndpoints();
 app.MapTransactionEndpoints();
 
-app.UseMiddleware<NetworkApiKeyMiddleware>();
 
 app.Run();
 
