@@ -1,14 +1,49 @@
+export type AccountType = 'Current' | 'CreditCard' | 'Loan';
+export type TransactionType = 'Expense' | 'Income' | 'Transfer';
+
+export interface AccountAlias {
+  id: number;
+  accountId: number;
+  alias: string;
+}
+
+export interface Account {
+  id: number;
+  name: string;
+  type: AccountType;
+  balance: number; // Current: money held. CreditCard/Loan: amount owed.
+  apr: number;
+  minimumPayment: number;
+  monthlyPayment: number;
+  creditLimit: number | null;
+  availableCredit: number | null;
+  createdAt: string;
+  aliases: AccountAlias[];
+}
+
 export interface Transaction {
   id: number;
   amount: number;
   description: string;
   category: string;
   date: string;
+  type: TransactionType;
+  accountId: number;
+  accountName: string;
+  toAccountId: number | null;
+  toAccountName: string | null;
   createdAt: string;
-  countsAsSpending: boolean;
 }
 
-export type CreateTransaction = Omit<Transaction, 'id' | 'createdAt' | 'countsAsSpending'> & { countsAsSpending?: boolean };
+export interface CreateTransaction {
+  amount: number;
+  description: string;
+  category: string;
+  date: string;
+  type: TransactionType;
+  accountId: number;
+  toAccountId?: number | null;
+}
 
 export interface CategoryTotal {
   category: string;

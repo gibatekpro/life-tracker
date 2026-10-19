@@ -1,4 +1,4 @@
-import type { Transaction, CreateTransaction, MonthlySummary, DebtsOverview, AvalanchePlan, Settings } from './types';
+import type { Account, Transaction, CreateTransaction, MonthlySummary, DebtsOverview, AvalanchePlan, Settings } from './types';
 
 export async function getTransactions(): Promise<Transaction[]> {
   const res = await fetch('/api/transactions');
@@ -12,7 +12,16 @@ export async function createTransaction(t: CreateTransaction): Promise<Transacti
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(t),
   });
-  if (!res.ok) throw new Error('Failed to save transaction');
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? 'Failed to save transaction');
+  }
+  return res.json();
+}
+
+export async function getAccounts(): Promise<Account[]> {
+  const res = await fetch('/api/accounts');
+  if (!res.ok) throw new Error('Failed to load accounts');
   return res.json();
 }
 
@@ -64,13 +73,4 @@ export async function recordDebtPayment(debtId: number, amount: number, date: st
     throw new Error(body?.error ?? 'Failed to record payment');
   }
   return res.json();
-}
-
-export async function setCountsAsSpending(id: number, countsAsSpending: boolean) {
-  const res = await fetch(`/api/transactions/${id}/spending`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ countsAsSpending }),
-  });
-  if (!res.ok) throw new Error('Failed to update transaction');
 }
