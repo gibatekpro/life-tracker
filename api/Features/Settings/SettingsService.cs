@@ -35,4 +35,13 @@ public class SettingsService(AppDbContext db, IOptions<BudgetOptions> defaults)
         await db.SaveChangesAsync();
         return settings;
     }
+
+    public async Task<AppSettings> SetDefaultAccountAsync(int? accountId)
+    {
+        var settings = await GetAsync();
+        settings.DefaultAccountId = accountId;
+        settings.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        return settings;
+    }
 }

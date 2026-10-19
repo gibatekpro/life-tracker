@@ -46,6 +46,7 @@ else
 
 
 
+app.MapAccountEndpoints();
 app.MapDebtEndpoints();
 app.MapCaptureEndpoints();
 app.MapSummaryEndpoints();
