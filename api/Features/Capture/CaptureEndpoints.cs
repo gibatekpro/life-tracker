@@ -1,5 +1,6 @@
 using LifeTracker.Api.Data;
 using LifeTracker.Api.Models;
+using LifeTracker.Api.Common;
 
 namespace LifeTracker.Api.Features.Capture;
 
@@ -26,7 +27,7 @@ public static class CaptureEndpoints
                 Amount = amount,
                 Description = merchant.Length > 200 ? merchant[..200] : merchant,
                 Category = CategoryGuesser.Guess(merchant),
-                Date = DateOnly.FromDateTime(DateTime.Now)
+                Date = UkDate.Today()
             };
 
             db.Transactions.Add(transaction);

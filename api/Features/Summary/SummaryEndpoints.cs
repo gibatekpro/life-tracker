@@ -1,5 +1,5 @@
 namespace LifeTracker.Api.Features.Summary;
-
+using LifeTracker.Api.Common;
 public static class SummaryEndpoints
 {
     public static RouteGroupBuilder MapSummaryEndpoints(this IEndpointRouteBuilder app)
@@ -8,7 +8,7 @@ public static class SummaryEndpoints
 
         group.MapGet("/monthly", async (int? year, int? month, SummaryService service) =>
         {
-            var today = DateTime.Today;
+            var today = UkDate.Today();
             var y = year ?? today.Year;
             var m = month ?? today.Month;
 

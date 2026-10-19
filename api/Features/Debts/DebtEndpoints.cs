@@ -4,7 +4,7 @@ using LifeTracker.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using LifeTracker.Api.Features.Settings;
 using Microsoft.Extensions.Options;
-
+using LifeTracker.Api.Common;
 namespace LifeTracker.Api.Features.Debts;
 
 public record CreateDebtRequest(
@@ -43,7 +43,7 @@ public static class DebtEndpoints
 
         group.MapGet("/", async (AppDbContext db) =>
         {
-            var today = DateOnly.FromDateTime(DateTime.Today);
+            var today = UkDate.Today();
             var debts = await db.Debts
                 .OrderByDescending(d => d.Apr)
                 .ThenByDescending(d => d.Balance)
@@ -108,7 +108,7 @@ public static class DebtEndpoints
             var debt = await db.Debts.FindAsync(id);
             if (debt is null) return Results.NotFound();
 
-            var today = DateOnly.FromDateTime(DateTime.Today);
+            var today = UkDate.Today();
             var current = DebtPayoffCalculator.Calculate(debt.Balance, debt.Apr, debt.MonthlyPayment, today);
             var whatIf = DebtPayoffCalculator.Calculate(debt.Balance, debt.Apr, monthlyPayment, today);
 
@@ -120,7 +120,7 @@ public static class DebtEndpoints
 
         group.MapGet("/avalanche", async (decimal? extra, AppDbContext db, SettingsService settings) =>
         {
-            var today = DateOnly.FromDateTime(DateTime.Today);
+            var today = UkDate.Today();
             var debts = await db.Debts
                 .Select(d => new PlannerDebt(d.Id, d.Name, d.Balance, d.Apr, d.MonthlyPayment))
                 .ToListAsync();
