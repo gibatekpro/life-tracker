@@ -22,30 +22,7 @@ namespace LifeTracker.Api.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("LifeTracker.Api.Models.AppSettings", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer");
-
-                    b.Property<decimal?>("MonthlyDebtBudget")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<decimal>("MonthlyIncome")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("now()");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Settings", (string)null);
-                });
-
-            modelBuilder.Entity("LifeTracker.Api.Models.Debt", b =>
+            modelBuilder.Entity("LifeTracker.Api.Models.Account", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -64,6 +41,10 @@ namespace LifeTracker.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<decimal?>("CreditLimit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
                     b.Property<decimal>("MinimumPayment")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
@@ -77,15 +58,17 @@ namespace LifeTracker.Api.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
-                    b.Property<bool>("PaymentsCountAsSpending")
-                        .HasColumnType("boolean");
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Debts");
+                    b.ToTable("Accounts");
                 });
 
-            modelBuilder.Entity("LifeTracker.Api.Models.DebtPayment", b =>
+            modelBuilder.Entity("LifeTracker.Api.Models.AccountAlias", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -93,29 +76,50 @@ namespace LifeTracker.Api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateOnly>("Date")
-                        .HasColumnType("date");
-
-                    b.Property<int>("DebtId")
+                    b.Property<int>("AccountId")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("TransactionId")
-                        .HasColumnType("integer");
+                    b.Property<string>("Alias")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DebtId");
+                    b.HasIndex("AccountId");
 
-                    b.HasIndex("TransactionId");
+                    b.HasIndex("Alias")
+                        .IsUnique();
 
-                    b.ToTable("DebtPayments");
+                    b.ToTable("AccountAliases");
+                });
+
+            modelBuilder.Entity("LifeTracker.Api.Models.AppSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("DefaultAccountId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("MonthlyDebtBudget")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal>("MonthlyIncome")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DefaultAccountId");
+
+                    b.ToTable("Settings", (string)null);
                 });
 
             modelBuilder.Entity("LifeTracker.Api.Models.Transaction", b =>
@@ -126,6 +130,9 @@ namespace LifeTracker.Api.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("AccountId")
+                        .HasColumnType("integer");
+
                     b.Property<decimal>("Amount")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
@@ -134,9 +141,6 @@ namespace LifeTracker.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
-
-                    b.Property<bool>("CountsAsSpending")
-                        .HasColumnType("boolean");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -149,27 +153,64 @@ namespace LifeTracker.Api.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<int?>("ToAccountId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.HasKey("Id");
 
-                    b.ToTable("Transactions");
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("ToAccountId");
+
+                    b.ToTable("Transactions", t =>
+                        {
+                            t.HasCheckConstraint("CK_Transactions_TransferHasDestination", "(\"Type\" = 'Transfer') = (\"ToAccountId\" IS NOT NULL) AND (\"ToAccountId\" IS NULL OR \"ToAccountId\" <> \"AccountId\")");
+                        });
                 });
 
-            modelBuilder.Entity("LifeTracker.Api.Models.DebtPayment", b =>
+            modelBuilder.Entity("LifeTracker.Api.Models.AccountAlias", b =>
                 {
-                    b.HasOne("LifeTracker.Api.Models.Debt", "Debt")
-                        .WithMany()
-                        .HasForeignKey("DebtId")
+                    b.HasOne("LifeTracker.Api.Models.Account", null)
+                        .WithMany("Aliases")
+                        .HasForeignKey("AccountId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
 
-                    b.HasOne("LifeTracker.Api.Models.Transaction", "Transaction")
+            modelBuilder.Entity("LifeTracker.Api.Models.AppSettings", b =>
+                {
+                    b.HasOne("LifeTracker.Api.Models.Account", null)
                         .WithMany()
-                        .HasForeignKey("TransactionId")
+                        .HasForeignKey("DefaultAccountId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
 
-                    b.Navigation("Debt");
+            modelBuilder.Entity("LifeTracker.Api.Models.Transaction", b =>
+                {
+                    b.HasOne("LifeTracker.Api.Models.Account", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
-                    b.Navigation("Transaction");
+                    b.HasOne("LifeTracker.Api.Models.Account", "ToAccount")
+                        .WithMany()
+                        .HasForeignKey("ToAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Account");
+
+                    b.Navigation("ToAccount");
+                });
+
+            modelBuilder.Entity("LifeTracker.Api.Models.Account", b =>
+                {
+                    b.Navigation("Aliases");
                 });
 #pragma warning restore 612, 618
         }

@@ -1,5 +1,6 @@
 using LifeTracker.Api.Data;
 using LifeTracker.Api.Features.Settings;
+using LifeTracker.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -31,7 +32,7 @@ public class SummaryService(AppDbContext db, SettingsService settings)
         var end = start.AddMonths(1);
 
         var totals = await db.Transactions
-            .Where(t => t.Date >= start && t.Date < end && t.CountsAsSpending)
+            .Where(t => t.Date >= start && t.Date < end && t.Type == TransactionType.Expense)
             .GroupBy(t => t.Category)
             .Select(g => new { Category = g.Key, Total = g.Sum(t => t.Amount) })
             .ToListAsync();

@@ -6,8 +6,8 @@ namespace LifeTracker.Api.Data;
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
     public DbSet<Transaction> Transactions => Set<Transaction>();
-    public DbSet<Debt> Debts => Set<Debt>();
-    public DbSet<DebtPayment> DebtPayments => Set<DebtPayment>();
+    public DbSet<Account> Accounts => Set<Account>();
+    public DbSet<AccountAlias> AccountAliases => Set<AccountAlias>();
 
 
     public DbSet<AppSettings> Settings => Set<AppSettings>();
@@ -19,15 +19,47 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(t => t.Amount).HasPrecision(18, 2);
             e.Property(t => t.Description).HasMaxLength(200);
             e.Property(t => t.Category).HasMaxLength(50);
+            e.Property(t => t.Type).HasConversion<string>().HasMaxLength(20); // stored as 'Expense', not 0
+
+            // Two foreign keys to the same table, so each one is configured explicitly.
+            // Restrict: an account can't be deleted while it still has transactions.
+            e.HasOne(t => t.Account)
+            .WithMany()
+            .HasForeignKey(t => t.AccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasOne(t => t.ToAccount)
+            .WithMany()
+            .HasForeignKey(t => t.ToAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+            // The database itself rejects a transfer without a destination, a destination on
+            // anything that isn't a transfer, and a transfer from an account to itself.
+            e.ToTable(t => t.HasCheckConstraint(
+                "CK_Transactions_TransferHasDestination",
+                """("Type" = 'Transfer') = ("ToAccountId" IS NOT NULL) AND ("ToAccountId" IS NULL OR "ToAccountId" <> "AccountId")"""));
         });
 
-        modelBuilder.Entity<Debt>(e =>
+        modelBuilder.Entity<Account>(e =>
         {
-            e.Property(d => d.Name).HasMaxLength(100);
-            e.Property(d => d.Balance).HasPrecision(18, 2);
-            e.Property(d => d.Apr).HasPrecision(5, 2);
-            e.Property(d => d.MinimumPayment).HasPrecision(18, 2);
-            e.Property(d => d.MonthlyPayment).HasPrecision(18, 2);
+            e.Property(a => a.Name).HasMaxLength(100);
+            e.Property(a => a.Type).HasConversion<string>().HasMaxLength(20);
+            e.Property(a => a.Balance).HasPrecision(18, 2);
+            e.Property(a => a.Apr).HasPrecision(5, 2);
+            e.Property(a => a.MinimumPayment).HasPrecision(18, 2);
+            e.Property(a => a.MonthlyPayment).HasPrecision(18, 2);
+            e.Property(a => a.CreditLimit).HasPrecision(18, 2);
+
+            e.HasMany(a => a.Aliases)
+            .WithOne()
+            .HasForeignKey(x => x.AccountId)
+            .OnDelete(DeleteBehavior.Cascade);   // delete an account, and its aliases go too
+        });
+
+        modelBuilder.Entity<AccountAlias>(e =>
+        {
+            e.Property(x => x.Alias).HasMaxLength(100);
+            e.HasIndex(x => x.Alias).IsUnique();
         });
 
         modelBuilder.Entity<AppSettings>(e =>
@@ -37,22 +69,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(s => s.MonthlyIncome).HasPrecision(18, 2);
             e.Property(s => s.MonthlyDebtBudget).HasPrecision(18, 2);
             e.Property(s => s.UpdatedAt).HasDefaultValueSql("now()");
+
+            e.HasOne<Account>()
+            .WithMany()
+            .HasForeignKey(s => s.DefaultAccountId)
+            .OnDelete(DeleteBehavior.SetNull);   // delete the default account, and there's just no default
         });
 
-        modelBuilder.Entity<DebtPayment>(e =>
-        {
-            e.Property(p => p.Amount).HasPrecision(18, 2);
-
-            e.HasOne(p => p.Debt)
-            .WithMany()
-            .HasForeignKey(p => p.DebtId)
-            .OnDelete(DeleteBehavior.Cascade);   // delete a debt, and its payment history goes too
-
-            e.HasOne(p => p.Transaction)
-            .WithMany()
-            .HasForeignKey(p => p.TransactionId)
-            .OnDelete(DeleteBehavior.SetNull);   // delete the transaction, and the payment stays
-        });
-        
     }
 }

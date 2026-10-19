@@ -8,6 +8,8 @@ using Scalar.AspNetCore;
 using LifeTracker.Api.Features.Settings;
 using LifeTracker.Api.Security;
 using LifeTracker.Api.Features.Capture;
+using LifeTracker.Api.Features.Accounts;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +19,11 @@ builder.Services.Configure<BudgetOptions>(builder.Configuration.GetSection("Budg
 
 builder.Services.AddScoped<SummaryService>();
 builder.Services.AddScoped<SettingsService>();
+builder.Services.AddScoped<LedgerService>();
+
+// Enums go over JSON as names ("CreditCard"), not numbers.
+builder.Services.ConfigureHttpJsonOptions(o =>
+    o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
