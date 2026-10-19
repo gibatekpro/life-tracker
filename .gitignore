@@ -430,3 +430,6 @@ api/appsettings.Development.json
 
 *.DS_Store
 .DS_Store
+
+# Database backups (personal financial data)
+backup-*.sql
