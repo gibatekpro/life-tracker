@@ -7,7 +7,9 @@ import DebtsCard from './components/DebtsCard';
 import AvalancheCard from './components/AvalancheCard';
 import SettingsCard from './components/SettingsCard';
 
-const categories = ['Food', 'Transport', 'Bills', 'Rent', 'Shopping', 'Entertainment', 'Other'];
+
+const categories = ['Food', 'Transport', 'Bills', 'Rent', 'Shopping', 'Entertainment', 'Debt', 'Transfer', 'Other'];
+
 const today = () => new Date().toLocaleDateString('en-CA');
 
 export default function App() {
@@ -68,8 +70,6 @@ export default function App() {
       setError((err as Error).message);
     }
   }
-
-  const categories = ['Food', 'Transport', 'Bills', 'Rent', 'Shopping', 'Entertainment', 'Debt', 'Transfer', 'Other'];
 
   return (
     <main style={{ maxWidth: 640, margin: '2rem auto', fontFamily: 'system-ui', padding: '0 16px' }}>
