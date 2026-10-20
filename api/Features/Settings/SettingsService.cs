@@ -5,7 +5,13 @@ using Microsoft.Extensions.Options;
 
 namespace LifeTracker.Api.Features.Settings;
 
-public class SettingsService(AppDbContext db, IOptions<BudgetOptions> defaults)
+// My personal numbers: take-home pay, the fixed monthly debt budget, and the default account
+// for Apple Pay. They live in the database (not appsettings.json) so I can change them from
+// the dashboard without restarting anything.
+//
+// There's only ever one row (Id 1). Anything that needs a setting asks this service,
+// so there's one place that knows how to load, create and save it.
+public class SettingsService(AppDbContext db, IOptions<BudgetOptions> defaults, ILogger<SettingsService> logger)
 {
     private const int SingletonId = 1;
 
@@ -23,6 +29,9 @@ public class SettingsService(AppDbContext db, IOptions<BudgetOptions> defaults)
         };
         db.Settings.Add(settings);
         await db.SaveChangesAsync();
+
+        logger.LogInformation("No settings yet, so created them from configuration (income £{Income}, debt budget £{Budget})",
+            settings.MonthlyIncome, settings.MonthlyDebtBudget);
         return settings;
     }
 
@@ -33,15 +42,21 @@ public class SettingsService(AppDbContext db, IOptions<BudgetOptions> defaults)
         settings.MonthlyDebtBudget = monthlyDebtBudget;
         settings.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
+
+        logger.LogInformation("Saved settings: income £{Income}, debt budget £{Budget}", monthlyIncome, monthlyDebtBudget);
         return settings;
     }
 
+    // Where Apple Pay captures go when the card name doesn't match any account. Null means no fallback.
     public async Task<AppSettings> SetDefaultAccountAsync(int? accountId)
     {
         var settings = await GetAsync();
+        var previous = settings.DefaultAccountId;
         settings.DefaultAccountId = accountId;
         settings.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
+
+        logger.LogInformation("Default capture account changed from {Previous} to {AccountId}", previous, accountId);
         return settings;
     }
 }

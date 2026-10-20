@@ -41,3 +41,6 @@ A personal life-tracking app: spending, debt payoff, habits and personal growth.
 - Explain what you're doing and why. Prefer guiding me and reviewing my code over writing everything yourself.
 - When you introduce a new library, pattern or tool, explain it briefly before using it.
 - Keep commits small and focused.
+
+   ## Future plans
+   - Long-term roadmap: docs/ROADMAP.md. Reference only — don't act on it unless I ask.

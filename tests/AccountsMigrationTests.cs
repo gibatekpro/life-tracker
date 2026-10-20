@@ -4,6 +4,7 @@ using LifeTracker.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using Testcontainers.PostgreSql;
 
@@ -182,7 +183,7 @@ public class AccountsMigrationTests(PostgresFixture pg) : IClassFixture<Postgres
         await using var db = Context(cs);
         var lloyds = await db.Accounts.SingleAsync(a => a.Name == "Lloyds Current");
 
-        var result = await new LedgerService(db).RecordAsync(new LedgerEntry(
+        var result = await new LedgerService(db, NullLogger<LedgerService>.Instance).RecordAsync(new LedgerEntry(
             30m, "Payment to Card A", "Debt", new DateOnly(2026, 10, 6),
             TransactionType.Transfer, lloyds.Id, debtIds["Card A"]));
 
