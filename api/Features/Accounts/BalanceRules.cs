@@ -27,9 +27,13 @@ public static class BalanceRules
 
     // Expense: money leaves the account. Income: money arrives (on a card that's a refund).
     // Transfer: money leaves one account and arrives in the other.
-    // To undo a transaction, call this with -amount.
+    //
+    // toAmount is for a transfer between currencies: £10 leaves Lloyds but ₦18,000 arrives in
+    // PalmPay, so each side moves by its own amount. Same currency, it's left out and both sides move by amount.
+    // To undo a transaction, call this with -amount (and -toAmount).
     public static IReadOnlyList<BalanceChange> For(
-        TransactionType type, decimal amount, AccountRef account, AccountRef? toAccount = null) =>
+        TransactionType type, decimal amount, AccountRef account, AccountRef? toAccount = null,
+        decimal? toAmount = null) =>
         type switch
         {
             TransactionType.Expense => [new(account.Id, MoneyOut(account.Type, amount))],
@@ -37,7 +41,7 @@ public static class BalanceRules
             TransactionType.Transfer when toAccount is not null =>
             [
                 new(account.Id, MoneyOut(account.Type, amount)),
-                new(toAccount.Id, MoneyIn(toAccount.Type, amount))
+                new(toAccount.Id, MoneyIn(toAccount.Type, toAmount ?? amount))
             ],
             TransactionType.Transfer =>
                 throw new ArgumentException("A transfer needs a destination account.", nameof(toAccount)),

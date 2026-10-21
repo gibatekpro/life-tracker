@@ -68,6 +68,40 @@ public class BalanceRulesTests
     }
 
     [Fact]
+    public void TransferBetweenCurrencies_MovesEachSideByItsOwnAmount()
+    {
+        var palmPay = new AccountRef(5, AccountType.Current);
+
+        // £10 leaves Lloyds, ₦18,000 arrives in PalmPay.
+        var changes = BalanceRules.For(TransactionType.Transfer, 10m, Lloyds, palmPay, toAmount: 18000m);
+
+        Assert.Equal([new BalanceChange(1, -10m), new BalanceChange(5, 18000m)], changes);
+    }
+
+    [Fact]
+    public void RepayingANairaLoanFromPounds_LowersTheOwedNaira()
+    {
+        var loanApp = new AccountRef(6, AccountType.Loan);
+
+        var changes = BalanceRules.For(TransactionType.Transfer, 20m, Lloyds, loanApp, toAmount: 36000m);
+
+        Assert.Equal([new BalanceChange(1, -20m), new BalanceChange(6, -36000m)], changes);
+    }
+
+    [Fact]
+    public void ReversingATransferBetweenCurrencies_LeavesBalancesUnchanged()
+    {
+        var palmPay = new AccountRef(5, AccountType.Current);
+        var balances = new Dictionary<int, decimal> { [1] = 500m, [5] = 2000m };
+
+        foreach (var c in BalanceRules.For(TransactionType.Transfer, 10m, Lloyds, palmPay, 18000m)) balances[c.AccountId] += c.Delta;
+        foreach (var c in BalanceRules.For(TransactionType.Transfer, -10m, Lloyds, palmPay, -18000m)) balances[c.AccountId] += c.Delta;
+
+        Assert.Equal(500m, balances[1]);
+        Assert.Equal(2000m, balances[5]);
+    }
+
+    [Fact]
     public void TransferWithoutDestination_Throws()
     {
         Assert.Throws<ArgumentException>(() => BalanceRules.For(TransactionType.Transfer, 30m, Lloyds));
