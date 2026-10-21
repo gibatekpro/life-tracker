@@ -22,6 +22,27 @@ export interface Account {
   aliases: AccountAlias[];
 }
 
+// What the API takes to create or replace an account.
+export interface SaveAccount {
+  name: string;
+  type: AccountType;
+  currency: string;
+  balance: number;
+  apr: number;
+  minimumPayment: number;
+  monthlyPayment: number;
+  creditLimit: number | null;
+}
+
+// A repayment into a card or loan; amount is what the debt received, in its currency.
+export interface AccountPayment {
+  id: number;
+  amount: number;
+  date: string;
+  fromAccountId: number;
+  fromAccountName: string;
+}
+
 export interface Transaction {
   id: number;
   amount: number; // in the account's currency
@@ -50,6 +71,15 @@ export interface CreateTransaction {
   toAccountId?: number | null;
   toAmount?: number | null; // required for a transfer between currencies
   gbpAmount?: number | null; // optional £ value for something not in pounds
+}
+
+// Moving a transaction to the right account or type.
+export interface CorrectTransaction {
+  accountId: number;
+  type: TransactionType;
+  toAccountId?: number | null;
+  toAmount?: number | null;
+  gbpAmount?: number | null;
 }
 
 export interface CategoryTotal {
@@ -88,6 +118,13 @@ export interface DebtsOverview {
   currenciesWithoutRate: string[]; // debts in these aren't in the £ totals yet
 }
 
+export interface WhatIfComparison {
+  current: PayoffProjection;
+  whatIf: PayoffProjection;
+  monthsSaved: number;
+  interestSaved: number;
+}
+
 export interface PlannedPayoff {
   id: number;
   name: string;
@@ -109,5 +146,6 @@ export interface Settings {
   id: number;
   monthlyIncome: number;
   monthlyDebtBudget: number | null;
+  defaultAccountId: number | null;
   updatedAt: string;
 }

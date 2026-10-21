@@ -1,7 +1,7 @@
 import type { Account, DebtsOverview } from '../types';
 import { useState } from 'react';
 import { createTransaction } from '../api';
-import { formatMoney } from '../money';
+import { formatMoney } from '../lib/format';
 
 const monthYear = (d: string | null) =>
     d ? new Date(d).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : '—';

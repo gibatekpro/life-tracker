@@ -6,7 +6,7 @@ import SummaryCard from './components/SummaryCard';
 import AccountsCard from './components/AccountsCard';
 import AvalancheCard from './components/AvalancheCard';
 import SettingsCard from './components/SettingsCard';
-import { formatMoney } from './money';
+import { formatMoney } from './lib/format';
 
 
 const categories = ['Food', 'Transport', 'Bills', 'Rent', 'Shopping', 'Entertainment', 'Debt', 'Transfer', 'Other'];
