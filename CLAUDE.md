@@ -27,6 +27,14 @@ A personal life-tracking app: spending, debt payoff, habits and personal growth.
 - **Apple Pay capture** (`/capture/apple-pay`) – resolves the account from the card name by alias, then account name, then `Settings.DefaultAccountId`, and records an Expense.
 - Enums are stored as strings in Postgres and sent as strings in JSON.
 
+## Web app (web/)
+- **Tooling** – Tailwind CSS v4 (Vite plugin), React Router 8 (lazy routes per page), Recharts for charts.
+- **Design tokens** – every colour lives in `src/index.css` (`@theme static`: `canvas`, `surface`, `ink`, `muted`, `accent`, `positive`, `negative`, `warning`, `chart-1..6`). Dark mode only swaps token values, so components never use `dark:` classes. Charts read tokens through `useTokens()`.
+- **Structure** – `components/ui` (Button, Card, Field/MoneyInput/Select, Modal on native `<dialog>`, Badge, Money, Stat, …), `components/layout` (AppLayout: sidebar on desktop, bottom tabs on phones), `features/<area>` for pages (overview, transactions, accounts, plan, settings), `lib/format.ts` for money and dates.
+- **Data** – `api.ts` calls every endpoint and turns API errors into `Error` messages. Pages load with `useData(key, load)`; after any save, call `refresh()` (`data/refresh.ts`) and every `useData` on screen reloads.
+- **One transaction form** – opened from anywhere with `useQuickAdd()(draft?)`; "Pay" on a debt opens it as a prefilled transfer.
+- **Tailwind gotcha** – two classes for the same property (e.g. `p-4` and `p-0`) don't override by order in the markup; add an option to the component (like Card's `flush`) instead.
+
 ## Database migrations
 - `AccountsAndTransfers` converted the old Debts/DebtPayments/spending-flags model; it is hand-written SQL and has no `Down()` (restore a backup instead).
 - EF scaffolds a renamed entity as drop + create: always read a generated migration before applying it.
