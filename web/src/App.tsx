@@ -6,6 +6,7 @@ import SummaryCard from './components/SummaryCard';
 import AccountsCard from './components/AccountsCard';
 import AvalancheCard from './components/AvalancheCard';
 import SettingsCard from './components/SettingsCard';
+import { formatMoney } from './money';
 
 
 const categories = ['Food', 'Transport', 'Bills', 'Rent', 'Shopping', 'Entertainment', 'Debt', 'Transfer', 'Other'];
@@ -22,6 +23,8 @@ export default function App() {
   const [type, setType] = useState<TransactionType>('Expense');
   const [accountId, setAccountId] = useState<number | null>(null);
   const [toAccountId, setToAccountId] = useState<number | null>(null);
+  const [toAmount, setToAmount] = useState('');
+  const [gbpAmount, setGbpAmount] = useState('');
   const [date, setDate] = useState(today());
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<MonthlySummary | null>(null);
@@ -44,6 +47,14 @@ export default function App() {
   const isTransfer = type === 'Transfer';
   const toOptions = accounts.filter((a) => a.id !== accountId);
 
+  const fromCurrency = accounts.find((a) => a.id === accountId)?.currency ?? 'GBP';
+  const toCurrency = isTransfer ? accounts.find((a) => a.id === toAccountId)?.currency : undefined;
+  // £10 out of Lloyds, ₦18,000 into PalmPay: between currencies I enter both amounts.
+  const crossesCurrencies = toCurrency !== undefined && toCurrency !== fromCurrency;
+  // Anything not in pounds gets a £ value for the summary. It's worked out from my latest
+  // transfer rate unless I type one; a transfer into pounds already has an exact one.
+  const asksForPounds = fromCurrency !== 'GBP' && toCurrency !== 'GBP';
+
   async function handleSubmit(e: SubmitEvent<HTMLFormElement>) {
     e.preventDefault();
     if (accountId === null) return;
@@ -57,10 +68,14 @@ export default function App() {
         type,
         accountId,
         toAccountId: isTransfer ? toAccountId : null,
+        toAmount: crossesCurrencies ? Number(toAmount) : null,
+        gbpAmount: asksForPounds && gbpAmount !== '' ? Number(gbpAmount) : null,
       });
       await refreshAll(); // balances changed too, not just the list
       setAmount('');
       setDescription('');
+      setToAmount('');
+      setGbpAmount('');
     } catch (err) {
       setError((err as Error).message);
     }
@@ -88,7 +103,7 @@ export default function App() {
         <select value={type} onChange={(e) => setType(e.target.value as TransactionType)}>
           {types.map((t) => <option key={t}>{t}</option>)}
         </select>
-        <input type="number" step="0.01" placeholder="Amount (£)" value={amount}
+        <input type="number" step="0.01" placeholder={`Amount (${fromCurrency})`} value={amount}
           onChange={(e) => setAmount(e.target.value)} required />
         <input placeholder="Description" value={description}
           onChange={(e) => setDescription(e.target.value)} required />
@@ -116,6 +131,14 @@ export default function App() {
             </select>
           </label>
         )}
+        {crossesCurrencies && (
+          <input type="number" step="0.01" placeholder={`Received (${toCurrency})`} value={toAmount}
+            onChange={(e) => setToAmount(e.target.value)} required />
+        )}
+        {asksForPounds && (
+          <input type="number" step="0.01" placeholder="£ value (optional, else from latest transfer rate)"
+            value={gbpAmount} onChange={(e) => setGbpAmount(e.target.value)} />
+        )}
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
         <button type="submit" disabled={accountId === null}>Add transaction</button>
       </form>
@@ -136,7 +159,9 @@ export default function App() {
                 {t.type === 'Transfer'
                   ? `${t.accountName} → ${t.toAccountName}`
                   : `${t.category} · ${t.accountName}`}
-                {' '}· {t.description} · {t.type === 'Income' ? '+' : ''}£{t.amount.toFixed(2)}
+                {' '}· {t.description} · {t.type === 'Income' ? '+' : ''}{formatMoney(t.amount, t.currency)}
+                {t.toAmount !== null && t.toCurrency && ` → ${formatMoney(t.toAmount, t.toCurrency)}`}
+                {t.currency !== 'GBP' && t.toCurrency !== 'GBP' && ` (≈ ${formatMoney(t.gbpAmount)})`}
               </li>
             ))}
           </ul>

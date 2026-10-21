@@ -11,6 +11,7 @@ export interface Account {
   id: number;
   name: string;
   type: AccountType;
+  currency: string; // e.g. 'GBP', 'NGN'; balance and payments are in this currency
   balance: number; // Current: money held. CreditCard/Loan: amount owed.
   apr: number;
   minimumPayment: number;
@@ -23,7 +24,9 @@ export interface Account {
 
 export interface Transaction {
   id: number;
-  amount: number;
+  amount: number; // in the account's currency
+  currency: string;
+  gbpAmount: number; // the amount in pounds, as counted in the summary
   description: string;
   category: string;
   date: string;
@@ -32,6 +35,8 @@ export interface Transaction {
   accountName: string;
   toAccountId: number | null;
   toAccountName: string | null;
+  toAmount: number | null; // a transfer between currencies: what arrived
+  toCurrency: string | null;
   createdAt: string;
 }
 
@@ -43,6 +48,8 @@ export interface CreateTransaction {
   type: TransactionType;
   accountId: number;
   toAccountId?: number | null;
+  toAmount?: number | null; // required for a transfer between currencies
+  gbpAmount?: number | null; // optional £ value for something not in pounds
 }
 
 export interface CategoryTotal {
@@ -78,6 +85,7 @@ export interface DebtsOverview {
   totalInterest: number;
   debtFreeDate: string | null;
   debts: DebtWithProjection[];
+  currenciesWithoutRate: string[]; // debts in these aren't in the £ totals yet
 }
 
 export interface PlannedPayoff {
