@@ -86,6 +86,7 @@ public class AccountsMigrationTests(PostgresFixture pg) : IClassFixture<Postgres
         var cardA = await db.Accounts.SingleAsync(a => a.Id == debtIds["Card A"]);
         Assert.Equal("Card A", cardA.Name);
         Assert.Equal(AccountType.CreditCard, cardA.Type);
+        Assert.Equal("GBP", cardA.Currency);
         Assert.Equal(1000.00m, cardA.Balance);   // not recalculated from the payments
         Assert.Equal(24.9m, cardA.Apr);
         Assert.Equal(100m, cardA.MonthlyPayment);
@@ -121,6 +122,8 @@ public class AccountsMigrationTests(PostgresFixture pg) : IClassFixture<Postgres
         var all = await db.Transactions.OrderBy(t => t.Date).ToListAsync();
         Assert.Equal(4, all.Count);
         Assert.All(all, t => Assert.Equal(lloydsId, t.AccountId));
+        Assert.All(all, t => Assert.Equal(t.Amount, t.GbpAmount));   // all in pounds so far
+        Assert.All(all, t => Assert.Null(t.ToAmount));
 
         // Both the counted and the excluded transaction become plain expenses.
         var expenses = all.Where(t => t.Type == TransactionType.Expense).ToList();
@@ -183,7 +186,7 @@ public class AccountsMigrationTests(PostgresFixture pg) : IClassFixture<Postgres
         await using var db = Context(cs);
         var lloyds = await db.Accounts.SingleAsync(a => a.Name == "Lloyds Current");
 
-        var result = await new LedgerService(db, NullLogger<LedgerService>.Instance).RecordAsync(new LedgerEntry(
+        var result = await new LedgerService(db, new ExchangeRateService(db), NullLogger<LedgerService>.Instance).RecordAsync(new LedgerEntry(
             30m, "Payment to Card A", "Debt", new DateOnly(2026, 10, 6),
             TransactionType.Transfer, lloyds.Id, debtIds["Card A"]));
 

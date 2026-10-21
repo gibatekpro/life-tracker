@@ -39,10 +39,11 @@ public class SummaryService(AppDbContext db, SettingsService settings, ILogger<S
         // Only Expenses are spending. A card repayment is a Transfer between my own accounts,
         // so it's left out here; otherwise every card purchase would be counted twice
         // (once when I bought it, once when I paid the card off).
+        // GbpAmount, not Amount: a ₦5,000 purchase counts as its £ value, not as £5,000.
         var totals = await db.Transactions
             .Where(t => t.Date >= start && t.Date < end && t.Type == TransactionType.Expense)
             .GroupBy(t => t.Category)
-            .Select(g => new { Category = g.Key, Total = g.Sum(t => t.Amount) })
+            .Select(g => new { Category = g.Key, Total = g.Sum(t => t.GbpAmount) })
             .ToListAsync();
 
         var byCategory = totals

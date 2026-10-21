@@ -45,6 +45,11 @@ namespace LifeTracker.Api.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
                     b.Property<decimal>("MinimumPayment")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
@@ -153,8 +158,16 @@ namespace LifeTracker.Api.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<decimal>("GbpAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
                     b.Property<int?>("ToAccountId")
                         .HasColumnType("integer");
+
+                    b.Property<decimal?>("ToAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
 
                     b.Property<string>("Type")
                         .IsRequired()
@@ -169,6 +182,8 @@ namespace LifeTracker.Api.Migrations
 
                     b.ToTable("Transactions", t =>
                         {
+                            t.HasCheckConstraint("CK_Transactions_ToAmountOnlyOnTransfers", "\"ToAmount\" IS NULL OR (\"Type\" = 'Transfer' AND \"ToAmount\" > 0)");
+
                             t.HasCheckConstraint("CK_Transactions_TransferHasDestination", "(\"Type\" = 'Transfer') = (\"ToAccountId\" IS NOT NULL) AND (\"ToAccountId\" IS NULL OR \"ToAccountId\" <> \"AccountId\")");
                         });
                 });

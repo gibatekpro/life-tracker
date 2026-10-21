@@ -5,14 +5,17 @@ using Microsoft.EntityFrameworkCore;
 namespace LifeTracker.Api.Features.Accounts;
 
 // The same shape is used to create and to update an account. Cards and loans fill in the
-// APR and payments; a current account can leave them at zero.
+// APR and payments; a current account can leave them at zero. Currency defaults to pounds;
+// a Nigerian account or loan app is "NGN", and its balance and payments are then in naira.
 public record SaveAccountRequest(
     string Name, AccountType Type, decimal Balance,
-    decimal Apr = 0, decimal MinimumPayment = 0, decimal MonthlyPayment = 0, decimal? CreditLimit = null);
+    decimal Apr = 0, decimal MinimumPayment = 0, decimal MonthlyPayment = 0, decimal? CreditLimit = null,
+    string Currency = Currencies.Home);
 
 public record AddAliasRequest(string Alias);
 
 // One repayment into a card or loan, and which account the money came from.
+// Amount is what the debt received, in the debt's currency.
 public record AccountPaymentDto(int Id, decimal Amount, DateOnly Date, int FromAccountId, string FromAccountName);
 
 // Everything about the accounts themselves: the bank accounts that hold my money, and the
@@ -57,8 +60,8 @@ public static class AccountEndpoints
             db.Accounts.Add(account);
             await db.SaveChangesAsync();
 
-            logger.LogInformation("Created {Type} account {AccountId} ({Name}) with balance £{Balance}",
-                account.Type, account.Id, account.Name, account.Balance);
+            logger.LogInformation("Created {Type} account {AccountId} ({Name}) with balance {Balance} {Currency}",
+                account.Type, account.Id, account.Name, account.Balance, account.Currency);
             return Results.Created($"/accounts/{account.Id}", account);
         });
 
@@ -75,21 +78,23 @@ public static class AccountEndpoints
                 return Results.BadRequest(new { error });
             }
 
-            // A current account's balance means "money held" and a card's means "money owed".
-            // Flipping the type after transactions have moved the balance would make that history wrong.
-            if (req.Type != account.Type && await HasTransactionsAsync(db, id))
+            // A current account's balance means "money held" and a card's means "money owed", and
+            // every amount on an account is in its currency. Changing either after transactions have
+            // moved the balance would make that history wrong.
+            var changesMeaning = req.Type != account.Type || Currencies.Normalise(req.Currency) != account.Currency;
+            if (changesMeaning && await HasTransactionsAsync(db, id))
             {
-                logger.LogWarning("Rejected changing account {AccountId} from {OldType} to {NewType}: it has transactions",
-                    id, account.Type, req.Type);
-                return Results.Conflict(new { error = "An account's type can't change once it has transactions." });
+                logger.LogWarning("Rejected changing account {AccountId} from {OldType} {OldCurrency} to {NewType} {NewCurrency}: it has transactions",
+                    id, account.Type, account.Currency, req.Type, req.Currency);
+                return Results.Conflict(new { error = "An account's type and currency can't change once it has transactions." });
             }
 
             var oldBalance = account.Balance;
             Copy(req, account);
             await db.SaveChangesAsync();
 
-            logger.LogInformation("Updated account {AccountId} ({Name}); balance £{OldBalance} -> £{NewBalance}",
-                id, account.Name, oldBalance, account.Balance);
+            logger.LogInformation("Updated account {AccountId} ({Name}); balance {OldBalance} -> {NewBalance} {Currency}",
+                id, account.Name, oldBalance, account.Balance, account.Currency);
             return Results.NoContent();
         });
 
@@ -163,7 +168,7 @@ public static class AccountEndpoints
                 .Where(t => t.Type == TransactionType.Transfer && t.ToAccountId == id)
                 .OrderByDescending(t => t.Date)
                 .ThenByDescending(t => t.Id)
-                .Select(t => new AccountPaymentDto(t.Id, t.Amount, t.Date, t.AccountId, t.Account.Name))
+                .Select(t => new AccountPaymentDto(t.Id, t.ToAmount ?? t.Amount, t.Date, t.AccountId, t.Account.Name))
                 .ToListAsync());
 
         return group;
@@ -188,6 +193,8 @@ public static class AccountEndpoints
 
         if (req.CreditLimit is not null && (req.Type != AccountType.CreditCard || req.CreditLimit < 0))
             return "Only a credit card has a credit limit, and it can't be negative.";
+        if (Currencies.Normalise(req.Currency) is null)
+            return "Currency must be a three-letter code, like GBP or NGN.";
         return null;
     }
 
@@ -200,6 +207,7 @@ public static class AccountEndpoints
         account.MinimumPayment = req.MinimumPayment;
         account.MonthlyPayment = req.MonthlyPayment;
         account.CreditLimit = req.CreditLimit;
+        account.Currency = Currencies.Normalise(req.Currency)!;   // Validate has already checked it
     }
 
     // Has any transaction ever touched this account, as the source or as the destination?

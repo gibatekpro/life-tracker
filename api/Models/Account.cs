@@ -5,6 +5,7 @@ public class Account
     public int Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public AccountType Type { get; set; }
+    public string Currency { get; set; } = "GBP"; // e.g. GBP, NGN. Balance, payments and limit are all in this currency
     public decimal Balance { get; set; }          // Current: money held. CreditCard/Loan: amount owed.
     public decimal Apr { get; set; }              // e.g. 24.9 for 24.9%
     public decimal MinimumPayment { get; set; }

@@ -17,6 +17,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<Transaction>(e =>
         {
             e.Property(t => t.Amount).HasPrecision(18, 2);
+            e.Property(t => t.GbpAmount).HasPrecision(18, 2);
+            e.Property(t => t.ToAmount).HasPrecision(18, 2);
             e.Property(t => t.Description).HasMaxLength(200);
             e.Property(t => t.Category).HasMaxLength(50);
             e.Property(t => t.Type).HasConversion<string>().HasMaxLength(20); // stored as 'Expense', not 0
@@ -33,17 +35,26 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasForeignKey(t => t.ToAccountId)
             .OnDelete(DeleteBehavior.Restrict);
 
-            // The database itself rejects a transfer without a destination, a destination on
-            // anything that isn't a transfer, and a transfer from an account to itself.
-            e.ToTable(t => t.HasCheckConstraint(
-                "CK_Transactions_TransferHasDestination",
-                """("Type" = 'Transfer') = ("ToAccountId" IS NOT NULL) AND ("ToAccountId" IS NULL OR "ToAccountId" <> "AccountId")"""));
+            e.ToTable(t =>
+            {
+                // The database itself rejects a transfer without a destination, a destination on
+                // anything that isn't a transfer, and a transfer from an account to itself.
+                t.HasCheckConstraint(
+                    "CK_Transactions_TransferHasDestination",
+                    """("Type" = 'Transfer') = ("ToAccountId" IS NOT NULL) AND ("ToAccountId" IS NULL OR "ToAccountId" <> "AccountId")""");
+
+                // A received amount only makes sense on a transfer (between currencies), and must be positive.
+                t.HasCheckConstraint(
+                    "CK_Transactions_ToAmountOnlyOnTransfers",
+                    "\"ToAmount\" IS NULL OR (\"Type\" = 'Transfer' AND \"ToAmount\" > 0)");
+            });
         });
 
         modelBuilder.Entity<Account>(e =>
         {
             e.Property(a => a.Name).HasMaxLength(100);
             e.Property(a => a.Type).HasConversion<string>().HasMaxLength(20);
+            e.Property(a => a.Currency).HasMaxLength(3);
             e.Property(a => a.Balance).HasPrecision(18, 2);
             e.Property(a => a.Apr).HasPrecision(5, 2);
             e.Property(a => a.MinimumPayment).HasPrecision(18, 2);

@@ -7,23 +7,32 @@ namespace LifeTracker.Api.Features.Transactions;
 
 // A new transaction from the dashboard form. Type defaults to Expense because that's what
 // I'm logging most of the time; ToAccountId is only for transfers.
+// ToAmount is what arrived on a transfer between currencies (£10 sent, ₦18,000 received).
+// GbpAmount is optional: my own £ value for a naira transaction, instead of the automatic one.
 public record CreateTransactionRequest(
     decimal Amount, string Description, string Category, DateOnly Date,
-    int AccountId, TransactionType Type = TransactionType.Expense, int? ToAccountId = null);
+    int AccountId, TransactionType Type = TransactionType.Expense, int? ToAccountId = null,
+    decimal? ToAmount = null, decimal? GbpAmount = null);
 
 // Moving an existing transaction to the right account or type.
-public record CorrectTransactionRequest(int AccountId, TransactionType Type, int? ToAccountId = null);
+public record CorrectTransactionRequest(
+    int AccountId, TransactionType Type, int? ToAccountId = null,
+    decimal? ToAmount = null, decimal? GbpAmount = null);
 
-// What the API sends back for a transaction: the entity's fields plus the account names,
-// so the dashboard can show "Lloyds Current -> Aqua" without looking the accounts up itself.
+// What the API sends back for a transaction: the entity's fields plus the account names and
+// currencies, so the dashboard can show "Lloyds Current -> PalmPay, £10.00 -> ₦18,000.00"
+// without looking the accounts up itself.
 public record TransactionDto(
-    int Id, decimal Amount, string Description, string Category, DateOnly Date, TransactionType Type,
-    int AccountId, string AccountName, int? ToAccountId, string? ToAccountName, DateTime CreatedAt)
+    int Id, decimal Amount, string Currency, decimal GbpAmount, string Description, string Category,
+    DateOnly Date, TransactionType Type,
+    int AccountId, string AccountName, int? ToAccountId, string? ToAccountName,
+    decimal? ToAmount, string? ToCurrency, DateTime CreatedAt)
 {
     // For a transaction whose Account (and ToAccount) are loaded.
     public static TransactionDto From(Transaction t) => new(
-        t.Id, t.Amount, t.Description, t.Category, t.Date, t.Type,
-        t.AccountId, t.Account.Name, t.ToAccountId, t.ToAccount?.Name, t.CreatedAt);
+        t.Id, t.Amount, t.Account.Currency, t.GbpAmount, t.Description, t.Category, t.Date, t.Type,
+        t.AccountId, t.Account.Name, t.ToAccountId, t.ToAccount?.Name,
+        t.ToAmount, t.ToAccount?.Currency, t.CreatedAt);
 }
 
 // Every movement of money: what I spend, what comes in, and what I move between my own
@@ -60,7 +69,8 @@ public static class TransactionEndpoints
         group.MapPost("/", async (CreateTransactionRequest req, LedgerService ledger) =>
         {
             var result = await ledger.RecordAsync(new LedgerEntry(
-                req.Amount, req.Description, req.Category, req.Date, req.Type, req.AccountId, req.ToAccountId));
+                req.Amount, req.Description, req.Category, req.Date, req.Type, req.AccountId, req.ToAccountId,
+                req.ToAmount, req.GbpAmount));
 
             return result.Transaction is { } t
                 ? Results.Created($"/transactions/{t.Id}", TransactionDto.From(t))
@@ -71,7 +81,7 @@ public static class TransactionEndpoints
         // The balances move with it, so both accounts end up right.
         group.MapPatch("/{id:int}", async (int id, CorrectTransactionRequest req, LedgerService ledger) =>
         {
-            var result = await ledger.CorrectAsync(id, req.Type, req.AccountId, req.ToAccountId);
+            var result = await ledger.CorrectAsync(id, req.Type, req.AccountId, req.ToAccountId, req.ToAmount, req.GbpAmount);
 
             if (result is null)
             {

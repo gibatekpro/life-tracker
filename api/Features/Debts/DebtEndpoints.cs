@@ -3,6 +3,7 @@ using LifeTracker.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using LifeTracker.Api.Features.Settings;
 using LifeTracker.Api.Common;
+using LifeTracker.Api.Features.Accounts;
 namespace LifeTracker.Api.Features.Debts;
 
 // A debt (a card or loan account) and when it'll be paid off at its current monthly payment.
@@ -19,12 +20,16 @@ public record WhatIfComparison(
     decimal InterestSaved);
 
 // The big picture for the dashboard: how much I owe in total, what I'm paying, and when I'm debt-free.
+// The totals are in pounds. Each debt (and its projection) stays in its own currency.
+// CurrenciesWithoutRate: debts in these currencies aren't in the totals yet, because I haven't
+// made a transfer between pounds and that currency to take a rate from.
 public record DebtsOverview(
     decimal TotalBalance,
     decimal TotalMonthlyPayment,
     decimal TotalInterest,
     DateOnly? DebtFreeDate,
-    IReadOnlyList<DebtWithProjection> Debts);
+    IReadOnlyList<DebtWithProjection> Debts,
+    IReadOnlyList<string> CurrenciesWithoutRate);
 
 // The "getting out of debt" side of the app. Nothing here changes data: it reads the card and
 // loan accounts and answers questions about them (when will it be paid off, what if I paid
@@ -44,7 +49,7 @@ public static class DebtEndpoints
             .CreateLogger("LifeTracker.Api.Features.Debts");
 
         // Every debt with its own payoff date, highest interest first, since those cost the most.
-        group.MapGet("/", async (AppDbContext db) =>
+        group.MapGet("/", async (AppDbContext db, ExchangeRateService rates) =>
         {
             var today = UkDate.Today();
             var debts = await db.Debts()
@@ -65,15 +70,28 @@ public static class DebtEndpoints
             // There's only a debt-free date if every single debt can be cleared.
             var allPayable = items.All(i => i.Projection.CanBePaidOff);
 
+            // Add the debts up in pounds, converting naira loans at my latest transfer rate.
+            var poundRates = await RatesAsync(debts.Select(d => d.Currency), rates);
+            var missing = poundRates.Where(r => r.Value is null).Select(r => r.Key).ToList();
+            foreach (var currency in missing)
+                logger.LogWarning("{Currency} debts are left out of the £ totals: no transfer between GBP and {Currency} yet",
+                    currency, currency);
+
+            var counted = items.Where(i => poundRates[i.Debt.Currency] is not null).ToList();
+            decimal Pounds(DebtWithProjection i, decimal amount) =>
+                Currencies.ToPounds(amount, poundRates[i.Debt.Currency]!.Value);
+
             return new DebtsOverview(
-            items.Sum(i => i.Debt.Balance),
-            items.Sum(i => i.Debt.MonthlyPayment),
-            items.Sum(i => i.Projection.TotalInterest),
+            counted.Sum(i => Pounds(i, i.Debt.Balance)),
+            counted.Sum(i => Pounds(i, i.Debt.MonthlyPayment)),
+            counted.Sum(i => Pounds(i, i.Projection.TotalInterest)),
             allPayable ? items.Max(i => i.Projection.PayoffDate) : null,
-            items);
+            items,
+            missing);
         });
 
         // For one debt: how much sooner (and cheaper) it'd be paid off at a different monthly payment.
+        // Everything here is in the debt's own currency.
         group.MapGet("/{id:int}/what-if", async (int id, decimal monthlyPayment, AppDbContext db) =>
         {
             var debt = await db.Debts().FirstOrDefaultAsync(d => d.Id == id);
@@ -94,13 +112,27 @@ public static class DebtEndpoints
 
         // The plan for all debts together, using the avalanche method (see AvalanchePlanner).
         // "extra" is the simulator on the dashboard: "what if I threw another £50 a month at this?"
-        group.MapGet("/avalanche", async (decimal? extra, AppDbContext db, SettingsService settings) =>
+        // The plan works in pounds (my budget is in pounds), so naira debts are converted first.
+        group.MapGet("/avalanche", async (decimal? extra, AppDbContext db, SettingsService settings, ExchangeRateService rates) =>
         {
             var today = UkDate.Today();
-            var debts = await db.Debts()
+            var accounts = await db.Debts()
                 .Where(d => d.Balance > 0)   // a cleared card has nothing left to plan
-                .Select(d => new PlannerDebt(d.Id, d.Name, d.Balance, d.Apr, d.MonthlyPayment))
                 .ToListAsync();
+
+            var poundRates = await RatesAsync(accounts.Select(a => a.Currency), rates);
+            var debts = new List<PlannerDebt>();
+            foreach (var a in accounts)
+            {
+                if (poundRates[a.Currency] is not { } rate)
+                {
+                    logger.LogWarning("{Name} is left out of the avalanche plan: no transfer between GBP and {Currency} yet",
+                        a.Name, a.Currency);
+                    continue;
+                }
+                debts.Add(new PlannerDebt(a.Id, a.Name,
+                    Currencies.ToPounds(a.Balance, rate), a.Apr, Currencies.ToPounds(a.MonthlyPayment, rate)));
+            }
             var s = await settings.GetAsync();
 
             var plan = AvalanchePlanner.Plan(debts, today, extra ?? 0, s.MonthlyDebtBudget);
@@ -115,5 +147,15 @@ public static class DebtEndpoints
         });
 
         return group;
+    }
+
+    // The latest rate for each currency (1 for pounds), or null where there's no transfer to take one from.
+    private static async Task<Dictionary<string, decimal?>> RatesAsync(
+        IEnumerable<string> currencies, ExchangeRateService rates)
+    {
+        var result = new Dictionary<string, decimal?>();
+        foreach (var currency in currencies.Distinct())
+            result[currency] = await rates.RatePerPoundAsync(currency);
+        return result;
     }
 }

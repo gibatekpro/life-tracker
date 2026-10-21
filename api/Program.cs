@@ -19,6 +19,7 @@ builder.Services.Configure<BudgetOptions>(builder.Configuration.GetSection("Budg
 
 builder.Services.AddScoped<SummaryService>();
 builder.Services.AddScoped<SettingsService>();
+builder.Services.AddScoped<ExchangeRateService>();
 builder.Services.AddScoped<LedgerService>();
 
 // Enums go over JSON as names ("CreditCard"), not numbers.
