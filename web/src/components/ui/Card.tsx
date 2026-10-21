@@ -13,7 +13,7 @@ export default function Card({ title, description, action, children, className, 
   return (
     <section className={cn('rounded-2xl border border-line bg-surface shadow-card', className)}>
       {(title || action) && (
-        <header className="flex items-start justify-between gap-4 px-5 pt-5">
+        <header className="flex items-start justify-between gap-4 px-4 pt-4 sm:px-5 sm:pt-5">
           <div className="min-w-0">
             {title && <h2 className="text-base font-semibold text-ink">{title}</h2>}
             {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
@@ -21,7 +21,7 @@ export default function Card({ title, description, action, children, className, 
           {action}
         </header>
       )}
-      <div className={cn(title || action ? 'p-5 pt-4' : 'p-5', bodyClassName)}>{children}</div>
+      <div className={cn('p-4 sm:p-5', Boolean(title || action) && 'pt-4 sm:pt-4', bodyClassName)}>{children}</div>
     </section>
   );
 }

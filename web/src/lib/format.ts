@@ -1,14 +1,17 @@
 // Formatting shared by every screen. Amounts always show in their own currency.
 
+// A proper minus sign (−), not a hyphen, so negative amounts line up with the "−£" we show for spending.
+const withMinus = (s: string) => s.replace('-', '−');
+
 // £10.00, ₦18,000.00. narrowSymbol shows "₦" rather than "NGN".
 export const formatMoney = (amount: number, currency = 'GBP') =>
-  amount.toLocaleString('en-GB', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' });
+  withMinus(amount.toLocaleString('en-GB', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' }));
 
-// Whole units for headline numbers: £2,548.
+// Whole units for chart axes: £2,548.
 export const formatMoneyShort = (amount: number, currency = 'GBP') =>
-  amount.toLocaleString('en-GB', {
+  withMinus(amount.toLocaleString('en-GB', {
     style: 'currency', currency, currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0,
-  });
+  }));
 
 // The API sends dates as "2026-10-21". Parsed as local dates, so they never shift by a day.
 const parseDate = (iso: string) => {

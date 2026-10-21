@@ -42,9 +42,9 @@ export function Stat({ label, value, sub, valueClassName }: {
 }) {
   return (
     <div className="min-w-0">
-      <p className="text-sm text-muted">{label}</p>
-      <p className={cn('mt-1 truncate text-2xl font-semibold tracking-tight tabular-nums', valueClassName)}>{value}</p>
-      {sub && <p className="mt-1 text-sm text-muted">{sub}</p>}
+      <p className="text-xs text-muted sm:text-sm">{label}</p>
+      <p className={cn('mt-1 truncate text-xl font-semibold tracking-tight tabular-nums sm:text-2xl', valueClassName)}>{value}</p>
+      {sub && <p className="mt-1 text-xs text-muted sm:text-sm">{sub}</p>}
     </div>
   );
 }
@@ -113,7 +113,7 @@ export function PageHeader({ title, description, actions }: {
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         {description && <p className="mt-1 text-sm text-muted">{description}</p>}
       </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap gap-2 empty:hidden">{actions}</div>}
     </div>
   );
 }
