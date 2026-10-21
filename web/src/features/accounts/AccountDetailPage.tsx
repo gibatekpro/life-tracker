@@ -21,11 +21,13 @@ import { isDebt, payDraft, typeIcon, typeLabel } from './accountLabels';
 // and payment history. Also its Apple Pay names, recent transactions, edit and delete.
 export default function AccountDetailPage() {
   const id = Number(useParams().id);
-  const account = useData(`account-${id}`, () => getAccount(id));
+  // Once deleted, stop loading it: the refresh after deleting would otherwise ask for it again.
+  const [deleted, setDeleted] = useState(false);
+  const account = useData(`account-${id}`, () => getAccount(id), !deleted);
   const accounts = useData('accounts', getAccounts);
   const debts = useData('debts', getDebts);
   const transactions = useData('transactions', getTransactions);
-  const payments = useData(`payments-${id}`, () => getAccountPayments(id));
+  const payments = useData(`payments-${id}`, () => getAccountPayments(id), !deleted);
   const openQuickAdd = useQuickAdd();
   const { refresh } = useRefresh();
   const navigate = useNavigate();
@@ -49,6 +51,7 @@ export default function AccountDetailPage() {
     setDeleteError(null);
     try {
       await deleteAccount(id);
+      setDeleted(true);
       refresh();
       navigate('/accounts');
     } catch (err) {

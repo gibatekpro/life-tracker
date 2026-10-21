@@ -9,6 +9,16 @@ import { Alert, EmptyState, PageHeader, ProgressBar, Skeleton, Stat } from '../.
 import TransactionRow from '../transactions/TransactionRow';
 import { useQuickAdd } from '../transactions/quickAdd';
 import type { Account } from '../../types';
+import SpendingTrendChart from './SpendingTrendChart';
+
+// The last six months' summaries, oldest first.
+function lastSixMonths() {
+  const now = new Date();
+  return Promise.all([5, 4, 3, 2, 1, 0].map((back) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - back);
+    return getMonthlySummary(d.getFullYear(), d.getMonth() + 1);
+  }));
+}
 
 // Money held, added up per currency: "£1,240.50 · ₦50,000.00".
 function heldByCurrency(accounts: Account[]) {
@@ -25,6 +35,7 @@ export default function OverviewPage() {
   const accounts = useData('accounts', getAccounts);
   const debts = useData('debts', getDebts);
   const transactions = useData('transactions', getTransactions);
+  const trend = useData('trend', lastSixMonths);
   const openQuickAdd = useQuickAdd();
 
   const s = summary.data;
@@ -83,28 +94,34 @@ export default function OverviewPage() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card title="Where the money went" description="Spending by category this month" className="lg:col-span-2">
-          {!s ? <Skeleton className="h-48" /> : s.byCategory.length === 0 ? (
-            <EmptyState icon="tag" title="No spending yet this month">Expenses you record show up here by category.</EmptyState>
-          ) : (
-            <ul className="grid gap-4">
-              {s.byCategory.map((c) => (
-                <li key={c.category}>
-                  <div className="mb-1.5 flex items-baseline justify-between gap-4 text-sm">
-                    <span className="font-medium">{c.category}</span>
-                    <span className="tabular-nums">
-                      {formatMoney(c.total)}
-                      <span className="ml-2 text-muted">{Math.round((c.total / s.totalSpent) * 100)}%</span>
-                    </span>
-                  </div>
-                  <ProgressBar label={`${c.category} share of spending`} value={c.total / s.byCategory[0].total} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+        <div className="grid content-start gap-6 lg:col-span-2">
+          <Card title="Spending trend" description="What you spent in each of the last six months">
+            {trend.data ? <SpendingTrendChart months={trend.data} /> : <Skeleton className="h-56" />}
+          </Card>
 
-        <Card title="Accounts" action={<Link to="/accounts" className="text-sm font-medium text-accent hover:underline">Manage</Link>}>
+          <Card title="Where the money went" description="Spending by category this month">
+            {!s ? <Skeleton className="h-48" /> : s.byCategory.length === 0 ? (
+              <EmptyState icon="tag" title="No spending yet this month">Expenses you record show up here by category.</EmptyState>
+            ) : (
+              <ul className="grid gap-4">
+                {s.byCategory.map((c) => (
+                  <li key={c.category}>
+                    <div className="mb-1.5 flex items-baseline justify-between gap-4 text-sm">
+                      <span className="font-medium">{c.category}</span>
+                      <span className="tabular-nums">
+                        {formatMoney(c.total)}
+                        <span className="ml-2 text-muted">{Math.round((c.total / s.totalSpent) * 100)}%</span>
+                      </span>
+                    </div>
+                    <ProgressBar label={`${c.category} share of spending`} value={c.total / s.byCategory[0].total} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        </div>
+
+        <Card title="Accounts" className="self-start" action={<Link to="/accounts" className="text-sm font-medium text-accent hover:underline">Manage</Link>}>
           {!accounts.data ? <Skeleton className="h-48" /> : (
             <ul className="divide-y divide-line">
               {accounts.data.map((a) => (

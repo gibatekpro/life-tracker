@@ -1,16 +1,15 @@
-import { StrictMode } from 'react';
+import { StrictMode, type ComponentType } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter } from 'react-router';
 import { RouterProvider } from 'react-router/dom';
 import './index.css';
 import RefreshProvider from './data/RefreshProvider';
 import AppLayout from './components/layout/AppLayout';
-import OverviewPage from './features/overview/OverviewPage';
-import TransactionsPage from './features/transactions/TransactionsPage';
-import AccountsPage from './features/accounts/AccountsPage';
-import AccountDetailPage from './features/accounts/AccountDetailPage';
-import DebtPlanPage from './features/plan/DebtPlanPage';
-import SettingsPage from './features/settings/SettingsPage';
+import RouteError from './components/layout/RouteError';
+
+// Loads a page's code the first time it's opened, so the charts library and other pages
+// aren't downloaded until they're needed.
+const page = (load: () => Promise<{ default: ComponentType }>) => async () => ({ Component: (await load()).default });
 
 // Each section of the app has its own URL, inside the shared layout.
 const router = createBrowserRouter([
@@ -18,12 +17,18 @@ const router = createBrowserRouter([
     path: '/',
     element: <AppLayout />,
     children: [
-      { index: true, element: <OverviewPage /> },
-      { path: 'transactions', element: <TransactionsPage /> },
-      { path: 'accounts', element: <AccountsPage /> },
-      { path: 'accounts/:id', element: <AccountDetailPage /> },
-      { path: 'plan', element: <DebtPlanPage /> },
-      { path: 'settings', element: <SettingsPage /> },
+      {
+        errorElement: <RouteError />,
+        children: [
+          { index: true, lazy: page(() => import('./features/overview/OverviewPage')) },
+          { path: 'transactions', lazy: page(() => import('./features/transactions/TransactionsPage')) },
+          { path: 'accounts', lazy: page(() => import('./features/accounts/AccountsPage')) },
+          { path: 'accounts/:id', lazy: page(() => import('./features/accounts/AccountDetailPage')) },
+          { path: 'plan', lazy: page(() => import('./features/plan/DebtPlanPage')) },
+          { path: 'settings', lazy: page(() => import('./features/settings/SettingsPage')) },
+          { path: '*', element: <RouteError notFound /> },
+        ],
+      },
     ],
   },
 ]);

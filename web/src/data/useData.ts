@@ -12,7 +12,8 @@ interface Loaded<T> {
 //
 // While it reloads, the previous data stays on screen and `loading` is true, so pages
 // don't flash empty. A response that arrives after the key has moved on is ignored.
-export function useData<T>(key: string, load: () => Promise<T>) {
+// enabled = false stops loading, e.g. for an account that has just been deleted.
+export function useData<T>(key: string, load: () => Promise<T>, enabled = true) {
   const { version } = useRefresh();
   const fullKey = `${key}#${version}`;
 
@@ -25,13 +26,14 @@ export function useData<T>(key: string, load: () => Promise<T>) {
   const [state, setState] = useState<Loaded<T> | null>(null);
 
   useEffect(() => {
+    if (!enabled) return;
     let current = true;
     loadRef.current().then(
       (data) => { if (current) setState({ key: fullKey, data }); },
       (e: Error) => { if (current) setState((s) => ({ key: fullKey, data: s?.data, error: e.message })); },
     );
     return () => { current = false; };
-  }, [fullKey]);
+  }, [fullKey, enabled]);
 
   return {
     data: state?.data,
