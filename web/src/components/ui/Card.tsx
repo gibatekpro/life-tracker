@@ -2,13 +2,15 @@ import type { ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 
 // The panel everything sits in. A title and an action (e.g. a "View all" link) are optional.
-export default function Card({ title, description, action, children, className, bodyClassName }: {
+// flush drops the body padding, for content that runs edge to edge (toolbars, lists).
+export default function Card({ title, description, action, children, className, bodyClassName, flush }: {
   title?: ReactNode;
   description?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
   className?: string;
   bodyClassName?: string;
+  flush?: boolean;
 }) {
   return (
     <section className={cn('rounded-2xl border border-line bg-surface shadow-card', className)}>
@@ -21,7 +23,7 @@ export default function Card({ title, description, action, children, className, 
           {action}
         </header>
       )}
-      <div className={cn('p-4 sm:p-5', Boolean(title || action) && 'pt-4 sm:pt-4', bodyClassName)}>{children}</div>
+      <div className={cn(!flush && 'p-4 sm:p-5', !flush && Boolean(title || action) && 'pt-4 sm:pt-4', bodyClassName)}>{children}</div>
     </section>
   );
 }

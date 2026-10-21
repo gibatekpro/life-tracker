@@ -12,7 +12,8 @@ const look: Record<Transaction['type'], { icon: IconName; circle: string }> = {
 
 // One transaction in a list: what it was, where the money went, and how much.
 // Spending shows as −£, money in as +£ (green), and transfers neutrally, since they aren't spending.
-export default function TransactionRow({ t, action }: { t: Transaction; action?: ReactNode }) {
+// showDate is off where the list is already grouped by day.
+export default function TransactionRow({ t, action, showDate = true }: { t: Transaction; action?: ReactNode; showDate?: boolean }) {
   const { icon, circle } = look[t.type];
   const inOtherCurrency = t.currency !== 'GBP' && t.toCurrency !== 'GBP';
 
@@ -35,9 +36,13 @@ export default function TransactionRow({ t, action }: { t: Transaction; action?:
           {t.type === 'Income' ? '+' : t.type === 'Expense' ? '−' : ''}{formatMoney(t.amount, t.currency)}
           {t.toAmount !== null && t.toCurrency && <> → {formatMoney(t.toAmount, t.toCurrency)}</>}
         </p>
-        <p className="text-xs text-muted">
-          {inOtherCurrency && <>≈ {formatMoney(t.gbpAmount)} · </>}{formatDayMonth(t.date)}
-        </p>
+        {(showDate || inOtherCurrency) && (
+          <p className="text-xs text-muted">
+            {inOtherCurrency && <>≈ {formatMoney(t.gbpAmount)}</>}
+            {inOtherCurrency && showDate && ' · '}
+            {showDate && formatDayMonth(t.date)}
+          </p>
+        )}
       </div>
       {action}
     </li>

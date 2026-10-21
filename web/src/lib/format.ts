@@ -37,3 +37,7 @@ export const todayIso = () => new Date().toLocaleDateString('en-CA');
 export const currencySymbol = (currency: string) =>
   (0).toLocaleString('en-GB', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' })
     .replace(/[\d.,\s]/g, '');
+
+// "Wed 21 Oct", for grouping a list by day.
+export const formatDayHeading = (iso: string) =>
+  parseDate(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });

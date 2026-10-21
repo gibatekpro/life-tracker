@@ -131,7 +131,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange, l
         <button key={o.value} type="button" role="radio" aria-checked={o.value === value}
           onClick={() => onChange(o.value)}
           className={cn(
-            'h-9 rounded-lg text-sm font-medium transition',
+            'h-9 rounded-lg px-3 text-sm font-medium transition',
             o.value === value ? 'bg-surface text-ink shadow-card' : 'text-muted hover:text-ink',
           )}>
           {o.label}

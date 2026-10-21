@@ -6,7 +6,8 @@ import './index.css';
 import RefreshProvider from './data/RefreshProvider';
 import AppLayout from './components/layout/AppLayout';
 import OverviewPage from './features/overview/OverviewPage';
-import { ComingNext, LegacyAccounts, LegacyPlan, LegacySettings } from './features/legacy';
+import TransactionsPage from './features/transactions/TransactionsPage';
+import { LegacyAccounts, LegacyPlan, LegacySettings } from './features/legacy';
 
 // Each section of the app has its own URL, inside the shared layout.
 const router = createBrowserRouter([
@@ -15,7 +16,7 @@ const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { index: true, element: <OverviewPage /> },
-      { path: 'transactions', element: <ComingNext /> },
+      { path: 'transactions', element: <TransactionsPage /> },
       { path: 'accounts', element: <LegacyAccounts /> },
       { path: 'plan', element: <LegacyPlan /> },
       { path: 'settings', element: <LegacySettings /> },

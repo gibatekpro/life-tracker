@@ -5,7 +5,6 @@ import { useRefresh } from '../data/refresh';
 import AccountsCard from '../components/AccountsCard';
 import AvalancheCard from '../components/AvalancheCard';
 import SettingsCard from '../components/SettingsCard';
-import { EmptyState } from '../components/ui/Bits';
 
 export function LegacyAccounts() {
   const accounts = useData('accounts', getAccounts);
@@ -23,8 +22,4 @@ export function LegacyPlan() {
 export function LegacySettings() {
   const { refresh } = useRefresh();
   return <SettingsCard onSaved={refresh} />;
-}
-
-export function ComingNext() {
-  return <EmptyState icon="list" title="Being redesigned">This page arrives in the next commit.</EmptyState>;
 }
