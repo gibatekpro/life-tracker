@@ -1,3 +1,4 @@
+using LifeTracker.Api.Common;
 using LifeTracker.Api.Data;
 using LifeTracker.Api.Features.Settings;
 using LifeTracker.Api.Models;
@@ -8,12 +9,17 @@ namespace LifeTracker.Api.Features.Summary;
 
 public record CategoryTotal(string Category, decimal Total);
 
-// One month at a glance: what I spent, what came in, what's left, and where the money went.
+// One budget month at a glance: what I spent, what came in, what's left, and where the money went.
+// PeriodStart/PeriodEnd are its first and last days (they follow payday if one is set).
+// MonthlyIncome is the take-home pay setting or the recorded income, as IncomeMode says.
 public record MonthlySummary(
     int Year,
     int Month,
+    DateOnly PeriodStart,
+    DateOnly PeriodEnd,
     decimal TotalSpent,
     decimal MonthlyIncome,
+    IncomeMode IncomeMode,
     decimal Remaining,
     IReadOnlyList<CategoryTotal> ByCategory);
 
@@ -30,11 +36,14 @@ public class BudgetOptions
 // Works out the monthly summary on the dashboard: "how am I doing this month?"
 public class SummaryService(AppDbContext db, SettingsService settings, ILogger<SummaryService> logger)
 {
-    public async Task<MonthlySummary> GetMonthlyAsync(int year, int month)
+    // With no year and month, it's the period I'm in now (in UK time, and following payday).
+    public async Task<MonthlySummary> GetMonthlyAsync(int? year = null, int? month = null)
     {
-        // From the 1st of the month up to (but not including) the 1st of the next.
-        var start = new DateOnly(year, month, 1);
-        var end = start.AddMonths(1);
+        var s = await settings.GetAsync();
+        var period = year is { } y && month is { } m
+            ? BudgetPeriod.For(y, m, s.MonthStartDay)
+            : BudgetPeriod.Containing(UkDate.Today(), s.MonthStartDay);
+        var (start, end) = (period.Start, period.End);
 
         // Only Expenses are spending. A card repayment is a Transfer between my own accounts,
         // so it's left out here; otherwise every card purchase would be counted twice
@@ -53,13 +62,18 @@ public class SummaryService(AppDbContext db, SettingsService settings, ILogger<S
 
         var spent = byCategory.Sum(c => c.Total);
 
-        // Income is the take-home pay from Settings for now, not the Income transactions.
-        // Whether to switch is still to be decided.
-        var income = (await settings.GetAsync()).MonthlyIncome;
+        // Either the take-home pay I've set, or what actually came in: the Income transactions
+        // in this period, in pounds. Recorded suits pay that varies, or more than one income.
+        var income = s.IncomeMode == IncomeMode.Recorded
+            ? await db.Transactions
+                .Where(t => t.Date >= start && t.Date < end && t.Type == TransactionType.Income)
+                .SumAsync(t => t.GbpAmount)
+            : s.MonthlyIncome;
 
-        logger.LogDebug("Summary for {Year}-{Month:00}: spent £{Spent} of £{Income} across {Categories} categories",
-            year, month, spent, income, byCategory.Count);
+        logger.LogDebug("Summary for {Start} to {End}: spent £{Spent} of £{Income} ({IncomeMode}) across {Categories} categories",
+            start, period.LastDay, spent, income, s.IncomeMode, byCategory.Count);
 
-        return new MonthlySummary(year, month, spent, income, income - spent, byCategory);
+        return new MonthlySummary(period.Year, period.Month, start, period.LastDay,
+            spent, income, s.IncomeMode, income - spent, byCategory);
     }
 }

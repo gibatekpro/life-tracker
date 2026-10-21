@@ -1,8 +1,12 @@
 using LifeTracker.Api.Data;
+using LifeTracker.Api.Features.Summary;
+using LifeTracker.Api.Models;
 
 namespace LifeTracker.Api.Features.Settings;
 
-public record UpdateSettingsRequest(decimal MonthlyIncome, decimal? MonthlyDebtBudget);
+// IncomeMode and MonthStartDay are optional: left out, they stay as they are.
+public record UpdateSettingsRequest(
+    decimal MonthlyIncome, decimal? MonthlyDebtBudget, IncomeMode? IncomeMode = null, int? MonthStartDay = null);
 public record DefaultAccountRequest(int? AccountId);
 
 // Reading and changing my settings from the dashboard (the Settings card) or Scalar.
@@ -28,7 +32,15 @@ public static class SettingsEndpoints
                 return Results.BadRequest("Values can't be negative.");
             }
 
-            return Results.Ok(await settings.UpdateAsync(req.MonthlyIncome, req.MonthlyDebtBudget));
+            // Every month has a 28th, so payday is limited to 1-28.
+            if (req.MonthStartDay is < 1 or > BudgetPeriod.LatestStartDay)
+            {
+                logger.LogWarning("Rejected settings: month start day {Day}", req.MonthStartDay);
+                return Results.BadRequest($"The month can start on day 1 to {BudgetPeriod.LatestStartDay}.");
+            }
+
+            return Results.Ok(await settings.UpdateAsync(
+                req.MonthlyIncome, req.MonthlyDebtBudget, req.IncomeMode, req.MonthStartDay));
         });
 
         // A separate endpoint, not part of PUT /, so that saving income and budget from the

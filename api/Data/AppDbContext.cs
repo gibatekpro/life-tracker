@@ -80,6 +80,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(s => s.MonthlyIncome).HasPrecision(18, 2);
             e.Property(s => s.MonthlyDebtBudget).HasPrecision(18, 2);
             e.Property(s => s.UpdatedAt).HasDefaultValueSql("now()");
+            e.Property(s => s.IncomeMode).HasConversion<string>().HasMaxLength(20);
 
             e.HasOne<Account>()
             .WithMany()

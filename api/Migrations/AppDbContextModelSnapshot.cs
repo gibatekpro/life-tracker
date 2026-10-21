@@ -107,6 +107,14 @@ namespace LifeTracker.Api.Migrations
                     b.Property<int?>("DefaultAccountId")
                         .HasColumnType("integer");
 
+                    b.Property<string>("IncomeMode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("MonthStartDay")
+                        .HasColumnType("integer");
+
                     b.Property<decimal?>("MonthlyDebtBudget")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");

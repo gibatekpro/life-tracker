@@ -35,15 +35,20 @@ public class SettingsService(AppDbContext db, IOptions<BudgetOptions> defaults, 
         return settings;
     }
 
-    public async Task<AppSettings> UpdateAsync(decimal monthlyIncome, decimal? monthlyDebtBudget)
+    // incomeMode and monthStartDay are only changed when given.
+    public async Task<AppSettings> UpdateAsync(
+        decimal monthlyIncome, decimal? monthlyDebtBudget, IncomeMode? incomeMode = null, int? monthStartDay = null)
     {
         var settings = await GetAsync();
         settings.MonthlyIncome = monthlyIncome;
         settings.MonthlyDebtBudget = monthlyDebtBudget;
+        settings.IncomeMode = incomeMode ?? settings.IncomeMode;
+        settings.MonthStartDay = monthStartDay ?? settings.MonthStartDay;
         settings.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
-        logger.LogInformation("Saved settings: income £{Income}, debt budget £{Budget}", monthlyIncome, monthlyDebtBudget);
+        logger.LogInformation("Saved settings: income £{Income} ({IncomeMode}), debt budget £{Budget}, month starts on day {Day}",
+            monthlyIncome, settings.IncomeMode, monthlyDebtBudget, settings.MonthStartDay);
         return settings;
     }
 
