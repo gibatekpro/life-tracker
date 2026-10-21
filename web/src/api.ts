@@ -1,5 +1,5 @@
 import type {
-  Account, AccountAlias, AccountPayment, AvalanchePlan, CorrectTransaction, CreateTransaction,
+  Account, AccountAlias, AccountPayment, AvalanchePlan, CreateTransaction,
   DebtsOverview, MonthlySummary, SaveAccount, Settings, Transaction, WhatIfComparison,
 } from './types';
 
@@ -28,8 +28,9 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 // Transactions
 export const getTransactions = () => request<Transaction[]>('GET', '/transactions');
 export const createTransaction = (t: CreateTransaction) => request<Transaction>('POST', '/transactions', t);
-export const correctTransaction = (id: number, c: CorrectTransaction) =>
-  request<Transaction>('PATCH', `/transactions/${id}`, c);
+// An edit sends the whole transaction again; the API moves the balances to match.
+export const updateTransaction = (id: number, t: CreateTransaction) => request<Transaction>('PUT', `/transactions/${id}`, t);
+export const deleteTransaction = (id: number) => request<void>('DELETE', `/transactions/${id}`);
 
 // Accounts
 export const getAccounts = () => request<Account[]>('GET', '/accounts');

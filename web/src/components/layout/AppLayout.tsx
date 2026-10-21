@@ -7,7 +7,10 @@ import Button from '../ui/Button';
 import Icon, { type IconName } from '../ui/Icon';
 import Modal from '../ui/Modal';
 import TransactionForm from '../../features/transactions/TransactionForm';
-import { QuickAddContext, type TransactionDraft } from '../../features/transactions/quickAdd';
+import { TransactionModalContext, type TransactionDraft } from '../../features/transactions/quickAdd';
+import type { Transaction } from '../../types';
+
+type ModalState = { draft: TransactionDraft } | { transaction: Transaction } | null;
 
 const nav: { to: string; label: string; icon: IconName }[] = [
   { to: '/', label: 'Overview', icon: 'home' },
@@ -31,14 +34,16 @@ function Brand() {
 }
 
 // The frame around every page: a sidebar on wide screens, a top bar and bottom tabs on phones.
-// It also owns the one "New transaction" form, which any page can open through useQuickAdd().
+// It also owns the one transaction form, which any page can open to add (useQuickAdd) or edit
+// (useEditTransaction) a transaction.
 export default function AppLayout() {
   const accounts = useData('accounts', getAccounts);
-  const [draft, setDraft] = useState<TransactionDraft | null>(null);
-  const openQuickAdd = (d?: TransactionDraft) => setDraft(d ?? {});
+  const [modal, setModal] = useState<ModalState>(null);
+  const openQuickAdd = (draft?: TransactionDraft) => setModal({ draft: draft ?? {} });
+  const editing = modal && 'transaction' in modal ? modal.transaction : undefined;
 
   return (
-    <QuickAddContext.Provider value={openQuickAdd}>
+    <TransactionModalContext.Provider value={{ add: openQuickAdd, edit: (transaction) => setModal({ transaction }) }}>
       <div className="min-h-dvh lg:pl-64">
         {/* Sidebar (desktop) */}
         <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-line bg-surface px-4 py-6 lg:flex">
@@ -89,10 +94,12 @@ export default function AppLayout() {
         </nav>
       </div>
 
-      <Modal open={draft !== null} onClose={() => setDraft(null)} title="New transaction"
-        description="Spending, money in, or a transfer between your accounts.">
-        <TransactionForm accounts={accounts.data ?? []} draft={draft ?? undefined} onDone={() => setDraft(null)} />
+      <Modal open={modal !== null} onClose={() => setModal(null)}
+        title={editing ? 'Edit transaction' : 'New transaction'}
+        description={editing ? 'Balances are corrected to match.' : 'Spending, money in, or a transfer between your accounts.'}>
+        <TransactionForm accounts={accounts.data ?? []} transaction={editing}
+          draft={modal && 'draft' in modal ? modal.draft : undefined} onDone={() => setModal(null)} />
       </Modal>
-    </QuickAddContext.Provider>
+    </TransactionModalContext.Provider>
   );
 }

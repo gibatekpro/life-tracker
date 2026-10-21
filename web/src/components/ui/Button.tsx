@@ -7,6 +7,8 @@ const variants = {
   secondary: 'border border-line bg-surface text-ink hover:bg-surface-muted',
   ghost: 'text-muted hover:bg-surface-muted hover:text-ink',
   danger: 'bg-negative-soft text-negative hover:brightness-95',
+  // The final "yes, delete it" in a confirmation.
+  destructive: 'bg-negative text-on-negative hover:brightness-95 shadow-sm',
 };
 
 const sizes = {

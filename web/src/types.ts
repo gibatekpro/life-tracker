@@ -73,15 +73,6 @@ export interface CreateTransaction {
   gbpAmount?: number | null; // optional £ value for something not in pounds
 }
 
-// Moving a transaction to the right account or type.
-export interface CorrectTransaction {
-  accountId: number;
-  type: TransactionType;
-  toAccountId?: number | null;
-  toAmount?: number | null;
-  gbpAmount?: number | null;
-}
-
 export interface CategoryTotal {
   category: string;
   total: number;

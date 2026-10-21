@@ -160,7 +160,7 @@ export default function AccountDetailPage() {
         {deleteError && <Alert tone="negative" className="mb-4">{deleteError}</Alert>}
         <div className="flex justify-end gap-2">
           <Button onClick={() => setDeleting(false)}>Cancel</Button>
-          <Button variant="danger" icon="trash" onClick={remove}>Delete</Button>
+          <Button variant="destructive" icon="trash" onClick={remove}>Delete</Button>
         </div>
       </Modal>
     </>

@@ -7,11 +7,9 @@ import { formatDayHeading, formatMoney, monthName } from '../../lib/format';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Icon from '../../components/ui/Icon';
-import Modal from '../../components/ui/Modal';
 import { Input, Select } from '../../components/ui/Field';
 import { Alert, EmptyState, PageHeader, SegmentedControl, Skeleton, Stat } from '../../components/ui/Bits';
 import AccountSelect from '../accounts/AccountSelect';
-import CorrectTransactionForm from './CorrectTransactionForm';
 import TransactionRow from './TransactionRow';
 import { useQuickAdd } from './quickAdd';
 
@@ -31,7 +29,7 @@ function shiftMonth(ym: string, by: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-// Every transaction, a month at a time, with filters, and a way to fix ones in the wrong place.
+// Every transaction, a month at a time, with filters. Tapping one opens it to edit or delete.
 // The month, account and type live in the URL, so back/forward and refresh keep the view.
 export default function TransactionsPage() {
   const transactions = useData('transactions', getTransactions);
@@ -39,7 +37,6 @@ export default function TransactionsPage() {
   const openQuickAdd = useQuickAdd();
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState('');
-  const [fixing, setFixing] = useState<Transaction | null>(null);
 
   const month = params.get('month') ?? thisMonth();
   const accountId = params.get('account') ? Number(params.get('account')) : null;
@@ -129,10 +126,7 @@ export default function TransactionsPage() {
                 </h3>
                 <ul className="divide-y divide-line">
                   {items.map((t) => (
-                    <TransactionRow key={t.id} t={t} showDate={false} action={
-                      <Button variant="ghost" size="sm" icon="pencil" aria-label={`Fix account or type of ${t.description}`}
-                        onClick={() => setFixing(t)} />
-                    } />
+                    <TransactionRow key={t.id} t={t} showDate={false} />
                   ))}
                 </ul>
               </section>
@@ -141,12 +135,6 @@ export default function TransactionsPage() {
         )}
       </Card>
 
-      <Modal open={fixing !== null} onClose={() => setFixing(null)} title="Fix account or type"
-        description="Move it to the right account, or make it a transfer.">
-        {fixing && accounts.data && (
-          <CorrectTransactionForm transaction={fixing} accounts={accounts.data} onDone={() => setFixing(null)} />
-        )}
-      </Modal>
     </>
   );
 }

@@ -26,6 +26,7 @@
   --color-positive-soft: #e5f4ea;
   --color-negative: #b42318;        /* money owed, errors */
   --color-negative-soft: #fdecea;
+  --color-on-negative: #ffffff;     /* text on a solid red button */
   --color-warning: #a15c07;         /* needs attention */
   --color-warning-soft: #fdf1df;
 
@@ -60,6 +61,7 @@
     --color-positive-soft: #10291b;
     --color-negative: #f2776c;
     --color-negative-soft: #331614;
+    --color-on-negative: #2a0b08;
     --color-warning: #f0b44c;
     --color-warning-soft: #33250c;
 
