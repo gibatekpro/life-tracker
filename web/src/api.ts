@@ -1,6 +1,6 @@
 import type {
   Account, AccountAlias, AccountPayment, AvalanchePlan, CreateTransaction,
-  DebtsOverview, MonthlySummary, SaveAccount, Settings, Transaction, WhatIfComparison,
+  DebtsOverview, IncomeMode, MonthlySummary, SaveAccount, Settings, Transaction, WhatIfComparison,
 } from './types';
 
 // Every call goes through here: the Vite dev server forwards /api to the API on port 5080.
@@ -48,13 +48,17 @@ export const getAvalanchePlan = (extra = 0) => request<AvalanchePlan>('GET', `/d
 export const getWhatIf = (id: number, monthlyPayment: number) =>
   request<WhatIfComparison>('GET', `/debts/${id}/what-if?monthlyPayment=${monthlyPayment}`);
 
-// Summary: with no year/month it's the current month (in UK time).
+// Summary: with no year/month it's the budget month I'm in now (UK time, following payday).
 export const getMonthlySummary = (year?: number, month?: number) =>
   request<MonthlySummary>('GET', year && month ? `/summary/monthly?year=${year}&month=${month}` : '/summary/monthly');
 
 // Settings
 export const getSettings = () => request<Settings>('GET', '/settings');
-export const updateSettings = (s: { monthlyIncome: number; monthlyDebtBudget: number | null }) =>
-  request<Settings>('PUT', '/settings', s);
+export const updateSettings = (s: {
+  monthlyIncome: number;
+  monthlyDebtBudget: number | null;
+  incomeMode: IncomeMode;
+  monthStartDay: number;
+}) => request<Settings>('PUT', '/settings', s);
 export const setDefaultAccount = (accountId: number | null) =>
   request<Settings>('PUT', '/settings/default-account', { accountId });

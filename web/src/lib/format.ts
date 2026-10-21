@@ -41,3 +41,17 @@ export const currencySymbol = (currency: string) =>
 // "Wed 21 Oct", for grouping a list by day.
 export const formatDayHeading = (iso: string) =>
   parseDate(iso).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+
+// A budget month's name: "October 2026" for a calendar month, or its dates when it follows
+// payday: "25 Oct – 24 Nov 2026".
+export const periodLabel = (p: { year: number; month: number; periodStart: string; periodEnd: string }) => {
+  if (p.periodStart.endsWith('-01')) return monthName(p.year, p.month);
+  const start = parseDate(p.periodStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  return `${start} – ${formatDate(p.periodEnd)}`;
+};
+
+// 1 -> "1st", 22 -> "22nd", 25 -> "25th".
+export const ordinal = (n: number) => {
+  const suffix = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th';
+  return `${n}${suffix}`;
+};

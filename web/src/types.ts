@@ -1,5 +1,7 @@
 export type AccountType = 'Current' | 'CreditCard' | 'Loan';
 export type TransactionType = 'Expense' | 'Income' | 'Transfer';
+// What the summary measures spending against: the take-home pay setting, or recorded Income.
+export type IncomeMode = 'Fixed' | 'Recorded';
 
 export interface AccountAlias {
   id: number;
@@ -78,11 +80,15 @@ export interface CategoryTotal {
   total: number;
 }
 
+// One budget month. With payday set, it runs from payday to the day before the next one.
 export interface MonthlySummary {
   year: number;
   month: number;
+  periodStart: string; // first day, e.g. "2026-10-25"
+  periodEnd: string; // last day, e.g. "2026-11-24"
   totalSpent: number;
-  monthlyIncome: number;
+  monthlyIncome: number; // take-home pay or recorded income, as incomeMode says
+  incomeMode: IncomeMode;
   remaining: number;
   byCategory: CategoryTotal[];
 }
@@ -138,5 +144,7 @@ export interface Settings {
   monthlyIncome: number;
   monthlyDebtBudget: number | null;
   defaultAccountId: number | null;
+  incomeMode: IncomeMode;
+  monthStartDay: number; // 1-28; budget months start on this day
   updatedAt: string;
 }

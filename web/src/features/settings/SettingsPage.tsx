@@ -1,28 +1,44 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { getAccounts, getSettings, setDefaultAccount, updateSettings } from '../../api';
-import type { Settings } from '../../types';
+import type { IncomeMode, Settings } from '../../types';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Icon from '../../components/ui/Icon';
-import { Field, MoneyInput } from '../../components/ui/Field';
-import { Alert, Badge, PageHeader, Skeleton } from '../../components/ui/Bits';
+import { Field, MoneyInput, Select } from '../../components/ui/Field';
+import { Alert, Badge, PageHeader, SegmentedControl, Skeleton } from '../../components/ui/Bits';
+import { ordinal } from '../../lib/format';
 import AccountSelect from '../accounts/AccountSelect';
 
-// Take-home pay and the debt budget. Its own component so the inputs start from the saved values.
+const incomeModes: { value: IncomeMode; label: string }[] = [
+  { value: 'Fixed', label: 'Take-home pay' },
+  { value: 'Recorded', label: 'Recorded income' },
+];
+
+const startDays = Array.from({ length: 28 }, (_, i) => i + 1);
+
+// Income, the debt budget and when a budget month starts. Its own component so the inputs
+// start from the saved values.
 function BudgetForm({ settings }: { settings: Settings }) {
   const { refresh } = useRefresh();
+  const [incomeMode, setIncomeMode] = useState<IncomeMode>(settings.incomeMode);
   const [income, setIncome] = useState(String(settings.monthlyIncome));
   const [budget, setBudget] = useState(settings.monthlyDebtBudget?.toString() ?? '');
+  const [startDay, setStartDay] = useState(settings.monthStartDay);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setStatus(null);
     try {
-      await updateSettings({ monthlyIncome: Number(income), monthlyDebtBudget: budget === '' ? null : Number(budget) });
+      await updateSettings({
+        monthlyIncome: Number(income || 0),
+        monthlyDebtBudget: budget === '' ? null : Number(budget),
+        incomeMode,
+        monthStartDay: startDay,
+      });
       setStatus({ ok: true, text: 'Saved' });
       refresh();
     } catch (err) {
@@ -31,15 +47,36 @@ function BudgetForm({ settings }: { settings: Settings }) {
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-4">
+    <form onSubmit={submit} className="grid gap-5">
+      <div className="grid gap-2">
+        <p className="text-sm font-medium">Measure spending against</p>
+        <SegmentedControl label="Measure spending against" options={incomeModes} value={incomeMode} onChange={setIncomeMode} />
+        <p className="text-xs text-muted">
+          {incomeMode === 'Fixed'
+            ? 'A set monthly amount. Simple, and right if your pay is the same every month.'
+            : 'The Income transactions you record each month. Right if your pay varies or you have more than one income.'}
+        </p>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Monthly take-home pay" hint="What the monthly summary measures spending against.">
-          {(id) => <MoneyInput id={id} symbol="£" required value={income} onChange={(e) => setIncome(e.target.value)} />}
+        {incomeMode === 'Fixed' && (
+          <Field label="Monthly take-home pay">
+            {(id) => <MoneyInput id={id} symbol="£" required value={income} onChange={(e) => setIncome(e.target.value)} />}
+          </Field>
+        )}
+        <Field label="Budget month starts on"
+          hint={startDay === 1 ? 'Calendar months.' : `Each month runs from the ${ordinal(startDay)} to the day before the next ${ordinal(startDay)}.`}>
+          {(id) => (
+            <Select id={id} value={startDay} onChange={(e) => setStartDay(Number(e.target.value))}>
+              {startDays.map((d) => <option key={d} value={d}>{d === 1 ? '1st (calendar month)' : `${ordinal(d)} (payday)`}</option>)}
+            </Select>
+          )}
         </Field>
         <Field label="Monthly debt budget" hint="Optional. A fixed amount for all debts; when one is cleared, its payment rolls on to the rest.">
           {(id) => <MoneyInput id={id} symbol="£" placeholder="Not set" value={budget} onChange={(e) => setBudget(e.target.value)} />}
         </Field>
       </div>
+
       <div className="flex items-center justify-end gap-3">
         {status && (
           <span role="status" className={status.ok ? 'inline-flex items-center gap-1 text-sm text-positive' : 'text-sm text-negative'}>
@@ -80,7 +117,7 @@ export default function SettingsPage() {
       {(settings.error || accounts.error) && <Alert tone="negative" className="mb-6">{settings.error ?? accounts.error}</Alert>}
 
       <div className="grid max-w-3xl gap-6">
-        <Card title="Budget">
+        <Card title="Income and budget" description="What the monthly summary measures against, and when your month starts.">
           {s ? <BudgetForm key={s.updatedAt} settings={s} /> : <Skeleton className="h-28" />}
         </Card>
 

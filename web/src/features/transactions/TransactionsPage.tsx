@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { getAccounts, getTransactions } from '../../api';
+import { getAccounts, getMonthlySummary, getTransactions } from '../../api';
 import type { Transaction, TransactionType } from '../../types';
 import { useData } from '../../data/useData';
-import { formatDayHeading, formatMoney, monthName } from '../../lib/format';
+import { formatDayHeading, formatMoney, periodLabel } from '../../lib/format';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Icon from '../../components/ui/Icon';
@@ -21,7 +21,7 @@ const typeOptions: { value: TypeFilter; label: string }[] = [
   { value: 'Transfer', label: 'Transfers' },
 ];
 
-const thisMonth = () => new Date().toLocaleDateString('en-CA').slice(0, 7);   // "2026-10"
+const toYm = (year: number, month: number) => `${year}-${String(month).padStart(2, '0')}`;   // "2026-10"
 
 function shiftMonth(ym: string, by: number) {
   const [y, m] = ym.split('-').map(Number);
@@ -29,8 +29,9 @@ function shiftMonth(ym: string, by: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
-// Every transaction, a month at a time, with filters. Tapping one opens it to edit or delete.
+// Every transaction, a budget month at a time, with filters. Tapping one opens it to edit or delete.
 // The month, account and type live in the URL, so back/forward and refresh keep the view.
+// The month's dates come from the API's summary, so they follow payday exactly as the summary does.
 export default function TransactionsPage() {
   const transactions = useData('transactions', getTransactions);
   const accounts = useData('accounts', getAccounts);
@@ -38,7 +39,16 @@ export default function TransactionsPage() {
   const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState('');
 
-  const month = params.get('month') ?? thisMonth();
+  // The month I'm in now (it may still be last month's, if payday hasn't come yet).
+  const current = useData('summary', () => getMonthlySummary());
+  const currentYm = current.data ? toYm(current.data.year, current.data.month) : null;
+  const month = params.get('month') ?? currentYm;
+  const period = useData(`summary-${month}`, () => {
+    const [y, m] = (month ?? '').split('-').map(Number);
+    return getMonthlySummary(y, m);
+  }, month !== null);
+  const p = period.data && toYm(period.data.year, period.data.month) === month ? period.data : undefined;
+
   const accountId = params.get('account') ? Number(params.get('account')) : null;
   const type = (params.get('type') as TypeFilter | null) ?? 'All';
 
@@ -48,9 +58,10 @@ export default function TransactionsPage() {
     setParams(next, { replace: true });
   }
 
+  // ISO dates compare correctly as strings.
   const inMonth = useMemo(
-    () => (transactions.data ?? []).filter((t) => t.date.startsWith(month)),
-    [transactions.data, month],
+    () => (p ? (transactions.data ?? []).filter((t) => t.date >= p.periodStart && t.date <= p.periodEnd) : []),
+    [transactions.data, p],
   );
 
   const shown = useMemo(() => {
@@ -71,7 +82,6 @@ export default function TransactionsPage() {
   const spent = inMonth.filter((t) => t.type === 'Expense').reduce((sum, t) => sum + t.gbpAmount, 0);
   const received = inMonth.filter((t) => t.type === 'Income').reduce((sum, t) => sum + t.gbpAmount, 0);
   const transfers = inMonth.filter((t) => t.type === 'Transfer').length;
-  const [y, m] = month.split('-').map(Number);
 
   return (
     <>
@@ -80,11 +90,11 @@ export default function TransactionsPage() {
         actions={<span className="hidden sm:block"><Button variant="primary" icon="plus" onClick={() => openQuickAdd()}>New transaction</Button></span>} />
 
       <div className="mb-4 flex items-center justify-between gap-2">
-        <Button variant="ghost" size="sm" icon="chevronLeft" onClick={() => setParam('month', shiftMonth(month, -1))}
-          aria-label="Previous month" />
-        <h2 className="text-lg font-semibold">{monthName(y, m)}</h2>
-        <Button variant="ghost" size="sm" icon="chevronRight" onClick={() => setParam('month', shiftMonth(month, 1))}
-          aria-label="Next month" disabled={month >= thisMonth()} />
+        <Button variant="ghost" size="sm" icon="chevronLeft" onClick={() => month && setParam('month', shiftMonth(month, -1))}
+          aria-label="Previous month" disabled={!month} />
+        <h2 className="text-lg font-semibold">{p ? periodLabel(p) : '…'}</h2>
+        <Button variant="ghost" size="sm" icon="chevronRight" onClick={() => month && setParam('month', shiftMonth(month, 1))}
+          aria-label="Next month" disabled={!month || !currentYm || month >= currentYm} />
       </div>
 
       <div className="mb-6 grid grid-cols-3 gap-3 sm:gap-4">
@@ -110,7 +120,7 @@ export default function TransactionsPage() {
 
         {transactions.error && <Alert tone="negative" className="m-4">{transactions.error}</Alert>}
 
-        {!transactions.data ? (
+        {!transactions.data || !p ? (
           <div className="grid gap-3 p-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>
         ) : shown.length === 0 ? (
           <EmptyState icon="list" title={inMonth.length === 0 ? 'Nothing recorded this month' : 'No transactions match'}

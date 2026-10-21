@@ -1,7 +1,7 @@
 import { Link } from 'react-router';
 import { getAccounts, getDebts, getMonthlySummary, getTransactions } from '../../api';
 import { useData } from '../../data/useData';
-import { formatMoney, formatMonthYear, monthName } from '../../lib/format';
+import { formatMoney, formatMonthYear, periodLabel } from '../../lib/format';
 import { cn } from '../../lib/cn';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -11,13 +11,15 @@ import { useQuickAdd } from '../transactions/quickAdd';
 import type { Account } from '../../types';
 import SpendingTrendChart from './SpendingTrendChart';
 
-// The last six months' summaries, oldest first.
-function lastSixMonths() {
-  const now = new Date();
-  return Promise.all([5, 4, 3, 2, 1, 0].map((back) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - back);
+// The last six budget months' summaries, oldest first, ending with the one I'm in now
+// (which, before payday, is still last month's).
+async function lastSixMonths() {
+  const current = await getMonthlySummary();
+  const earlier = await Promise.all([5, 4, 3, 2, 1].map((back) => {
+    const d = new Date(current.year, current.month - 1 - back);
     return getMonthlySummary(d.getFullYear(), d.getMonth() + 1);
   }));
+  return [...earlier, current];
 }
 
 // Money held, added up per currency: "£1,240.50 · ₦50,000.00".
@@ -47,7 +49,7 @@ export default function OverviewPage() {
     <>
       <PageHeader
         title="Overview"
-        description={s ? `${monthName(s.year, s.month)} at a glance` : 'This month at a glance'}
+        description={s ? `${periodLabel(s)} at a glance` : 'This month at a glance'}
         // Phones already have "New" in the top bar.
         actions={<span className="hidden sm:block"><Button variant="primary" icon="plus" onClick={() => openQuickAdd()}>New transaction</Button></span>}
       />
@@ -59,7 +61,7 @@ export default function OverviewPage() {
           {s ? (
             <>
               <Stat label="Spent this month" value={formatMoney(s.totalSpent)}
-                sub={`of ${formatMoney(s.monthlyIncome)} income`} />
+                sub={`of ${formatMoney(s.monthlyIncome)} ${s.incomeMode === 'Fixed' ? 'take-home pay' : 'income received'}`} />
               <div className="mt-4">
                 <ProgressBar label="Share of income spent" value={spentShare}
                   tone={spentShare > 0.9 ? 'negative' : spentShare > 0.75 ? 'warning' : 'accent'} />
@@ -71,7 +73,8 @@ export default function OverviewPage() {
           {s ? (
             <Stat label="Left this month" value={formatMoney(s.remaining)}
               valueClassName={s.remaining < 0 ? 'text-negative' : 'text-positive'}
-              sub={s.remaining < 0 ? 'Over budget' : `${Math.round((1 - spentShare) * 100)}% of income left`} />
+              sub={s.incomeMode === 'Recorded' && s.monthlyIncome === 0 ? 'No income recorded yet'
+                : s.remaining < 0 ? 'Over budget' : `${Math.round((1 - spentShare) * 100)}% of income left`} />
           ) : <Skeleton className="h-24" />}
         </Card>
         <Card>
@@ -95,7 +98,7 @@ export default function OverviewPage() {
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="grid content-start gap-6 lg:col-span-2">
-          <Card title="Spending trend" description="What you spent in each of the last six months">
+          <Card title="Spending trend" description="What you spent in each of the last six budget months">
             {trend.data ? <SpendingTrendChart months={trend.data} /> : <Skeleton className="h-56" />}
           </Card>
 
