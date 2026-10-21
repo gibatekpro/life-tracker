@@ -1,9 +1,7 @@
 import type { Account, DebtsOverview } from '../types';
 import { useState } from 'react';
 import { createTransaction } from '../api';
-
-const gbp = (n: number) =>
-    n.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' });
+import { formatMoney } from '../money';
 
 const monthYear = (d: string | null) =>
     d ? new Date(d).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : '—';
@@ -17,18 +15,25 @@ export default function AccountsCard({ accounts, overview, onChanged }: {
 
     const [payingId, setPayingId] = useState<number | null>(null);
     const [amount, setAmount] = useState('');
+    const [received, setReceived] = useState('');
     const [fromId, setFromId] = useState<number | null>(null);
     const [error, setError] = useState<string | null>(null);
 
+    // Start from an account in the debt's own currency if there is one (PalmPay for a naira loan).
     function startPaying(debt: Account) {
+        const from = current.find((a) => a.currency === debt.currency) ?? current[0];
         setError(null);
         setPayingId(debt.id);
-        setAmount(String(debt.monthlyPayment));
-        setFromId(current[0]?.id ?? null);
+        setFromId(from?.id ?? null);
+        // The instalment is in the debt's currency, so it goes in whichever box is in that currency.
+        const sameCurrency = from?.currency === debt.currency;
+        setAmount(sameCurrency ? String(debt.monthlyPayment) : '');
+        setReceived(sameCurrency ? '' : String(debt.monthlyPayment));
     }
 
     // A repayment is a transfer: money held goes down, and so does the amount owed.
-    async function pay(debt: Account) {
+    // Paying a naira loan from pounds, I enter what I sent (£) and what the loan received (₦).
+    async function pay(debt: Account, crossesCurrencies: boolean) {
         if (fromId === null) return;
         setError(null);
         try {
@@ -40,9 +45,11 @@ export default function AccountsCard({ accounts, overview, onChanged }: {
                 date: new Date().toLocaleDateString('en-CA'),
                 accountId: fromId,
                 toAccountId: debt.id,
+                toAmount: crossesCurrencies ? Number(received) : null,
             });
             setPayingId(null);
             setAmount('');
+            setReceived('');
             onChanged();
         } catch (err) {
             setError((err as Error).message);
@@ -55,18 +62,24 @@ export default function AccountsCard({ accounts, overview, onChanged }: {
 
             <ul>
                 {current.map((a) => (
-                    <li key={a.id}>{a.name}: <strong>{gbp(a.balance)}</strong></li>
+                    <li key={a.id}>{a.name}: <strong>{formatMoney(a.balance, a.currency)}</strong></li>
                 ))}
             </ul>
 
             <p>
-                Total owed <strong>{gbp(overview.totalBalance)}</strong> · paying{' '}
-                {gbp(overview.totalMonthlyPayment)}/month
+                Total owed <strong>{formatMoney(overview.totalBalance)}</strong> · paying{' '}
+                {formatMoney(overview.totalMonthlyPayment)}/month
             </p>
             <p>
                 Debt-free: <strong>{monthYear(overview.debtFreeDate)}</strong> · interest still to pay{' '}
-                {gbp(overview.totalInterest)}
+                {formatMoney(overview.totalInterest)}
             </p>
+            {overview.currenciesWithoutRate.length > 0 && (
+                <p style={{ color: 'darkorange' }}>
+                    {overview.currenciesWithoutRate.join(', ')} debts aren't in the £ totals yet: record a transfer
+                    between GBP and {overview.currenciesWithoutRate.join('/')} to give them a rate.
+                </p>
+            )}
 
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
                 <thead>
@@ -75,35 +88,45 @@ export default function AccountsCard({ accounts, overview, onChanged }: {
                     </tr>
                 </thead>
                 <tbody>
-                    {overview.debts.map(({ debt, projection }) => (
-                        <tr key={debt.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                            <td>{debt.name}</td>
-                            <td>{gbp(debt.balance)}</td>
-                            <td>{debt.availableCredit === null ? '—' : gbp(debt.availableCredit)}</td>
-                            <td>{debt.apr}%</td>
-                            <td>{gbp(debt.monthlyPayment)}</td>
-                            <td style={{ color: projection.canBePaidOff ? undefined : 'crimson' }}>
-                                {projection.canBePaidOff
-                                    ? `${monthYear(projection.payoffDate)} (${projection.months} mo)`
-                                    : 'Payment too low'}
-                            </td>
-                            <td>
-                                {payingId === debt.id ? (
-                                    <>
-                                        <input type="number" step="0.01" min="0" value={amount} placeholder="£"
-                                            onChange={(e) => setAmount(e.target.value)} style={{ width: 70 }} />
-                                        <select value={fromId ?? ''} onChange={(e) => setFromId(Number(e.target.value))}>
-                                            {current.map((a) => <option key={a.id} value={a.id}>from {a.name}</option>)}
-                                        </select>
-                                        <button onClick={() => pay(debt)} disabled={fromId === null}>Save</button>
-                                        <button onClick={() => setPayingId(null)}>Cancel</button>
-                                    </>
-                                ) : (
-                                    <button onClick={() => startPaying(debt)}>Pay</button>
-                                )}
-                            </td>
-                        </tr>
-                    ))}
+                    {overview.debts.map(({ debt, projection }) => {
+                        const fromCurrency = current.find((a) => a.id === fromId)?.currency;
+                        const crossesCurrencies = payingId === debt.id && fromCurrency !== undefined && fromCurrency !== debt.currency;
+                        return (
+                            <tr key={debt.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                <td>{debt.name}</td>
+                                <td>{formatMoney(debt.balance, debt.currency)}</td>
+                                <td>{debt.availableCredit === null ? '—' : formatMoney(debt.availableCredit, debt.currency)}</td>
+                                <td>{debt.apr}%</td>
+                                <td>{formatMoney(debt.monthlyPayment, debt.currency)}</td>
+                                <td style={{ color: projection.canBePaidOff ? undefined : 'crimson' }}>
+                                    {projection.canBePaidOff
+                                        ? `${monthYear(projection.payoffDate)} (${projection.months} mo)`
+                                        : 'Payment too low'}
+                                </td>
+                                <td>
+                                    {payingId === debt.id ? (
+                                        <>
+                                            <select value={fromId ?? ''} onChange={(e) => setFromId(Number(e.target.value))}>
+                                                {current.map((a) => <option key={a.id} value={a.id}>from {a.name}</option>)}
+                                            </select>
+                                            <input type="number" step="0.01" min="0" value={amount}
+                                                placeholder={fromCurrency ?? ''}
+                                                onChange={(e) => setAmount(e.target.value)} style={{ width: 80 }} />
+                                            {crossesCurrencies && (
+                                                <input type="number" step="0.01" min="0" value={received}
+                                                    placeholder={`received ${debt.currency}`}
+                                                    onChange={(e) => setReceived(e.target.value)} style={{ width: 100 }} />
+                                            )}
+                                            <button onClick={() => pay(debt, crossesCurrencies)} disabled={fromId === null}>Save</button>
+                                            <button onClick={() => setPayingId(null)}>Cancel</button>
+                                        </>
+                                    ) : (
+                                        <button onClick={() => startPaying(debt)}>Pay</button>
+                                    )}
+                                </td>
+                            </tr>
+                        );
+                    })}
                 </tbody>
             </table>
             {error && <p style={{ color: 'crimson' }}>{error}</p>}
