@@ -9,7 +9,8 @@ import OverviewPage from './features/overview/OverviewPage';
 import TransactionsPage from './features/transactions/TransactionsPage';
 import AccountsPage from './features/accounts/AccountsPage';
 import AccountDetailPage from './features/accounts/AccountDetailPage';
-import { LegacyPlan, LegacySettings } from './features/legacy';
+import DebtPlanPage from './features/plan/DebtPlanPage';
+import { LegacySettings } from './features/legacy';
 
 // Each section of the app has its own URL, inside the shared layout.
 const router = createBrowserRouter([
@@ -21,7 +22,7 @@ const router = createBrowserRouter([
       { path: 'transactions', element: <TransactionsPage /> },
       { path: 'accounts', element: <AccountsPage /> },
       { path: 'accounts/:id', element: <AccountDetailPage /> },
-      { path: 'plan', element: <LegacyPlan /> },
+      { path: 'plan', element: <DebtPlanPage /> },
       { path: 'settings', element: <LegacySettings /> },
     ],
   },
