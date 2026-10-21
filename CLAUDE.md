@@ -19,10 +19,11 @@ A personal life-tracking app: spending, debt payoff, habits and personal growth.
   - `Income`: money arrives in `AccountId` (on a card it's a refund)
   - `Transfer`: money moves `AccountId` → `ToAccountId`; never spending. Paying a card = Transfer from a Current account to the card.
   - A check constraint enforces that `ToAccountId` is set iff the type is Transfer, and differs from `AccountId`.
-- **Balance rule** (`Features/Accounts/BalanceRules.cs`): money out of an asset lowers its balance, money out of a liability raises it; money in does the opposite. Balances are stored and changed only through `LedgerService` (record, or correct = undo + redo), in the same SaveChanges as the transaction.
+- **Balance rule** (`Features/Accounts/BalanceRules.cs`): money out of an asset lowers its balance, money out of a liability raises it; money in does the opposite. Balances are stored and changed only through `LedgerService` (record; update = undo + redo; delete = undo), in the same SaveChanges as the transaction.
 - **Currencies** – each account has a `Currency` (GBP, or NGN for Nigerian accounts, Lemfi-style wallets and loan apps) and its balance is in that currency. A transfer between currencies stores what was sent (`Amount`) and what arrived (`ToAmount`). Every transaction stores `GbpAmount` for £ totals: exact when one side is GBP, a typed-in value, or converted at the rate from my latest GBP↔currency transfer (`ExchangeRateService`). No rate feed.
 - **Nigerian loan apps** – `Loan` accounts in NGN with Balance = total repayable (interest and fees included), APR 0, MonthlyPayment = instalment, so interest isn't counted twice.
-- **Monthly summary** – spending = `Type == Expense` only, summed as `GbpAmount`; income is still `Settings.MonthlyIncome` (not summed from Income transactions, yet).
+- **Monthly summary** – spending = `Type == Expense` only, summed as `GbpAmount`. Income depends on `Settings.IncomeMode`: `Fixed` = `MonthlyIncome`, `Recorded` = Income transactions in the period.
+- **Budget months** – `Settings.MonthStartDay` (1-28, payday) sets when a month starts; `BudgetPeriod` (Features/Summary) works out the dates. With no year/month, the summary returns the period I'm in now. The web takes period dates from the summary rather than computing them.
 - **Debts** – `/debts`, `/debts/avalanche` and `/debts/{id}/what-if` are read-only views over CreditCard/Loan accounts. Totals and the avalanche plan are in £ (other currencies converted at the latest transfer rate; ones with no rate are left out and listed). Payment history = transfers into the account (`/accounts/{id}/payments`).
 - **Apple Pay capture** (`/capture/apple-pay`) – resolves the account from the card name by alias, then account name, then `Settings.DefaultAccountId`, and records an Expense.
 - Enums are stored as strings in Postgres and sent as strings in JSON.
@@ -32,7 +33,7 @@ A personal life-tracking app: spending, debt payoff, habits and personal growth.
 - **Design tokens** – every colour lives in `src/index.css` (`@theme static`: `canvas`, `surface`, `ink`, `muted`, `accent`, `positive`, `negative`, `warning`, `chart-1..6`). Dark mode only swaps token values, so components never use `dark:` classes. Charts read tokens through `useTokens()`.
 - **Structure** – `components/ui` (Button, Card, Field/MoneyInput/Select, Modal on native `<dialog>`, Badge, Money, Stat, …), `components/layout` (AppLayout: sidebar on desktop, bottom tabs on phones), `features/<area>` for pages (overview, transactions, accounts, plan, settings), `lib/format.ts` for money and dates.
 - **Data** – `api.ts` calls every endpoint and turns API errors into `Error` messages. Pages load with `useData(key, load)`; after any save, call `refresh()` (`data/refresh.ts`) and every `useData` on screen reloads.
-- **One transaction form** – opened from anywhere with `useQuickAdd()(draft?)`; "Pay" on a debt opens it as a prefilled transfer.
+- **One transaction form** – opened from anywhere: `useQuickAdd()(draft?)` for a new one ("Pay" on a debt opens a prefilled transfer), `useEditTransaction()(t)` to edit or delete; tapping a TransactionRow edits it.
 - **Tailwind gotcha** – two classes for the same property (e.g. `p-4` and `p-0`) don't override by order in the markup; add an option to the component (like Card's `flush`) instead.
 
 ## Database migrations
