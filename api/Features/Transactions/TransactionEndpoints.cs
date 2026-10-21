@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LifeTracker.Api.Features.Transactions;
 
-// A new transaction from the dashboard form. Type defaults to Expense because that's what
+// A transaction from the dashboard form, new or edited (an edit sends the whole thing again). Type defaults to Expense because that's what
 // I'm logging most of the time; ToAccountId is only for transfers.
 // ToAmount is what arrived on a transfer between currencies (£10 sent, ₦18,000 received).
 // GbpAmount is optional: my own £ value for a naira transaction, instead of the automatic one.
@@ -14,10 +14,6 @@ public record CreateTransactionRequest(
     int AccountId, TransactionType Type = TransactionType.Expense, int? ToAccountId = null,
     decimal? ToAmount = null, decimal? GbpAmount = null);
 
-// Moving an existing transaction to the right account or type.
-public record CorrectTransactionRequest(
-    int AccountId, TransactionType Type, int? ToAccountId = null,
-    decimal? ToAmount = null, decimal? GbpAmount = null);
 
 // What the API sends back for a transaction: the entity's fields plus the account names and
 // currencies, so the dashboard can show "Lloyds Current -> PalmPay, £10.00 -> ₦18,000.00"
@@ -68,24 +64,22 @@ public static class TransactionEndpoints
         // Recording a transaction from the dashboard (the form, or the Pay button on a debt).
         group.MapPost("/", async (CreateTransactionRequest req, LedgerService ledger) =>
         {
-            var result = await ledger.RecordAsync(new LedgerEntry(
-                req.Amount, req.Description, req.Category, req.Date, req.Type, req.AccountId, req.ToAccountId,
-                req.ToAmount, req.GbpAmount));
+            var result = await ledger.RecordAsync(ToEntry(req));
 
             return result.Transaction is { } t
                 ? Results.Created($"/transactions/{t.Id}", TransactionDto.From(t))
                 : Results.BadRequest(new { error = result.Error });
         });
 
-        // For fixing mistakes, e.g. a purchase logged against Lloyds that was really on a card.
-        // The balances move with it, so both accounts end up right.
-        group.MapPatch("/{id:int}", async (int id, CorrectTransactionRequest req, LedgerService ledger) =>
+        // Editing a transaction: the whole thing is sent again, and the balances follow the change.
+        // Used for fixing mistakes, e.g. a purchase logged against Lloyds that was really on a card.
+        group.MapPut("/{id:int}", async (int id, CreateTransactionRequest req, LedgerService ledger) =>
         {
-            var result = await ledger.CorrectAsync(id, req.Type, req.AccountId, req.ToAccountId, req.ToAmount, req.GbpAmount);
+            var result = await ledger.UpdateAsync(id, ToEntry(req));
 
             if (result is null)
             {
-                logger.LogWarning("Couldn't correct transaction {TransactionId}: it doesn't exist", id);
+                logger.LogWarning("Couldn't update transaction {TransactionId}: it doesn't exist", id);
                 return Results.NotFound();
             }
 
@@ -94,6 +88,19 @@ public static class TransactionEndpoints
                 : Results.BadRequest(new { error = result.Error });
         });
 
+        // Deleting a transaction undoes its effect on the balances.
+        group.MapDelete("/{id:int}", async (int id, LedgerService ledger) =>
+        {
+            if (await ledger.DeleteAsync(id)) return Results.NoContent();
+
+            logger.LogWarning("Couldn't delete transaction {TransactionId}: it doesn't exist", id);
+            return Results.NotFound();
+        });
+
         return group;
     }
+
+    private static LedgerEntry ToEntry(CreateTransactionRequest req) => new(
+        req.Amount, req.Description, req.Category, req.Date, req.Type, req.AccountId, req.ToAccountId,
+        req.ToAmount, req.GbpAmount);
 }

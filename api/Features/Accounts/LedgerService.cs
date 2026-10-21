@@ -58,51 +58,72 @@ public class LedgerService(AppDbContext db, ExchangeRateService rates, ILogger<L
         return LedgerResult.Ok(t);
     }
 
-    // Fixes a transaction that was put in the wrong place, e.g. a purchase logged against
-    // Lloyds that was really on the Aqua card. The old effect on the balances is undone first,
-    // then the new one is applied, so the balances end up as if it had been right from the start.
-    // Returns null if the transaction doesn't exist.
-    public async Task<LedgerResult?> CorrectAsync(
-        int id, TransactionType type, int accountId, int? toAccountId,
-        decimal? toAmount = null, decimal? gbpAmount = null)
+    // Changes a transaction: its amount, date, category, description, account or type.
+    // E.g. a purchase logged against Lloyds that was really on the Aqua card, or a typo in the amount.
+    // The old effect on the balances is undone first, then the new one is applied, so the balances
+    // end up as if it had been right from the start. Returns null if the transaction doesn't exist.
+    public async Task<LedgerResult?> UpdateAsync(int id, LedgerEntry entry)
     {
         var t = await db.Transactions.FindAsync(id);
         if (t is null) return null;
 
+        if (entry.Amount <= 0)
+            return Reject(entry.Type, entry.Amount, "Amount must be above zero.");
+
         var oldAccount = (await db.Accounts.FindAsync(t.AccountId))!;
         var oldTo = t.ToAccountId is { } oldToId ? await db.Accounts.FindAsync(oldToId) : null;
-        var before = Describe(t.Type, oldAccount, oldTo);
-
-        // The amount is in the old account's currency. Moving £1.80 to a naira account would
-        // silently turn it into ₦1.80, so that has to be recorded again instead.
-        var newAccount = await db.Accounts.FindAsync(accountId);
-        if (newAccount is not null && newAccount.Currency != oldAccount.Currency)
-            return Reject(type, t.Amount,
-                $"This amount is in {oldAccount.Currency} but {newAccount.Name} is in {newAccount.Currency}. Record it again on that account instead.");
-
+        var before = $"{Describe(t.Type, oldAccount, oldTo)}, {t.Amount} {oldAccount.Currency} on {t.Date}";
         Apply(t.Type, -t.Amount, t.ToAmount is { } oldToAmount ? -oldToAmount : null, oldAccount, oldTo);
 
         // Checked after the undo, so "more than is owed" sees the balance without this payment in it.
-        var (account, toAccount, error) = await LoadAsync(type, accountId, toAccountId, t.Amount, toAmount, gbpAmount);
-        if (error is not null)
-            return Reject(type, t.Amount, error);   // nothing is saved, so the undo above is thrown away
+        // If anything is wrong, nothing is saved, so the undo above is simply thrown away.
+        var (account, toAccount, error) = await LoadAsync(
+            entry.Type, entry.AccountId, entry.ToAccountId, entry.Amount, entry.ToAmount, entry.GbpAmount);
+        if (error is not null) return Reject(entry.Type, entry.Amount, error);
 
-        var (pounds, poundsError) = await PoundsAsync(t.Amount, t.Date, account!, toAccount, toAmount, gbpAmount);
-        if (poundsError is not null) return Reject(type, t.Amount, poundsError);
+        var (pounds, poundsError) = await PoundsAsync(entry.Amount, entry.Date, account!, toAccount, entry.ToAmount, entry.GbpAmount);
+        if (poundsError is not null) return Reject(entry.Type, entry.Amount, poundsError);
 
-        Apply(type, t.Amount, toAmount, account!, toAccount);
-        t.Type = type;
+        Apply(entry.Type, entry.Amount, entry.ToAmount, account!, toAccount);
+        t.Amount = entry.Amount;
+        t.GbpAmount = pounds!.Value;
+        t.ToAmount = entry.ToAmount;
+        t.Description = entry.Description;
+        t.Category = entry.Category;
+        t.Date = entry.Date;
+        t.Type = entry.Type;
         t.Account = account!;
         t.ToAccount = toAccount;
         t.ToAccountId = toAccount?.Id;
-        t.ToAmount = toAmount;
-        t.GbpAmount = pounds!.Value;
         await db.SaveChangesAsync();
 
-        logger.LogInformation("Corrected transaction {TransactionId}: {Before} -> {After}",
-            t.Id, before, Describe(t.Type, account!, toAccount));
-        LogBalances("Corrected", t, account!, toAccount);
+        logger.LogInformation("Updated transaction {TransactionId}: {Before} -> {After}",
+            t.Id, before, $"{Describe(t.Type, account!, toAccount)}, {t.Amount} {account!.Currency} on {t.Date}");
+        LogBalances("Updated", t, account!, toAccount);
         return LedgerResult.Ok(t);
+    }
+
+    // Removes a transaction and undoes what it did to the balances, as if it had never happened.
+    // Returns false if it doesn't exist.
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var t = await db.Transactions.FindAsync(id);
+        if (t is null) return false;
+
+        var account = (await db.Accounts.FindAsync(t.AccountId))!;
+        var toAccount = t.ToAccountId is { } toId ? await db.Accounts.FindAsync(toId) : null;
+        Apply(t.Type, -t.Amount, t.ToAmount is { } toAmount ? -toAmount : null, account, toAccount);
+
+        db.Transactions.Remove(t);
+        await db.SaveChangesAsync();
+
+        if (toAccount is null)
+            logger.LogInformation("Deleted {Type} {TransactionId} ({Description}, {Amount} {Currency}); {Account} balance now {Balance}",
+                t.Type, t.Id, t.Description, t.Amount, account.Currency, account.Name, account.Balance);
+        else
+            logger.LogInformation("Deleted {Type} {TransactionId} ({Description}); balances now {From} {FromBalance}, {To} {ToBalance}",
+                t.Type, t.Id, t.Description, account.Name, account.Balance, toAccount.Name, toAccount.Balance);
+        return true;
     }
 
     // Finds the accounts involved and checks the entry makes sense for them.

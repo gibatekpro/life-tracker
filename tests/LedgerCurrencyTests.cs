@@ -148,16 +148,21 @@ public class LedgerCurrencyTests(PostgresFixture pg) : IClassFixture<PostgresFix
     }
 
     [Fact]
-    public async Task Correction_CantMoveAnAmountIntoAnotherCurrency()
+    public async Task Update_ToAnotherCurrency_UsesTheNewAmount()
     {
         var s = await SetupAsync();
         await using var _ = s.Db;
+        await s.Ledger.RecordAsync(PoundsToNaira(s, 10m, 18000m, Oct1));   // PalmPay ₦18,000, rate ₦1,800
         var lunch = await s.Ledger.RecordAsync(
             new LedgerEntry(5m, "Lunch", "Food", Oct1, TransactionType.Expense, s.Lloyds.Id));
 
-        var result = await s.Ledger.CorrectAsync(lunch.Transaction!.Id, TransactionType.Expense, s.PalmPay.Id, null);
+        // It was really ₦9,000 from PalmPay: the amount is re-entered in naira.
+        var result = await s.Ledger.UpdateAsync(lunch.Transaction!.Id,
+            new LedgerEntry(9000m, "Lunch", "Food", Oct1, TransactionType.Expense, s.PalmPay.Id));
 
-        Assert.Contains("Record it again", result!.Error);
-        Assert.Equal(995m, s.Lloyds.Balance);
+        Assert.Null(result!.Error);
+        Assert.Equal(990m, s.Lloyds.Balance);       // the £5 is back
+        Assert.Equal(9000m, s.PalmPay.Balance);     // 18,000 - 9,000
+        Assert.Equal(5.00m, result.Transaction!.GbpAmount);
     }
 }
