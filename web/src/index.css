@@ -1,0 +1,91 @@
+@import "tailwindcss";
+
+/*
+  Design tokens. Every colour in the app comes from here, used through Tailwind utilities
+  such as bg-surface, text-muted or border-line. Utilities read these as CSS variables,
+  so dark mode below only swaps the values; no component needs dark: classes.
+*/
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --color-canvas: #f5f6f8;          /* page background */
+  --color-surface: #ffffff;         /* cards, dialogs */
+  --color-surface-muted: #f0f2f5;   /* inputs, hover rows, tracks */
+  --color-line: #e3e6eb;            /* borders and dividers */
+  --color-ink: #101828;             /* main text */
+  --color-muted: #586174;           /* secondary text */
+  --color-subtle: #8a92a2;          /* hints, placeholders */
+
+  --color-accent: #0f766e;          /* brand teal: primary actions, highlights */
+  --color-accent-hover: #115e59;
+  --color-accent-soft: #e3f3f1;
+  --color-on-accent: #ffffff;
+
+  --color-positive: #157a3f;        /* money held, savings */
+  --color-positive-soft: #e5f4ea;
+  --color-negative: #b42318;        /* money owed, errors */
+  --color-negative-soft: #fdecea;
+  --color-warning: #a15c07;         /* needs attention */
+  --color-warning-soft: #fdf1df;
+
+  /* Categorical chart colours, distinguishable from each other in both themes. */
+  --color-chart-1: #0f766e;
+  --color-chart-2: #3b6fd8;
+  --color-chart-3: #c2410c;
+  --color-chart-4: #8b5cf6;
+  --color-chart-5: #ca8a04;
+  --color-chart-6: #64748b;
+
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.05), 0 1px 3px rgb(16 24 40 / 0.04);
+  --shadow-dialog: 0 20px 40px -12px rgb(16 24 40 / 0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas: #0b0f16;
+    --color-surface: #131a25;
+    --color-surface-muted: #1b2331;
+    --color-line: #263041;
+    --color-ink: #e7eaf0;
+    --color-muted: #a2abbb;
+    --color-subtle: #6e7889;
+
+    --color-accent: #2cc4b0;
+    --color-accent-hover: #5fd8c7;
+    --color-accent-soft: #0f2d2a;
+    --color-on-accent: #04211d;
+
+    --color-positive: #4ccf7f;
+    --color-positive-soft: #10291b;
+    --color-negative: #f2776c;
+    --color-negative-soft: #331614;
+    --color-warning: #f0b44c;
+    --color-warning-soft: #33250c;
+
+    --color-chart-1: #2cc4b0;
+    --color-chart-2: #6f9bf0;
+    --color-chart-3: #f08a5d;
+    --color-chart-4: #a98bfa;
+    --color-chart-5: #e3b341;
+    --color-chart-6: #94a3b8;
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-dialog: 0 20px 40px -12px rgb(0 0 0 / 0.6);
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+
+  body {
+    @apply bg-canvas text-ink font-sans antialiased;
+  }
+
+  /* The native dialog backdrop, used by Modal. */
+  dialog::backdrop {
+    background: rgb(8 12 20 / 0.45);
+    backdrop-filter: blur(2px);
+  }
+}
