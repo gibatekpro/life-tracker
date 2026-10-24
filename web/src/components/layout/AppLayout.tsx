@@ -4,23 +4,15 @@ import { getAccounts, getCategories, getExchangeRates } from '../../api';
 import { useData } from '../../data/useData';
 import { cn } from '../../lib/cn';
 import Button from '../ui/Button';
-import Icon, { type IconName } from '../ui/Icon';
+import Icon from '../ui/Icon';
 import Modal from '../ui/Modal';
 import TransactionForm from '../../features/transactions/TransactionForm';
 import { TransactionModalContext, type TransactionDraft } from '../../features/transactions/quickAdd';
 import type { Transaction } from '../../types';
+import BottomNav from './BottomNav';
+import { navItems } from './navItems';
 
 type ModalState = { draft: TransactionDraft } | { transaction: Transaction } | null;
-
-// short: the label on the phone's bottom tabs, where six full labels don't fit.
-const nav: { to: string; label: string; short: string; icon: IconName }[] = [
-  { to: '/', label: 'Overview', short: 'Home', icon: 'home' },
-  { to: '/transactions', label: 'Transactions', short: 'Activity', icon: 'list' },
-  { to: '/budget', label: 'Budget', short: 'Budget', icon: 'budget' },
-  { to: '/accounts', label: 'Accounts', short: 'Accounts', icon: 'wallet' },
-  { to: '/plan', label: 'Debt plan', short: 'Plan', icon: 'target' },
-  { to: '/settings', label: 'Settings', short: 'Settings', icon: 'settings' },
-];
 
 function Brand() {
   return (
@@ -56,7 +48,7 @@ export default function AppLayout() {
             New transaction
           </Button>
           <nav className="mt-6 flex flex-col gap-1" aria-label="Main">
-            {nav.map((item) => (
+            {navItems.map((item) => (
               <NavLink key={item.to} to={item.to} end={item.to === '/'}
                 className={({ isActive }) => cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition',
@@ -82,20 +74,7 @@ export default function AppLayout() {
           <Outlet />
         </main>
 
-        {/* Bottom tabs (phones) */}
-        <nav aria-label="Main"
-          className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-6 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
-          {nav.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.to === '/'}
-              className={({ isActive }) => cn(
-                'flex flex-col items-center gap-1 py-2 text-[11px] font-medium',
-                isActive ? 'text-accent' : 'text-muted',
-              )}>
-              <Icon name={item.icon} />
-              {item.short}
-            </NavLink>
-          ))}
-        </nav>
+        <BottomNav />
       </div>
 
       <Modal open={modal !== null} onClose={() => setModal(null)}

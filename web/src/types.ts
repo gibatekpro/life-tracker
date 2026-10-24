@@ -265,3 +265,33 @@ export interface ExchangeRate {
   transferDate: string | null; // the transfer it came from (Transfer)
   manualRate: number | null; // my own figure for this direction, if I've set one
 }
+
+// An AI insight for a budget month: the checked answer, what it cost, and exactly what was sent.
+export interface WasteItem {
+  name: string;
+  monthlyAmount: number;
+  reason: string;
+}
+
+export interface SavingTip {
+  tip: string;
+  estimatedMonthlySaving: number;
+}
+
+export interface Insight {
+  id: number;
+  year: number;
+  month: number;
+  periodStart: string;
+  createdAt: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  promptSent: string;
+  result: {
+    summary: string;
+    wasteItems: WasteItem[];
+    savingTips: SavingTip[];
+    debtAdvice: string;
+  };
+}

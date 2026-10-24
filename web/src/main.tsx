@@ -26,6 +26,7 @@ const router = createBrowserRouter([
           { path: 'accounts', lazy: page(() => import('./features/accounts/AccountsPage')) },
           { path: 'accounts/:id', lazy: page(() => import('./features/accounts/AccountDetailPage')) },
           { path: 'plan', lazy: page(() => import('./features/plan/DebtPlanPage')) },
+          { path: 'insights', lazy: page(() => import('./features/insights/InsightsPage')) },
           { path: 'settings', lazy: page(() => import('./features/settings/SettingsPage')) },
           { path: '*', element: <RouteError notFound /> },
         ],

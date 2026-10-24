@@ -1,6 +1,6 @@
 import type {
   Account, AccountAlias, AccountPayment, AvalanchePlan, BudgetLineKey, BudgetMonthView, Category, CreateTransaction,
-  ExchangeRate,
+  ExchangeRate, Insight,
   SaveCategory,
   DebtsOverview, IncomeMode, MonthlySummary, SaveAccount, Settings, Transaction, WhatIfComparison,
 } from './types';
@@ -64,6 +64,13 @@ export const resetBudgetAmount = (year: number, month: number, key: BudgetLineKe
     key.categoryId !== undefined ? `categoryId=${key.categoryId}` : `accountId=${key.accountId}`}`);
 export const copyPreviousBudget = (year: number, month: number) =>
   request<{ copied: number }>('POST', '/budgets/month/copy-previous', { year, month });
+
+// Insights: the API asks OpenAI (the web app never does). Generating returns the month's existing
+// insight unless regenerate is set; with no key configured the API answers 503.
+export const getInsights = () => request<Insight[]>('GET', '/insights');
+export const generateInsight = (year: number, month: number, regenerate = false) =>
+  request<Insight>('POST', '/insights', { year, month, regenerate });
+export const deleteInsight = (id: number) => request<void>('DELETE', `/insights/${id}`);
 
 // Debts (read-only views over card and loan accounts)
 export const getDebts = () => request<DebtsOverview>('GET', '/debts');
