@@ -8,7 +8,7 @@ import { formatMoney, monthName, periodLabel } from '../../lib/format';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Modal from '../../components/ui/Modal';
-import { Alert, EmptyState, PageHeader, Skeleton, Stat } from '../../components/ui/Bits';
+import { Alert, EmptyState, PageHeader, ProgressBar, Skeleton, Stat } from '../../components/ui/Bits';
 import AddLineForm from './AddLineForm';
 import BudgetLineRow from './BudgetLineRow';
 import DebtLineRow from './DebtLineRow';
@@ -128,6 +128,21 @@ export default function BudgetPage() {
                         onSave={(accountId, amount) => save({ accountId }, amount)}
                         onReset={(accountId) => reset({ accountId })} />
                     ))}
+                    {b.avalancheExtra > 0 && (
+                      // What the avalanche plan pays beyond the debt lines, so the month's debt total
+                      // (and so unallocated and safe-to-spend) is what the plan actually pays.
+                      <li className="py-3">
+                        <div className="flex flex-wrap items-baseline justify-between gap-x-4 text-sm">
+                          <p className="font-semibold">Extra for the avalanche</p>
+                          <p className="tabular-nums">{formatMoney(b.avalancheExtraPaid)} <span className="text-muted">paid of</span> {formatMoney(b.avalancheExtra)}</p>
+                        </div>
+                        <div className="mt-2"><ProgressBar label="Avalanche extra paid" value={b.avalancheExtraPaid / b.avalancheExtra} /></div>
+                        <p className="mt-1.5 text-xs text-muted">
+                          The plan pays {formatMoney(b.plannedDebts)} a month; your debt lines add up to {formatMoney(b.plannedDebts - b.avalancheExtra)}.
+                          Paying more than a line's figure counts here.
+                        </p>
+                      </li>
+                    )}
                   </ul>
                 )}
                 <p className="mt-4 rounded-xl bg-surface-muted p-3 text-xs text-muted">
