@@ -26,7 +26,8 @@ public record BudgetInput(
     IReadOnlyList<BudgetCategory> Categories,
     IReadOnlyDictionary<int, decimal> SpentByCategory,   // spending recorded directly on each category
     IReadOnlyList<DebtInput> Debts,
-    decimal? FallbackDebtBudget);                        // Settings.MonthlyDebtBudget
+    decimal? FallbackDebtBudget,                         // Settings.MonthlyDebtBudget
+    decimal? AvalancheBudget = null);                    // what the avalanche plan pays per month (its MonthlyBudget)
 
 // One category's line. Own* is the category itself; Planned and Spent include its subcategories.
 public record BudgetLine(
@@ -42,12 +43,16 @@ public record DebtLine(
     string Currency, decimal? Rate, decimal? NativeDefault, decimal? NativeMonthAmount, decimal NativePlanned,
     decimal NativePaid, decimal NativeRemaining, decimal? NativeSuggested);
 
+// AvalancheExtra: what the avalanche plan pays beyond the debt lines (e.g. a £800 debt budget
+// against £565.95 of card payments), so the month's debt total is what the plan actually pays.
+// AvalancheExtraPaid: payments beyond each debt's own line, which go towards it.
 public record BudgetMonth(
     int Year, int Month, DateOnly PeriodStart, DateOnly PeriodEnd,
     int DaysInPeriod, int DaysElapsed, int DaysLeft,
     decimal Income, decimal PlannedSpending, decimal PlannedDebts, decimal TotalPlanned, decimal Unallocated,
     decimal Spent, decimal DebtPaid, decimal SafeToSpend, decimal SafeToSpendPerDay,
     bool HasMonthDebtAmounts, decimal? DebtBudget,
+    decimal AvalancheExtra, decimal AvalancheExtraPaid,
     IReadOnlyList<BudgetLine> Lines, IReadOnlyList<DebtLine> Debts);
 
 // Works out a budget month: for every category and debt, what's planned, what's gone, what's left,
@@ -113,14 +118,23 @@ public static class BudgetCalculator
         }).ToList();
 
         var plannedSpending = lines.Sum(l => l.Planned);
-        var plannedDebts = debts.Sum(d => d.Planned);
         var spentTotal = lines.Sum(l => l.Spent);
         var debtPaid = debts.Sum(d => d.Paid);
 
+        // The debt total is what the avalanche plan pays, so unallocated and safe-to-spend match the
+        // plan: anything it pays beyond the debt lines is an extra line. Paying more than a debt's own
+        // line goes towards that extra.
+        var debtLines = debts.Sum(d => d.Planned);
+        var extra = input.AvalancheBudget is { } plan && plan > debtLines ? plan - debtLines : 0;
+        var extraPaid = Math.Min(extra, debts.Sum(d => Math.Max(0, -d.Remaining)));
+        var plannedDebts = debtLines + extra;
+
         // Money still set aside: what's left on each line's own amount (an overspent line holds nothing
-        // back), and what's still to pay on each debt. Safe to spend is what isn't spent or set aside.
+        // back), what's still to pay on each debt, and what's left of the avalanche extra.
+        // Safe to spend is what isn't spent or set aside.
         var reserved = Flatten(lines).Sum(l => Math.Max(0, l.OwnPlanned - l.OwnSpent))
-                       + debts.Sum(d => Math.Max(0, d.Remaining));
+                       + debts.Sum(d => Math.Max(0, d.Remaining))
+                       + (extra - extraPaid);
         var safe = input.Income - spentTotal - debtPaid - reserved;
 
         // Decision 1: once any debt amount is set for this month, the month's debt lines are the
@@ -132,7 +146,8 @@ public static class BudgetCalculator
             input.Income, plannedSpending, plannedDebts, plannedSpending + plannedDebts,
             input.Income - plannedSpending - plannedDebts,
             spentTotal, debtPaid, safe, PerDay(safe, left),
-            hasMonthDebtAmounts, hasMonthDebtAmounts ? plannedDebts : input.FallbackDebtBudget,
+            hasMonthDebtAmounts, hasMonthDebtAmounts ? debtLines : input.FallbackDebtBudget,
+            extra, extraPaid,
             lines, debts);
     }
 

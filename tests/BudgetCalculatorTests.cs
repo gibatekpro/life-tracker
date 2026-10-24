@@ -366,4 +366,51 @@ public class BudgetCalculatorTests
         Assert.Equal((100m, 30m, 70m, 120m), (d.NativePlanned, d.NativePaid, d.NativeRemaining, d.NativeSuggested));
         Assert.Equal("GBP", d.Currency);
     }
+
+    // The debt total matches the avalanche plan
+
+    private static BudgetMonth WithPlan(decimal? avalanche, params DebtInput[] debts) =>
+        BudgetCalculator.Calculate(new BudgetInput(
+            October, new DateOnly(2026, 10, 10), 2000m, [], new Dictionary<int, decimal>(), debts, 800m, avalanche));
+
+    [Fact]
+    public void PlanPayingMoreThanTheDebtLines_ShowsTheDifferenceAsExtra()
+    {
+        // The £800 debt budget against £100 + £50 of payments.
+        var m = WithPlan(800m, new DebtInput(1, "A", 100m, null, 0m, null), new DebtInput(2, "B", 50m, null, 0m, null));
+
+        Assert.Equal(650m, m.AvalancheExtra);
+        Assert.Equal(800m, m.PlannedDebts);         // what the plan pays
+        Assert.Equal(1200m, m.Unallocated);         // 2000 - 800
+        Assert.Equal(1200m, m.SafeToSpend);         // nothing paid yet: all £800 set aside
+    }
+
+    [Fact]
+    public void PlanMatchingTheDebtLines_HasNoExtra()
+    {
+        var m = WithPlan(150m, new DebtInput(1, "A", 100m, null, 0m, null), new DebtInput(2, "B", 50m, null, 0m, null));
+
+        Assert.Equal(0m, m.AvalancheExtra);
+        Assert.Equal(150m, m.PlannedDebts);
+    }
+
+    [Fact]
+    public void PayingMoreThanALine_GoesTowardsTheExtra()
+    {
+        // £300 paid to A against its £100 line: £200 of the £650 extra is done.
+        var m = WithPlan(800m, new DebtInput(1, "A", 100m, null, 300m, null), new DebtInput(2, "B", 50m, null, 0m, null));
+
+        Assert.Equal(200m, m.AvalancheExtraPaid);
+        // 2000 - 300 paid - (B's 50 + 450 of extra still set aside)
+        Assert.Equal(1200m, m.SafeToSpend);
+    }
+
+    [Fact]
+    public void WithoutAPlan_ThereIsNoExtra()
+    {
+        var m = WithPlan(null, new DebtInput(1, "A", 100m, null, 0m, null));
+
+        Assert.Equal(0m, m.AvalancheExtra);
+        Assert.Equal(100m, m.PlannedDebts);
+    }
 }

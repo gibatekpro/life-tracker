@@ -59,7 +59,10 @@ public class BudgetService(
             debts.Select(d => new DebtInput(d.Account.Id, d.Account.Name, d.Default, d.MonthAmount, d.Paid,
                 suggested.TryGetValue(d.Account.Id, out var x) ? x : null,
                 d.Account.Currency, d.Rate, d.Account.MonthlyPayment, d.NativeMonthAmount, d.NativePaid)).ToList(),
-            s.MonthlyDebtBudget));
+            s.MonthlyDebtBudget,
+            // What the plan pays: the debt budget, but never less than every debt's planned payment.
+            // With nothing to plan (no debts with a balance and a rate), there's no extra to show.
+            plan.FirstMonth.Count > 0 ? plan.MonthlyBudget : null));
 
         logger.LogDebug("Budget {Start} to {End}: planned £{Planned} of £{Income}, spent £{Spent}, safe £{Safe}/day",
             result.PeriodStart, result.PeriodEnd, result.TotalPlanned, result.Income, result.Spent, result.SafeToSpendPerDay);

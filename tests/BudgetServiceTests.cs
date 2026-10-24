@@ -141,6 +141,9 @@ public class BudgetServiceTests(PostgresFixture pg) : IClassFixture<PostgresFixt
         Assert.Equal(300m, plan.MonthlyBudget);
         Assert.False(view.Budget.HasMonthDebtAmounts);
         Assert.Equal(300m, view.Budget.DebtBudget);
+        // The budget page's debt total is what the plan pays: the card's £50 and £250 extra.
+        Assert.Equal(plan.MonthlyBudget, view.Budget.PlannedDebts);
+        Assert.Equal(250m, view.Budget.AvalancheExtra);
     }
 
     [Fact]
