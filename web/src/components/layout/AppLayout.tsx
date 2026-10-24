@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router';
-import { getAccounts } from '../../api';
+import { getAccounts, getCategories } from '../../api';
 import { useData } from '../../data/useData';
 import { cn } from '../../lib/cn';
 import Button from '../ui/Button';
@@ -38,6 +38,7 @@ function Brand() {
 // (useEditTransaction) a transaction.
 export default function AppLayout() {
   const accounts = useData('accounts', getAccounts);
+  const categories = useData('categories', getCategories);
   const [modal, setModal] = useState<ModalState>(null);
   const openQuickAdd = (draft?: TransactionDraft) => setModal({ draft: draft ?? {} });
   const editing = modal && 'transaction' in modal ? modal.transaction : undefined;
@@ -97,7 +98,7 @@ export default function AppLayout() {
       <Modal open={modal !== null} onClose={() => setModal(null)}
         title={editing ? 'Edit transaction' : 'New transaction'}
         description={editing ? 'Balances are corrected to match.' : 'Spending, money in, or a transfer between your accounts.'}>
-        <TransactionForm accounts={accounts.data ?? []} transaction={editing}
+        <TransactionForm accounts={accounts.data ?? []} categories={categories.data ?? []} transaction={editing}
           draft={modal && 'draft' in modal ? modal.draft : undefined} onDone={() => setModal(null)} />
       </Modal>
     </TransactionModalContext.Provider>

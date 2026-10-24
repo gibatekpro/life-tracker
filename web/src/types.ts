@@ -24,6 +24,31 @@ export interface Account {
   aliases: AccountAlias[];
 }
 
+export type CategoryKind = 'Expense' | 'Income';
+
+// A category in the tree (Subscriptions › AI › Claude). Path and depth come from the API;
+// the counts say whether it can be deleted or must be archived.
+export interface Category {
+  id: number;
+  name: string;
+  kind: CategoryKind;
+  parentId: number | null;
+  path: string;
+  depth: number;
+  sortOrder: number;
+  isArchived: boolean;
+  defaultMonthlyAmount: number | null; // spending categories only, in £
+  transactionCount: number;
+  childCount: number;
+}
+
+export interface SaveCategory {
+  name: string;
+  kind: CategoryKind;
+  parentId: number | null;
+  defaultMonthlyAmount: number | null;
+}
+
 // What the API takes to create or replace an account.
 export interface SaveAccount {
   name: string;
@@ -51,7 +76,8 @@ export interface Transaction {
   currency: string;
   gbpAmount: number; // the amount in pounds, as counted in the summary
   description: string;
-  category: string;
+  categoryId: number | null; // null for transfers
+  category: string | null; // the category's path, e.g. "Subscriptions › AI › Claude"
   date: string;
   type: TransactionType;
   accountId: number;
@@ -66,7 +92,7 @@ export interface Transaction {
 export interface CreateTransaction {
   amount: number;
   description: string;
-  category: string;
+  categoryId: number | null; // required for spending and income, null for transfers
   date: string;
   type: TransactionType;
   accountId: number;

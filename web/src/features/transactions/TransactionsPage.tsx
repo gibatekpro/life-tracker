@@ -69,7 +69,7 @@ export default function TransactionsPage() {
     return inMonth.filter((t) =>
       (accountId === null || t.accountId === accountId || t.toAccountId === accountId) &&
       (type === 'All' || t.type === type) &&
-      (q === '' || t.description.toLowerCase().includes(q) || t.category.toLowerCase().includes(q)));
+      (q === '' || t.description.toLowerCase().includes(q) || (t.category ?? '').toLowerCase().includes(q)));
   }, [inMonth, accountId, type, search]);
 
   // The list grouped by day, newest first (the API already sends them in that order).

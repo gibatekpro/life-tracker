@@ -11,6 +11,7 @@ import { Field, MoneyInput, Select } from '../../components/ui/Field';
 import { Alert, Badge, PageHeader, SegmentedControl, Skeleton } from '../../components/ui/Bits';
 import { ordinal } from '../../lib/format';
 import AccountSelect from '../accounts/AccountSelect';
+import CategoriesCard from '../categories/CategoriesCard';
 
 const incomeModes: { value: IncomeMode; label: string }[] = [
   { value: 'Fixed', label: 'Take-home pay' },
@@ -112,7 +113,7 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Settings" description="Your budget, and how Apple Pay payments find their account." />
+      <PageHeader title="Settings" description="Your income and budget, categories, and how Apple Pay payments find their account." />
 
       {(settings.error || accounts.error) && <Alert tone="negative" className="mb-6">{settings.error ?? accounts.error}</Alert>}
 
@@ -120,6 +121,8 @@ export default function SettingsPage() {
         <Card title="Income and budget" description="What the monthly summary measures against, and when your month starts.">
           {s ? <BudgetForm key={s.updatedAt} settings={s} /> : <Skeleton className="h-28" />}
         </Card>
+
+        <CategoriesCard />
 
         <Card title="Apple Pay capture"
           description="An iOS Shortcut sends each Apple Pay payment here with the card's Wallet name, and it's recorded as an expense.">

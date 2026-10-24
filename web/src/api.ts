@@ -1,5 +1,5 @@
 import type {
-  Account, AccountAlias, AccountPayment, AvalanchePlan, CreateTransaction,
+  Account, AccountAlias, AccountPayment, AvalanchePlan, Category, CreateTransaction, SaveCategory,
   DebtsOverview, IncomeMode, MonthlySummary, SaveAccount, Settings, Transaction, WhatIfComparison,
 } from './types';
 
@@ -41,6 +41,15 @@ export const deleteAccount = (id: number) => request<void>('DELETE', `/accounts/
 export const addAlias = (id: number, alias: string) => request<AccountAlias>('POST', `/accounts/${id}/aliases`, { alias });
 export const removeAlias = (id: number, aliasId: number) => request<void>('DELETE', `/accounts/${id}/aliases/${aliasId}`);
 export const getAccountPayments = (id: number) => request<AccountPayment[]>('GET', `/accounts/${id}/payments`);
+
+// Categories: the tree spending and income are filed under. Delete only works while nothing
+// uses a category; otherwise the API says to archive it.
+export const getCategories = () => request<Category[]>('GET', '/categories');
+export const createCategory = (c: SaveCategory) => request<Category>('POST', '/categories', c);
+export const updateCategory = (id: number, c: SaveCategory) => request<Category>('PUT', `/categories/${id}`, c);
+export const archiveCategory = (id: number) => request<Category>('POST', `/categories/${id}/archive`);
+export const unarchiveCategory = (id: number) => request<Category>('POST', `/categories/${id}/unarchive`);
+export const deleteCategory = (id: number) => request<void>('DELETE', `/categories/${id}`);
 
 // Debts (read-only views over card and loan accounts)
 export const getDebts = () => request<DebtsOverview>('GET', '/debts');

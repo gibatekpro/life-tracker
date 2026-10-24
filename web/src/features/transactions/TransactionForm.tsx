@@ -1,13 +1,13 @@
 import { useState, type FormEvent } from 'react';
 import { createTransaction, deleteTransaction, updateTransaction } from '../../api';
-import type { Account, Transaction, TransactionType } from '../../types';
+import type { Account, Category, Transaction, TransactionType } from '../../types';
 import { useRefresh } from '../../data/refresh';
 import { currencySymbol, formatMoney, todayIso } from '../../lib/format';
 import Button from '../../components/ui/Button';
-import { Field, Input, MoneyInput, Select } from '../../components/ui/Field';
+import { Field, Input, MoneyInput } from '../../components/ui/Field';
 import { Alert, SegmentedControl } from '../../components/ui/Bits';
 import AccountSelect from '../accounts/AccountSelect';
-import { expenseCategories, incomeCategories } from './categories';
+import CategorySelect from '../categories/CategorySelect';
 import type { TransactionDraft } from './quickAdd';
 
 const types: { value: TransactionType; label: string }[] = [
@@ -21,8 +21,9 @@ const types: { value: TransactionType; label: string }[] = [
 // a transfer between currencies asks what arrived, and anything not in pounds can take a £ value.
 //
 // With `transaction`, the same form edits it (and can delete it); the API moves the balances to match.
-export default function TransactionForm({ accounts, draft, transaction: t, onDone }: {
+export default function TransactionForm({ accounts, categories: allCategories, draft, transaction: t, onDone }: {
   accounts: Account[];
+  categories: Category[];
   draft?: TransactionDraft;
   transaction?: Transaction;
   onDone: () => void;
@@ -34,7 +35,10 @@ export default function TransactionForm({ accounts, draft, transaction: t, onDon
   const [type, setType] = useState<TransactionType>(t?.type ?? draft?.type ?? 'Expense');
   const [amount, setAmount] = useState(t ? String(t.amount) : draft?.amount ? String(draft.amount) : '');
   const [description, setDescription] = useState(t?.description ?? draft?.description ?? '');
-  const [category, setCategory] = useState(t && t.type !== 'Transfer' ? t.category : expenseCategories[0]);
+  // The first usable category of a kind: what a new expense or income starts on.
+  const firstOf = (type: TransactionType) => type === 'Transfer' ? undefined
+    : allCategories.find((c) => c.kind === (type === 'Income' ? 'Income' : 'Expense') && !c.isArchived)?.id;
+  const [categoryId, setCategoryId] = useState<number | undefined>(t?.categoryId ?? firstOf(t?.type ?? draft?.type ?? 'Expense'));
   const [accountId, setAccountId] = useState<number | undefined>(t?.accountId ?? draft?.accountId ?? firstCurrent?.id);
   const [toAccountId, setToAccountId] = useState<number | undefined>(t?.toAccountId ?? draft?.toAccountId);
   const [toAmount, setToAmount] = useState(t?.toAmount ? String(t.toAmount) : '');
@@ -46,15 +50,14 @@ export default function TransactionForm({ accounts, draft, transaction: t, onDon
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const isTransfer = type === 'Transfer';
+  // If the categories arrived after the form opened, start on the first one rather than nothing.
+  const chosenCategory = categoryId ?? firstOf(type);
   const from = accounts.find((a) => a.id === accountId);
   const to = isTransfer ? accounts.find((a) => a.id === toAccountId) : undefined;
   const fromCurrency = from?.currency ?? 'GBP';
   const crossesCurrencies = to !== undefined && to.currency !== fromCurrency;
   // A transfer into pounds already has an exact £ value; anything else not in pounds may need one.
   const asksForPounds = fromCurrency !== 'GBP' && to?.currency !== 'GBP';
-  const baseCategories = type === 'Income' ? incomeCategories : expenseCategories;
-  // An edited transaction may use a category that's not in the list (e.g. an old "Debt" expense).
-  const categories = baseCategories.includes(category) ? baseCategories : [category, ...baseCategories];
 
   // £10 sent, ₦18,000 received: show the rate that implies, as a sanity check.
   const sent = Number(amount);
@@ -63,7 +66,7 @@ export default function TransactionForm({ accounts, draft, transaction: t, onDon
 
   function changeType(next: TransactionType) {
     setType(next);
-    setCategory(next === 'Income' ? incomeCategories[0] : expenseCategories[0]);
+    setCategoryId(firstOf(next));
     setError(null);
   }
 
@@ -77,8 +80,8 @@ export default function TransactionForm({ accounts, draft, transaction: t, onDon
       amount: sent,
       // A transfer's description can be left blank: it's clear from the accounts.
       description: description.trim() || (to ? `${to.type === 'Current' ? 'Transfer' : 'Payment'} to ${to.name}` : ''),
-      // Repaying a card or loan is filed under Debt; moving money between my accounts under Transfer.
-      category: isTransfer ? (to && to.type !== 'Current' ? 'Debt' : 'Transfer') : category,
+      // Spending and income need a category; a transfer between my accounts has none.
+      categoryId: isTransfer ? null : chosenCategory ?? null,
       date,
       accountId,
       toAccountId: isTransfer ? toAccountId : null,
@@ -136,9 +139,8 @@ export default function TransactionForm({ accounts, draft, transaction: t, onDon
         ) : (
           <Field label="Category">
             {(id) => (
-              <Select id={id} value={category} onChange={(e) => setCategory(e.target.value)}>
-                {categories.map((c) => <option key={c}>{c}</option>)}
-              </Select>
+              <CategorySelect id={id} required categories={allCategories} kind={type === 'Income' ? 'Income' : 'Expense'}
+                value={chosenCategory} onChange={(e) => setCategoryId(Number(e.target.value))} />
             )}
           </Field>
         )}
