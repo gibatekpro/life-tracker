@@ -11,6 +11,7 @@ using LifeTracker.Api.Features.Capture;
 using LifeTracker.Api.Features.Accounts;
 using LifeTracker.Api.Features.Categories;
 using LifeTracker.Api.Features.Budgets;
+using LifeTracker.Api.Features.Insights;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,6 +19,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("LifeTracker")));
 builder.Services.Configure<BudgetOptions>(builder.Configuration.GetSection("Budget"));
+// OpenAI:ApiKey comes from user secrets; the model and limits from appsettings.json.
+builder.Services.Configure<OpenAIOptions>(builder.Configuration.GetSection(OpenAIOptions.Section));
 
 builder.Services.AddScoped<SummaryService>();
 builder.Services.AddScoped<SettingsService>();
@@ -25,6 +28,8 @@ builder.Services.AddScoped<ExchangeRateService>();
 builder.Services.AddScoped<LedgerService>();
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<BudgetService>();
+builder.Services.AddScoped<InsightService>();
+builder.Services.AddSingleton<IInsightModel, OpenAIInsightModel>();
 
 // Enums go over JSON as names ("CreditCard"), not numbers.
 builder.Services.ConfigureHttpJsonOptions(o =>
@@ -55,6 +60,7 @@ app.MapAccountEndpoints();
 app.MapExchangeRateEndpoints();
 app.MapCategoryEndpoints();
 app.MapBudgetEndpoints();
+app.MapInsightEndpoints();
 app.MapDebtEndpoints();
 app.MapCaptureEndpoints();
 app.MapSummaryEndpoints();

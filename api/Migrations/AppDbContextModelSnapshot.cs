@@ -256,6 +256,46 @@ namespace LifeTracker.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("LifeTracker.Api.Models.Insight", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("InputTokens")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("OutputTokens")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("PeriodStart")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PromptSent")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ResponseJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PeriodStart");
+
+                    b.ToTable("Insights");
+                });
+
             modelBuilder.Entity("LifeTracker.Api.Models.Transaction", b =>
                 {
                     b.Property<int>("Id")

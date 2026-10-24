@@ -11,6 +11,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<BudgetMonthAmount> BudgetMonthAmounts => Set<BudgetMonthAmount>();
     public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
+    public DbSet<Insight> Insights => Set<Insight>();
 
 
     public DbSet<AppSettings> Settings => Set<AppSettings>();
@@ -127,6 +128,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.ToTable(t => t.HasCheckConstraint(
                 "CK_ExchangeRates_PositiveAndTwoCurrencies",
                 "\"Rate\" > 0 AND \"FromCurrency\" <> \"ToCurrency\""));
+        });
+
+        modelBuilder.Entity<Insight>(e =>
+        {
+            e.Property(i => i.Model).HasMaxLength(100);
+            e.HasIndex(i => i.PeriodStart);   // "the latest insight for this month"
         });
 
         modelBuilder.Entity<AccountAlias>(e =>
