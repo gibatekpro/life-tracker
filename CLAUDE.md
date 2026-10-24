@@ -10,7 +10,7 @@ A personal life-tracking app: spending, debt payoff, habits and personal growth.
 - **ORM** – EF Core with the Npgsql provider
 - **API testing** – Scalar UI at `/scalar` (reads the OpenAPI doc)
 - **API style** – Minimal APIs (I'm experienced with controllers and learning minimal APIs here), endpoints grouped with MapGroup in extension methods
-- **Tests** – xUnit in `tests/`. `dotnet test` runs everything; `dotnet test --filter "Category!=Integration"` skips the Testcontainers tests (those need Docker)
+- **Tests** – xUnit in `tests/`. `dotnet test` runs everything; `dotnet test --filter "Category!=Integration"` skips the Testcontainers tests (those need Docker). Endpoint tests use `WebApplicationFactory<Program>` in the `Testing` environment (so user secrets never load), with settings passed by `UseSetting` and fakes swapped in by `ConfigureTestServices`
 
 ## Money model
 - **Account** – `Current` (Balance = money held), `CreditCard` or `Loan` (Balance = amount owed). Cards can have a `CreditLimit`; `AvailableCredit` is computed, not stored. **Aliases** map other names (the card name Apple Pay sends, e.g. "Lloyd's") to an account, matched ignoring case and punctuation.
@@ -32,10 +32,17 @@ A personal life-tracking app: spending, debt payoff, habits and personal growth.
 - **Apple Pay capture** (`/capture/apple-pay`) – resolves the account from the card name by alias, then account name, then `Settings.DefaultAccountId`; guesses the category by merchant keyword, resolved to a category by name (falling back to "Other"); records an Expense and answers `{ transaction, budget, notification }`, e.g. "Food: £150.00 of £200.00 · £3.33/day left".
 - Enums are stored as strings in Postgres and sent as strings in JSON.
 
+## AI insights (`Features/Insights`)
+- **Key** – OpenAI's API key lives only in the API, in user secrets as `OpenAI:ApiKey` (`cd api && dotnet user-secrets set "OpenAI:ApiKey" "<key>"`), read through `OpenAIOptions` (Options pattern). It must never reach the web app, logs, the database, git or error messages. Without it, `POST /insights` returns 503 "OpenAI key not configured" and nothing else is affected. The other settings (`Model`, default `gpt-5.4-mini`; `MaxOutputTokens`; `TimeoutSeconds`; `ReasoningEffort`) are in appsettings.json.
+- **Flow** – `InsightService` summarises a budget month (`BudgetService`, categories, the last 3 months' expenses, debts in £, the avalanche plan) → `InsightPromptBuilder` (pure) turns it into text → `IInsightModel` asks the model → `InsightResponseValidator` (pure) checks the JSON → saved as an `Insight` (the prompt sent, the validated answer, model, tokens). The web app only calls `/insights`, never OpenAI.
+- **What's sent** – category names, merchant names (descriptions with runs of 6+ digits masked as •••), budgets, debt names, balances, APRs and the plan, all rounded to 2 places. Never account numbers, ids, aliases or my name. `InsightEndpointTests` checks this.
+- **`OpenAIInsightModel`** – the only class that uses the key: structured JSON output (strict schema), capped output tokens, one timeout covering retries, and logs of tokens and timing but never content. Errors become friendly messages by status (429, 401/403, 400/404, timeout); OpenAI's own error text isn't passed on. Tests use a `FakeInsightModel`.
+- **Endpoints** – `POST /insights {year, month, regenerate}` returns the month's existing insight (200) unless `regenerate` is set, otherwise asks the model (201); `GET /insights`, `GET/DELETE /insights/{id}`.
+
 ## Web app (web/)
 - **Tooling** – Tailwind CSS v4 (Vite plugin), React Router 8 (lazy routes per page), Recharts for charts.
 - **Design tokens** – every colour lives in `src/index.css` (`@theme static`: `canvas`, `surface`, `ink`, `muted`, `accent`, `positive`, `negative`, `warning`, `chart-1..6`). Dark mode only swaps token values, so components never use `dark:` classes. Charts read tokens through `useTokens()`.
-- **Structure** – `components/ui` (Button, Card, Field/MoneyInput/Select, Modal on native `<dialog>`, Badge, Money, Stat, …), `components/layout` (AppLayout: sidebar on desktop, bottom tabs on phones), `features/<area>` for pages (overview, transactions, budget, accounts, plan, settings, categories), `lib/format.ts` for money and dates.
+- **Structure** – `components/ui` (Button, Card, Field/MoneyInput/Select, Modal on native `<dialog>`, Badge, Money, Stat, …), `components/layout` (AppLayout: sidebar on desktop with every section; on phones `BottomNav` shows four tabs plus More for the rest; `navItems.ts` lists the sections for both), `features/<area>` for pages (overview, transactions, budget, accounts, plan, settings, categories), `lib/format.ts` for money and dates.
 - **Data** – `api.ts` calls every endpoint and turns API errors into `Error` messages. Pages load with `useData(key, load)`; after any save, call `refresh()` (`data/refresh.ts`) and every `useData` on screen reloads.
 - **One transaction form** – opened from anywhere: `useQuickAdd()(draft?)` for a new one ("Pay" on a debt opens a prefilled transfer), `useEditTransaction()(t)` to edit or delete; tapping a TransactionRow edits it.
 - **Categories in the UI** – managed in Settings → Categories; `CategorySelect` lists them in tree order labelled with their path, only of the right kind, hiding archived ones.
@@ -46,6 +53,7 @@ A personal life-tracking app: spending, debt payoff, habits and personal growth.
 ## Database migrations
 - `AccountsAndTransfers` converted the old Debts/DebtPayments/spending-flags model; it is hand-written SQL and has no `Down()` (restore a backup instead).
 - `AddCategories` turned the text labels into categories (hand-written, with a `Down()` that puts the labels back); `AddBudgets` only adds `BudgetMonthAmounts`. Both have Testcontainers tests. `AddExchangeRates` and `AddEarlyIncomeDays` only add.
+- `AddInsights` only adds the `Insights` table.
 - EF scaffolds a renamed entity as drop + create: always read a generated migration before applying it.
 - Back up before applying a migration: `docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" lifetracker' > backup-<date>.sql` (`backup-*.sql` is git-ignored).
 
