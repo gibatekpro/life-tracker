@@ -12,6 +12,7 @@ import { Alert, Badge, PageHeader, SegmentedControl, Skeleton } from '../../comp
 import { ordinal } from '../../lib/format';
 import AccountSelect from '../accounts/AccountSelect';
 import CategoriesCard from '../categories/CategoriesCard';
+import CurrenciesCard from './CurrenciesCard';
 
 const incomeModes: { value: IncomeMode; label: string }[] = [
   { value: 'Fixed', label: 'Take-home pay' },
@@ -28,6 +29,7 @@ function BudgetForm({ settings }: { settings: Settings }) {
   const [income, setIncome] = useState(String(settings.monthlyIncome));
   const [budget, setBudget] = useState(settings.monthlyDebtBudget?.toString() ?? '');
   const [startDay, setStartDay] = useState(settings.monthStartDay);
+  const [earlyDays, setEarlyDays] = useState(settings.earlyIncomeDays);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
 
   async function submit(e: FormEvent) {
@@ -39,6 +41,7 @@ function BudgetForm({ settings }: { settings: Settings }) {
         monthlyDebtBudget: budget === '' ? null : Number(budget),
         incomeMode,
         monthStartDay: startDay,
+        earlyIncomeDays: earlyDays,
       });
       setStatus({ ok: true, text: 'Saved' });
       refresh();
@@ -63,6 +66,15 @@ function BudgetForm({ settings }: { settings: Settings }) {
         {incomeMode === 'Fixed' && (
           <Field label="Monthly take-home pay">
             {(id) => <MoneyInput id={id} symbol="£" required value={income} onChange={(e) => setIncome(e.target.value)} />}
+          </Field>
+        )}
+        {incomeMode === 'Recorded' && (
+          <Field label="Count income paid early" hint="A salary paid a few days before payday (a weekend) counts towards the month it's for.">
+            {(id) => (
+              <Select id={id} value={earlyDays} onChange={(e) => setEarlyDays(Number(e.target.value))}>
+                {[0, 1, 2, 3, 4, 5, 6, 7].map((d) => <option key={d} value={d}>{d === 0 ? 'No, only within the month' : `Up to ${d} day${d === 1 ? '' : 's'} before`}</option>)}
+              </Select>
+            )}
           </Field>
         )}
         <Field label="Budget month starts on"
@@ -123,6 +135,8 @@ export default function SettingsPage() {
         </Card>
 
         <CategoriesCard />
+
+        <CurrenciesCard />
 
         <Card title="Apple Pay capture"
           description="An iOS Shortcut sends each Apple Pay payment here with the card's Wallet name, and it's recorded as an expense.">

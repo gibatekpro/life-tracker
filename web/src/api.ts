@@ -1,5 +1,6 @@
 import type {
   Account, AccountAlias, AccountPayment, AvalanchePlan, BudgetLineKey, BudgetMonthView, Category, CreateTransaction,
+  ExchangeRate,
   SaveCategory,
   DebtsOverview, IncomeMode, MonthlySummary, SaveAccount, Settings, Transaction, WhatIfComparison,
 } from './types';
@@ -76,11 +77,20 @@ export const getMonthlySummary = (year?: number, month?: number) =>
 
 // Settings
 export const getSettings = () => request<Settings>('GET', '/settings');
+// Fields after the debt budget can be left out to keep them as they are.
 export const updateSettings = (s: {
   monthlyIncome: number;
   monthlyDebtBudget: number | null;
-  incomeMode: IncomeMode;
-  monthStartDay: number;
+  incomeMode?: IncomeMode;
+  monthStartDay?: number;
+  useTransferRates?: boolean;
+  earlyIncomeDays?: number;
 }) => request<Settings>('PUT', '/settings', s);
+
+// Exchange rates: both directions for each currency in use, with where each comes from.
+export const getExchangeRates = () => request<ExchangeRate[]>('GET', '/exchange-rates');
+export const setExchangeRate = (from: string, to: string, rate: number) =>
+  request<void>('PUT', `/exchange-rates/${from}/${to}`, { rate });
+export const clearExchangeRate = (from: string, to: string) => request<void>('DELETE', `/exchange-rates/${from}/${to}`);
 export const setDefaultAccount = (accountId: number | null) =>
   request<Settings>('PUT', '/settings/default-account', { accountId });

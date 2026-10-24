@@ -172,6 +172,8 @@ export interface Settings {
   defaultAccountId: number | null;
   incomeMode: IncomeMode;
   monthStartDay: number; // 1-28; budget months start on this day
+  useTransferRates: boolean; // true: my latest transfer's rate first, my own rates as fallback
+  earlyIncomeDays: number; // recorded income this many days before a month counts towards it
   updatedAt: string;
 }
 // One category's line in a budget month. own* is the category itself; planned and spent
@@ -204,6 +206,15 @@ export interface DebtLine {
   remaining: number;
   percentUsed: number | null;
   suggested: number | null; // what the avalanche plan would pay it this month
+  // The same in the account's own currency (₦ for a naira loan): what I see and set.
+  currency: string;
+  rate: number | null; // its currency -> GBP rate; null with no rate yet
+  nativeDefault: number | null;
+  nativeMonthAmount: number | null;
+  nativePlanned: number;
+  nativePaid: number;
+  nativeRemaining: number;
+  nativeSuggested: number | null;
 }
 
 export interface BudgetMonth {
@@ -225,6 +236,8 @@ export interface BudgetMonth {
   safeToSpendPerDay: number;
   hasMonthDebtAmounts: boolean; // true once a debt figure is set: the debt lines are the avalanche budget
   debtBudget: number | null;
+  avalancheExtra: number; // what the avalanche pays beyond the debt lines
+  avalancheExtraPaid: number;
   lines: BudgetLine[];
   debts: DebtLine[];
 }
@@ -237,3 +250,18 @@ export interface BudgetMonthView {
 
 // A budget line is a spending category or a debt account.
 export type BudgetLineKey = { categoryId: number; accountId?: undefined } | { accountId: number; categoryId?: undefined };
+
+// Where an exchange rate comes from: my own rate, the inverse of my rate for the other direction,
+// my latest transfer between the two currencies, or nothing yet.
+export type RateSource = 'Same' | 'Manual' | 'InverseOfManual' | 'Transfer' | 'None';
+
+// One direction's rate: units of `to` per 1 `from`.
+export interface ExchangeRate {
+  from: string;
+  to: string;
+  rate: number | null;
+  source: RateSource;
+  updatedAt: string | null; // when I set it (Manual, InverseOfManual)
+  transferDate: string | null; // the transfer it came from (Transfer)
+  manualRate: number | null; // my own figure for this direction, if I've set one
+}

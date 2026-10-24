@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { createTransaction, deleteTransaction, updateTransaction } from '../../api';
-import type { Account, Category, Transaction, TransactionType } from '../../types';
+import type { Account, Category, ExchangeRate, Transaction, TransactionType } from '../../types';
 import { useRefresh } from '../../data/refresh';
 import { currencySymbol, formatMoney, todayIso } from '../../lib/format';
+import { describeSource, formatRate, quoteFor } from '../../lib/rates';
 import Button from '../../components/ui/Button';
 import { Field, Input, MoneyInput } from '../../components/ui/Field';
 import { Alert, SegmentedControl } from '../../components/ui/Bits';
@@ -21,9 +22,10 @@ const types: { value: TransactionType; label: string }[] = [
 // a transfer between currencies asks what arrived, and anything not in pounds can take a £ value.
 //
 // With `transaction`, the same form edits it (and can delete it); the API moves the balances to match.
-export default function TransactionForm({ accounts, categories: allCategories, draft, transaction: t, onDone }: {
+export default function TransactionForm({ accounts, categories: allCategories, rates, draft, transaction: t, onDone }: {
   accounts: Account[];
   categories: Category[];
+  rates: ExchangeRate[];
   draft?: TransactionDraft;
   transaction?: Transaction;
   onDone: () => void;
@@ -42,6 +44,8 @@ export default function TransactionForm({ accounts, categories: allCategories, d
   const [accountId, setAccountId] = useState<number | undefined>(t?.accountId ?? draft?.accountId ?? firstCurrent?.id);
   const [toAccountId, setToAccountId] = useState<number | undefined>(t?.toAccountId ?? draft?.toAccountId);
   const [toAmount, setToAmount] = useState(t?.toAmount ? String(t.toAmount) : '');
+  // Until I type a received amount myself, it follows the amount sent at the exchange rate.
+  const [toAmountTyped, setToAmountTyped] = useState(t?.toAmount != null);
   // Keep the £ value an edited naira transaction already has, unless I change or clear it.
   const [gbpAmount, setGbpAmount] = useState(t && t.currency !== 'GBP' && t.toCurrency !== 'GBP' ? String(t.gbpAmount) : '');
   const [date, setDate] = useState(t?.date ?? todayIso());
@@ -59,10 +63,19 @@ export default function TransactionForm({ accounts, categories: allCategories, d
   // A transfer into pounds already has an exact £ value; anything else not in pounds may need one.
   const asksForPounds = fromCurrency !== 'GBP' && to?.currency !== 'GBP';
 
-  // £10 sent, ₦18,000 received: show the rate that implies, as a sanity check.
+  // The rate for this transfer's direction (e.g. GBP -> NGN), to suggest what will arrive.
   const sent = Number(amount);
-  const got = Number(toAmount);
+  const quote = crossesCurrencies ? quoteFor(rates, fromCurrency, to!.currency) : undefined;
+  const suggestedReceived = quote?.rate && sent > 0 ? (sent * quote.rate).toFixed(2) : '';
+  const receivedShown = toAmountTyped ? toAmount : suggestedReceived;
+
+  // £10 sent, ₦18,000 received: show the rate that implies, as a sanity check.
+  const got = Number(receivedShown);
   const rate = crossesCurrencies && sent > 0 && got > 0 ? got / sent : null;
+
+  // For something not in pounds: the £ value it'll get if I don't type one.
+  const toPounds = quoteFor(rates, fromCurrency, 'GBP')?.rate;
+  const estimatedPounds = asksForPounds && toPounds && sent > 0 ? formatMoney(sent * toPounds) : null;
 
   function changeType(next: TransactionType) {
     setType(next);
@@ -155,10 +168,13 @@ export default function TransactionForm({ accounts, categories: allCategories, d
         </Field>
         {crossesCurrencies ? (
           <Field label={`Received (${to!.currency})`}
-            hint={rate ? `1 ${fromCurrency} = ${rate.toLocaleString('en-GB', { maximumFractionDigits: 2 })} ${to!.currency}` : 'What arrived, after the exchange rate'}>
+            hint={toAmountTyped
+              ? (rate ? `1 ${fromCurrency} = ${formatRate(rate)} ${to!.currency}` : 'What arrived, after the exchange rate')
+              : quote?.rate ? `At ${formatRate(quote.rate)} (${describeSource(quote).replace(/^./, (c) => c.toLowerCase())}). Change it to what actually arrived.`
+              : 'What arrived, after the exchange rate'}>
             {(id) => (
               <MoneyInput id={id} symbol={currencySymbol(to!.currency)} required placeholder="0.00"
-                value={toAmount} onChange={(e) => setToAmount(e.target.value)} />
+                value={receivedShown} onChange={(e) => { setToAmount(e.target.value); setToAmountTyped(true); }} />
             )}
           </Field>
         ) : (
@@ -184,9 +200,9 @@ export default function TransactionForm({ accounts, categories: allCategories, d
 
       {asksForPounds && (
         <Field label="Value in pounds"
-          hint={editing ? 'Clear it to recalculate from your latest £ transfer rate.' : "Optional. Left blank, it's worked out from your latest £ transfer rate."}>
+          hint={editing ? 'Clear it to recalculate at the exchange rate.' : "Optional. Left blank, it's worked out at the exchange rate (Settings → Currencies)."}>
           {(id) => (
-            <MoneyInput id={id} symbol="£" placeholder="Automatic" value={gbpAmount}
+            <MoneyInput id={id} symbol="£" placeholder={estimatedPounds ? `Automatic: ≈ ${estimatedPounds}` : 'Automatic'} value={gbpAmount}
               onChange={(e) => setGbpAmount(e.target.value)} />
           )}
         </Field>
