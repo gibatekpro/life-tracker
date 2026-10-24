@@ -78,13 +78,18 @@ public class SummaryService(AppDbContext db, SettingsService settings, ILogger<S
             spent, income, s.IncomeMode, income - spent, byCategory);
     }
 
-    // Either the take-home pay I've set, or what actually came in: the Income transactions
-    // in this period, in pounds. Recorded suits pay that varies, or more than one income.
+    // Either the take-home pay I've set, or what actually came in: the Income transactions for
+    // this period, in pounds. Recorded suits pay that varies, or more than one income. Recorded
+    // income counts from a few days before the period starts (Settings.EarlyIncomeDays), so a
+    // salary paid early because payday fell on a weekend lands in the right month.
     // Also used by the budget, so both agree on what "income" means.
-    public async Task<decimal> IncomeAsync(AppSettings s, BudgetPeriod period) =>
-        s.IncomeMode == IncomeMode.Recorded
-            ? await db.Transactions
-                .Where(t => t.Date >= period.Start && t.Date < period.End && t.Type == TransactionType.Income)
-                .SumAsync(t => t.GbpAmount)
-            : s.MonthlyIncome;
+    public async Task<decimal> IncomeAsync(AppSettings s, BudgetPeriod period)
+    {
+        if (s.IncomeMode != IncomeMode.Recorded) return s.MonthlyIncome;
+
+        var (from, to) = period.IncomeWindow(s.EarlyIncomeDays);
+        return await db.Transactions
+            .Where(t => t.Date >= from && t.Date < to && t.Type == TransactionType.Income)
+            .SumAsync(t => t.GbpAmount);
+    }
 }

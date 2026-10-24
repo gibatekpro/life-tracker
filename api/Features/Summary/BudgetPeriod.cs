@@ -12,6 +12,14 @@ public record BudgetPeriod(int Year, int Month, DateOnly Start, DateOnly End)
 
     public DateOnly LastDay => End.AddDays(-1);
 
+    public const int MaxEarlyIncomeDays = 7;
+
+    // The dates whose income counts towards this month: the month, moved `earlyDays` earlier.
+    // Payday on the 28th often lands on a Friday the 26th or 27th when the 28th is a weekend;
+    // that salary is for the month starting on the 28th, not the one ending. Spending isn't moved.
+    public (DateOnly Start, DateOnly End) IncomeWindow(int earlyDays) =>
+        (Start.AddDays(-earlyDays), End.AddDays(-earlyDays));
+
     // The period named after `month`: it starts on startDay of that month.
     public static BudgetPeriod For(int year, int month, int startDay)
     {

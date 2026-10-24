@@ -58,4 +58,20 @@ public class BudgetPeriodTests
 
         Assert.Equal(new DateOnly(2027, 3, 27), p.LastDay);
     }
+
+    [Fact]
+    public void IncomeWindow_StartsAndEndsEarlier()
+    {
+        var p = BudgetPeriod.For(2026, 11, 28);   // 28 Nov 2026 to 27 Dec 2026
+
+        Assert.Equal((new DateOnly(2026, 11, 25), new DateOnly(2026, 12, 25)), p.IncomeWindow(3));
+    }
+
+    [Fact]
+    public void IncomeWindow_WithNoDays_IsTheMonthItself()
+    {
+        var p = BudgetPeriod.For(2026, 11, 28);
+
+        Assert.Equal((p.Start, p.End), p.IncomeWindow(0));
+    }
 }

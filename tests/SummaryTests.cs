@@ -99,4 +99,56 @@ public class SummaryTests(PostgresFixture pg) : IClassFixture<PostgresFixture>
         Assert.Equal(IncomeMode.Recorded, saved.IncomeMode);
         Assert.Equal(25, saved.MonthStartDay);
     }
+
+    [Theory]
+    // 28 Nov 2026 is a Saturday: the salary comes on Friday the 27th.
+    [InlineData(2026, 11, 27, 2026, 11, 2026, 10)]
+    // 28 Feb 2027 is a Sunday: the salary comes on Friday the 26th.
+    [InlineData(2027, 2, 26, 2027, 2, 2027, 1)]
+    public async Task SalaryPaidEarlyForAWeekendPayday_CountsTowardsTheMonthItsFor(
+        int y, int m, int d, int forYear, int forMonth, int prevYear, int prevMonth)
+    {
+        var s = await SetupAsync();
+        await using var _ = s.Db;
+        Assert.Equal(DayOfWeek.Friday, new DateOnly(y, m, d).DayOfWeek);
+        await s.Settings.UpdateAsync(2000m, null, IncomeMode.Recorded, monthStartDay: 28, earlyIncomeDays: 3);
+        await s.Ledger.RecordAsync(Salary(2300m, new DateOnly(y, m, d), s.Lloyds));
+
+        var month = await s.Summary.GetMonthlyAsync(forYear, forMonth);
+        var previous = await s.Summary.GetMonthlyAsync(prevYear, prevMonth);
+
+        Assert.Equal(2300m, month.MonthlyIncome);
+        Assert.Equal(0m, previous.MonthlyIncome);
+    }
+
+    [Fact]
+    public void FebruaryAndNovemberPaydays_AreReallyWeekends()
+    {
+        Assert.Equal(DayOfWeek.Saturday, new DateOnly(2026, 11, 28).DayOfWeek);
+        Assert.Equal(DayOfWeek.Sunday, new DateOnly(2027, 2, 28).DayOfWeek);
+    }
+
+    [Fact]
+    public async Task WithNoEarlyDays_AnEarlySalaryStaysInTheMonthItWasPaid()
+    {
+        var s = await SetupAsync();
+        await using var _ = s.Db;
+        await s.Settings.UpdateAsync(2000m, null, IncomeMode.Recorded, monthStartDay: 28, earlyIncomeDays: 0);
+        await s.Ledger.RecordAsync(Salary(2300m, new DateOnly(2026, 11, 27), s.Lloyds));
+
+        Assert.Equal(2300m, (await s.Summary.GetMonthlyAsync(2026, 10)).MonthlyIncome);
+        Assert.Equal(0m, (await s.Summary.GetMonthlyAsync(2026, 11)).MonthlyIncome);
+    }
+
+    [Fact]
+    public async Task EarlyDays_DontMoveSpending()
+    {
+        var s = await SetupAsync();
+        await using var _ = s.Db;
+        await s.Settings.UpdateAsync(2000m, null, IncomeMode.Recorded, monthStartDay: 28, earlyIncomeDays: 3);
+        await s.Ledger.RecordAsync(Expense(40m, new DateOnly(2026, 11, 27), s.Lloyds));
+
+        Assert.Equal(40m, (await s.Summary.GetMonthlyAsync(2026, 10)).TotalSpent);
+        Assert.Equal(0m, (await s.Summary.GetMonthlyAsync(2026, 11)).TotalSpent);
+    }
 }

@@ -9,5 +9,6 @@ public class AppSettings
     public IncomeMode IncomeMode { get; set; } = IncomeMode.Fixed;
     public int MonthStartDay { get; set; } = 1;   // budget months start on this day (payday); 1-28
     public bool UseTransferRates { get; set; }    // true: my latest transfer's rate first, my own rates as fallback
+    public int EarlyIncomeDays { get; set; } = 3; // income this many days before a budget month counts towards it (0-7)
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

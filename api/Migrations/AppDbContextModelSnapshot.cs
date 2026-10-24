@@ -107,6 +107,9 @@ namespace LifeTracker.Api.Migrations
                     b.Property<int?>("DefaultAccountId")
                         .HasColumnType("integer");
 
+                    b.Property<int>("EarlyIncomeDays")
+                        .HasColumnType("integer");
+
                     b.Property<string>("IncomeMode")
                         .IsRequired()
                         .HasMaxLength(20)

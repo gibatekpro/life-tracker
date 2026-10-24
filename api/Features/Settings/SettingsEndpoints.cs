@@ -4,10 +4,10 @@ using LifeTracker.Api.Models;
 
 namespace LifeTracker.Api.Features.Settings;
 
-// IncomeMode, MonthStartDay and UseTransferRates are optional: left out, they stay as they are.
+// Everything after the debt budget is optional: left out, it stays as it is.
 public record UpdateSettingsRequest(
     decimal MonthlyIncome, decimal? MonthlyDebtBudget, IncomeMode? IncomeMode = null, int? MonthStartDay = null,
-    bool? UseTransferRates = null);
+    bool? UseTransferRates = null, int? EarlyIncomeDays = null);
 public record DefaultAccountRequest(int? AccountId);
 
 // Reading and changing my settings from the dashboard (the Settings card) or Scalar.
@@ -40,8 +40,15 @@ public static class SettingsEndpoints
                 return Results.BadRequest($"The month can start on day 1 to {BudgetPeriod.LatestStartDay}.");
             }
 
+            if (req.EarlyIncomeDays is < 0 or > BudgetPeriod.MaxEarlyIncomeDays)
+            {
+                logger.LogWarning("Rejected settings: early income days {Days}", req.EarlyIncomeDays);
+                return Results.BadRequest($"Early income can count from 0 to {BudgetPeriod.MaxEarlyIncomeDays} days before the month.");
+            }
+
             return Results.Ok(await settings.UpdateAsync(
-                req.MonthlyIncome, req.MonthlyDebtBudget, req.IncomeMode, req.MonthStartDay, req.UseTransferRates));
+                req.MonthlyIncome, req.MonthlyDebtBudget, req.IncomeMode, req.MonthStartDay, req.UseTransferRates,
+                req.EarlyIncomeDays));
         });
 
         // A separate endpoint, not part of PUT /, so that saving income and budget from the
