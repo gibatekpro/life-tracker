@@ -81,4 +81,39 @@ public class AvalanchePlannerTests
         Assert.Equal(100m, plan.MonthlyBudget);
         Assert.Equal(6, plan.Months);
     }
+
+    [Fact]
+    public void FirstMonth_GivesEveryDebtItsPayment_AndTheExtraToTheHighestApr()
+    {
+        var plan = AvalanchePlanner.Plan(
+        [
+            new PlannerDebt(1, "High", 1000m, 30m, 50m),
+            new PlannerDebt(2, "Low", 1000m, 10m, 50m)
+        ], Start, extraPerMonth: 100m);
+
+        Assert.Equal(150m, plan.FirstMonth.Single(p => p.Id == 1).Amount);
+        Assert.Equal(50m, plan.FirstMonth.Single(p => p.Id == 2).Amount);
+        Assert.Equal(plan.MonthlyBudget, plan.FirstMonth.Sum(p => p.Amount));
+    }
+
+    [Fact]
+    public void FirstMonth_NeverPaysMoreThanIsOwed()
+    {
+        // A owes 30 (+ no interest); the rest of the budget moves on to B.
+        var plan = AvalanchePlanner.Plan(
+        [
+            new PlannerDebt(1, "A", 30m, 20m, 100m),
+            new PlannerDebt(2, "B", 1000m, 0m, 50m)
+        ], Start);
+
+        var a = plan.FirstMonth.Single(p => p.Id == 1).Amount;
+        Assert.Equal(30.50m, a);                                   // 30 + 0.50 interest
+        Assert.Equal(150m - a, plan.FirstMonth.Single(p => p.Id == 2).Amount);
+    }
+
+    [Fact]
+    public void FirstMonth_IsEmptyWithNoDebts()
+    {
+        Assert.Empty(AvalanchePlanner.Plan([], Start).FirstMonth);
+    }
 }

@@ -7,13 +7,18 @@ public record PlannerDebt(int Id, string Name, decimal Balance, decimal Apr, dec
 // When one debt gets cleared, and how much interest it cost on the way.
 public record PlannedPayoff(int Id, string Name, int Month, DateOnly PayoffDate, decimal InterestPaid);
 
+// What the plan pays a debt in its first month: its normal payment, plus any extra it gets
+// for having the highest interest rate. Shown beside each debt on the budget page.
+public record SuggestedPayment(int Id, string Name, decimal Amount);
+
 public record AvalanchePlan(
     bool CanBePaidOff,
     int Months,
     DateOnly? DebtFreeDate,
     decimal TotalInterest,
     decimal MonthlyBudget,
-    IReadOnlyList<PlannedPayoff> Payoffs);
+    IReadOnlyList<PlannedPayoff> Payoffs,
+    IReadOnlyList<SuggestedPayment> FirstMonth);
 
 // Plans paying off all my debts together, using the "avalanche" method.
 //
@@ -41,6 +46,7 @@ public static class AvalanchePlanner
         var budget = Math.Max(monthlyBudget ?? 0, planned) + extraPerMonth;
 
         var payoffs = new List<PlannedPayoff>();
+        var firstMonth = new List<SuggestedPayment>();
         decimal totalInterest = 0;
         var month = 0;
 
@@ -65,6 +71,7 @@ public static class AvalanchePlanner
             {
                 var pay = Math.Min(Math.Min(d.Source.MonthlyPayment, d.Balance), remaining);
                 d.Balance -= pay;
+                d.PaidThisMonth = pay;
                 remaining -= pay;
             }
 
@@ -75,8 +82,12 @@ public static class AvalanchePlanner
                 if (remaining <= 0) break;
                 var pay = Math.Min(remaining, d.Balance);
                 d.Balance -= pay;
+                d.PaidThisMonth += pay;
                 remaining -= pay;
             }
+
+            if (month == 1)
+                firstMonth.AddRange(active.Select(d => new SuggestedPayment(d.Source.Id, d.Source.Name, d.PaidThisMonth)));
 
             // Note which debts hit zero this month: that's their payoff date.
             foreach (var d in active.Where(d => d.Balance == 0))
@@ -84,7 +95,7 @@ public static class AvalanchePlanner
         }
 
         var done = open.All(d => d.Balance == 0);
-        return new AvalanchePlan(done, month, done ? start.AddMonths(month) : null, totalInterest, budget, payoffs);
+        return new AvalanchePlan(done, month, done ? start.AddMonths(month) : null, totalInterest, budget, payoffs, firstMonth);
     }
 
     // A debt's running state during the simulation. The input records stay untouched.
@@ -93,5 +104,6 @@ public static class AvalanchePlanner
         public PlannerDebt Source { get; } = source;
         public decimal Balance { get; set; } = source.Balance;
         public decimal Interest { get; set; }
+        public decimal PaidThisMonth { get; set; }
     }
 }
