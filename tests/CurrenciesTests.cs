@@ -5,39 +5,40 @@ namespace LifeTracker.Api.Tests;
 public class CurrenciesTests
 {
     [Fact]
-    public void PoundsToNaira_GivesNairaPerPound()
+    public void TransferRate_InItsOwnDirection()
     {
-        Assert.Equal(1800m, Currencies.RatePerPound("NGN", "GBP", 10m, "NGN", 18000m));
+        Assert.Equal(1800m, Currencies.RateFromTransfer("GBP", "NGN", "GBP", 10m, "NGN", 18000m));
     }
 
     [Fact]
-    public void NairaToPounds_GivesTheSameKindOfRate()
+    public void TransferRate_TheOtherWay()
     {
-        Assert.Equal(1800m, Currencies.RatePerPound("NGN", "NGN", 18000m, "GBP", 10m));
+        Assert.Equal(1m / 1800m, Currencies.RateFromTransfer("NGN", "GBP", "GBP", 10m, "NGN", 18000m));
     }
 
     [Theory]
     [InlineData("GBP", "GBP")]   // pounds to pounds says nothing about naira
     [InlineData("NGN", "NGN")]
     [InlineData("GBP", "EUR")]   // a different currency
-    public void TransferNotBetweenPoundsAndTheCurrency_GivesNoRate(string from, string to)
+    public void TransferNotBetweenTheTwoCurrencies_GivesNoRate(string sent, string received)
     {
-        Assert.Null(Currencies.RatePerPound("NGN", from, 10m, to, 18000m));
+        Assert.Null(Currencies.RateFromTransfer("GBP", "NGN", sent, 10m, received, 18000m));
     }
 
     [Fact]
     public void ZeroAmount_GivesNoRate()
     {
-        Assert.Null(Currencies.RatePerPound("NGN", "GBP", 0m, "NGN", 18000m));
+        Assert.Null(Currencies.RateFromTransfer("GBP", "NGN", "GBP", 0m, "NGN", 18000m));
     }
 
     [Theory]
-    [InlineData(5000, 1800, 2.78)]
-    [InlineData(18000, 1800, 10.00)]
-    [InlineData(1, 1800, 0.00)]
-    public void ToPounds_ConvertsAndRoundsToThePenny(int naira, int rate, double expected)
+    [InlineData("GBP", true)]
+    [InlineData("NGN", true)]
+    [InlineData("JPY", false)]
+    [InlineData(null, false)]
+    public void Supported_IsTheFixedList(string? code, bool expected)
     {
-        Assert.Equal((decimal)expected, Currencies.ToPounds(naira, rate));
+        Assert.Equal(expected, Currencies.IsSupported(code));
     }
 
     [Theory]

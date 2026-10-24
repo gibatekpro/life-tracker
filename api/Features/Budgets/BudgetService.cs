@@ -189,8 +189,7 @@ public class BudgetService(
             var paidIn = paid.GetValueOrDefault(a.Id);
             if (a.Balance <= 0 && paidIn == 0 && monthAmount is null) continue;
 
-            var rate = await rates.RatePerPoundAsync(a.Currency);
-            result.Add(new DebtFigures(a, rate is { } r ? Currencies.ToPounds(a.MonthlyPayment, r) : null, monthAmount, paidIn));
+            result.Add(new DebtFigures(a, await rates.ToPoundsAsync(a.MonthlyPayment, a.Currency), monthAmount, paidIn));
         }
         return result;
     }
@@ -212,14 +211,13 @@ public class BudgetService(
         var debts = new List<PlannerDebt>();
         foreach (var a in accounts)
         {
-            if (await rates.RatePerPoundAsync(a.Currency) is not { } rate)
+            if ((await rates.GetAsync(a.Currency, Currencies.Home)).Rate is not { } rate)
             {
-                logger.LogWarning("{Name} is left out of the avalanche plan: no transfer between GBP and {Currency} yet",
-                    a.Name, a.Currency);
+                logger.LogWarning("{Name} is left out of the avalanche plan: no {Currency} to GBP rate yet", a.Name, a.Currency);
                 continue;
             }
             debts.Add(new PlannerDebt(a.Id, a.Name,
-                Currencies.ToPounds(a.Balance, rate), a.Apr, Currencies.ToPounds(a.MonthlyPayment, rate)));
+                Currencies.Convert(a.Balance, rate), a.Apr, Currencies.Convert(a.MonthlyPayment, rate)));
         }
         return debts;
     }

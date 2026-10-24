@@ -7,7 +7,8 @@ namespace LifeTracker.Api.Features.Accounts;
 // There's no exchange-rate feed. The rate is the one I actually got on my own transfers:
 // sending £10 and receiving ₦18,000 means ₦1,800 to the pound.
 //
-// Pure (no database, no logging) like BalanceRules. ExchangeRateService finds the transfers.
+// Pure (no database, no logging) like BalanceRules. RateResolver picks the rate (mine, or my latest
+// transfer's) and ExchangeRateService loads them.
 public static class Currencies
 {
     public const string Home = "GBP";
@@ -38,20 +39,4 @@ public static class Currencies
         var c = (code ?? "").Trim().ToUpperInvariant();
         return c.Length == 3 && c.All(char.IsAsciiLetterUpper) ? c : null;
     }
-
-    // How much of `currency` one pound bought in a transfer between pounds and that currency.
-    // Works in either direction: £10 -> ₦18,000 and ₦18,000 -> £10 both give 1,800.
-    // Null if the transfer wasn't between pounds and `currency`.
-    public static decimal? RatePerPound(
-        string currency, string fromCurrency, decimal amount, string toCurrency, decimal toAmount)
-    {
-        if (amount <= 0 || toAmount <= 0) return null;
-        if (fromCurrency == Home && toCurrency == currency) return toAmount / amount;
-        if (fromCurrency == currency && toCurrency == Home) return amount / toAmount;
-        return null;
-    }
-
-    // ₦5,000 at ₦1,800 to the pound is £2.78. Rounded to the penny, like everything else stored.
-    public static decimal ToPounds(decimal amount, decimal ratePerPound) =>
-        Math.Round(amount / ratePerPound, 2);
 }

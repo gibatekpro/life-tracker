@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AccountAlias> AccountAliases => Set<AccountAlias>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<BudgetMonthAmount> BudgetMonthAmounts => Set<BudgetMonthAmount>();
+    public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
 
 
     public DbSet<AppSettings> Settings => Set<AppSettings>();
@@ -115,6 +116,17 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.ToTable(t => t.HasCheckConstraint(
                 "CK_BudgetMonthAmounts_CategoryOrAccount",
                 "(\"CategoryId\" IS NULL) <> (\"AccountId\" IS NULL) AND \"Amount\" >= 0"));
+        });
+
+        modelBuilder.Entity<ExchangeRate>(e =>
+        {
+            e.Property(r => r.FromCurrency).HasMaxLength(3);
+            e.Property(r => r.ToCurrency).HasMaxLength(3);
+            e.Property(r => r.Rate).HasPrecision(24, 12);   // room for 1,850 and for 0.00052
+            e.HasIndex(r => new { r.FromCurrency, r.ToCurrency }).IsUnique();   // one rate per direction
+            e.ToTable(t => t.HasCheckConstraint(
+                "CK_ExchangeRates_PositiveAndTwoCurrencies",
+                "\"Rate\" > 0 AND \"FromCurrency\" <> \"ToCurrency\""));
         });
 
         modelBuilder.Entity<AccountAlias>(e =>

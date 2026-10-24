@@ -52,6 +52,7 @@ else
 
 
 app.MapAccountEndpoints();
+app.MapExchangeRateEndpoints();
 app.MapCategoryEndpoints();
 app.MapBudgetEndpoints();
 app.MapDebtEndpoints();

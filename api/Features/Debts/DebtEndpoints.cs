@@ -71,16 +71,16 @@ public static class DebtEndpoints
             // There's only a debt-free date if every single debt can be cleared.
             var allPayable = items.All(i => i.Projection.CanBePaidOff);
 
-            // Add the debts up in pounds, converting naira loans at my latest transfer rate.
+            // Add the debts up in pounds, converting naira loans at the NGN -> GBP rate (mine, or my latest transfer's).
             var poundRates = await RatesAsync(debts.Select(d => d.Currency), rates);
             var missing = poundRates.Where(r => r.Value is null).Select(r => r.Key).ToList();
             foreach (var currency in missing)
-                logger.LogWarning("{Currency} debts are left out of the £ totals: no transfer between GBP and {Currency} yet",
+                logger.LogWarning("{Currency} debts are left out of the £ totals: no {Currency} to GBP rate yet",
                     currency, currency);
 
             var counted = items.Where(i => poundRates[i.Debt.Currency] is not null).ToList();
             decimal Pounds(DebtWithProjection i, decimal amount) =>
-                Currencies.ToPounds(amount, poundRates[i.Debt.Currency]!.Value);
+                Currencies.Convert(amount, poundRates[i.Debt.Currency]!.Value);
 
             return new DebtsOverview(
             counted.Sum(i => Pounds(i, i.Debt.Balance)),
@@ -121,13 +121,13 @@ public static class DebtEndpoints
         return group;
     }
 
-    // The latest rate for each currency (1 for pounds), or null where there's no transfer to take one from.
+    // Each currency's rate to pounds (1 for pounds), or null where there's no rate to use yet.
     private static async Task<Dictionary<string, decimal?>> RatesAsync(
         IEnumerable<string> currencies, ExchangeRateService rates)
     {
         var result = new Dictionary<string, decimal?>();
         foreach (var currency in currencies.Distinct())
-            result[currency] = await rates.RatePerPoundAsync(currency);
+            result[currency] = (await rates.GetAsync(currency, Currencies.Home)).Rate;
         return result;
     }
 }

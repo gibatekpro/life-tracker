@@ -35,15 +35,17 @@ public class SettingsService(AppDbContext db, IOptions<BudgetOptions> defaults, 
         return settings;
     }
 
-    // incomeMode and monthStartDay are only changed when given.
+    // incomeMode, monthStartDay and useTransferRates are only changed when given.
     public async Task<AppSettings> UpdateAsync(
-        decimal monthlyIncome, decimal? monthlyDebtBudget, IncomeMode? incomeMode = null, int? monthStartDay = null)
+        decimal monthlyIncome, decimal? monthlyDebtBudget, IncomeMode? incomeMode = null, int? monthStartDay = null,
+        bool? useTransferRates = null)
     {
         var settings = await GetAsync();
         settings.MonthlyIncome = monthlyIncome;
         settings.MonthlyDebtBudget = monthlyDebtBudget;
         settings.IncomeMode = incomeMode ?? settings.IncomeMode;
         settings.MonthStartDay = monthStartDay ?? settings.MonthStartDay;
+        settings.UseTransferRates = useTransferRates ?? settings.UseTransferRates;
         settings.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 

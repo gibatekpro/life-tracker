@@ -128,6 +128,9 @@ namespace LifeTracker.Api.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<bool>("UseTransferRates")
+                        .HasColumnType("boolean");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DefaultAccountId");
@@ -212,6 +215,42 @@ namespace LifeTracker.Api.Migrations
                     NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("ParentId", "Kind", "Name"), false);
 
                     b.ToTable("Categories");
+                });
+
+            modelBuilder.Entity("LifeTracker.Api.Models.ExchangeRate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FromCurrency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<decimal>("Rate")
+                        .HasPrecision(24, 12)
+                        .HasColumnType("numeric(24,12)");
+
+                    b.Property<string>("ToCurrency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FromCurrency", "ToCurrency")
+                        .IsUnique();
+
+                    b.ToTable("ExchangeRates", t =>
+                        {
+                            t.HasCheckConstraint("CK_ExchangeRates_PositiveAndTwoCurrencies", "\"Rate\" > 0 AND \"FromCurrency\" <> \"ToCurrency\"");
+                        });
                 });
 
             modelBuilder.Entity("LifeTracker.Api.Models.Transaction", b =>

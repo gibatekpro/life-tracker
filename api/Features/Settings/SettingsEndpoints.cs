@@ -4,9 +4,10 @@ using LifeTracker.Api.Models;
 
 namespace LifeTracker.Api.Features.Settings;
 
-// IncomeMode and MonthStartDay are optional: left out, they stay as they are.
+// IncomeMode, MonthStartDay and UseTransferRates are optional: left out, they stay as they are.
 public record UpdateSettingsRequest(
-    decimal MonthlyIncome, decimal? MonthlyDebtBudget, IncomeMode? IncomeMode = null, int? MonthStartDay = null);
+    decimal MonthlyIncome, decimal? MonthlyDebtBudget, IncomeMode? IncomeMode = null, int? MonthStartDay = null,
+    bool? UseTransferRates = null);
 public record DefaultAccountRequest(int? AccountId);
 
 // Reading and changing my settings from the dashboard (the Settings card) or Scalar.
@@ -40,7 +41,7 @@ public static class SettingsEndpoints
             }
 
             return Results.Ok(await settings.UpdateAsync(
-                req.MonthlyIncome, req.MonthlyDebtBudget, req.IncomeMode, req.MonthStartDay));
+                req.MonthlyIncome, req.MonthlyDebtBudget, req.IncomeMode, req.MonthStartDay, req.UseTransferRates));
         });
 
         // A separate endpoint, not part of PUT /, so that saving income and budget from the

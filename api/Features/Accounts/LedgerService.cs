@@ -211,14 +211,14 @@ public class LedgerService(AppDbContext db, ExchangeRateService rates, ILogger<L
         // My own figure, if I typed one.
         if (gbpAmount is not null) return (gbpAmount, null);
 
-        // Otherwise, convert at the rate from my latest transfer between pounds and this currency.
-        var rate = await rates.RatePerPoundAsync(account.Currency, date);
-        if (rate is null)
-            return (null, $"There's no transfer between GBP and {account.Currency} yet to take a rate from, so enter the £ value.");
+        // Otherwise, convert at the rate for this currency -> GBP: my own, or my latest transfer's.
+        var quote = await rates.GetAsync(account.Currency, Currencies.Home, date);
+        if (quote.Rate is not { } rate)
+            return (null, $"There's no {account.Currency} to GBP rate yet: set one in Settings, record a transfer, or enter the £ value.");
 
-        var pounds = Currencies.ToPounds(amount, rate.Value);
-        logger.LogInformation("Converted {Amount} {Currency} to £{Pounds} at {Rate:0.##} per pound",
-            amount, account.Currency, pounds, rate.Value);
+        var pounds = Currencies.Convert(amount, rate);
+        logger.LogInformation("Converted {Amount} {Currency} to £{Pounds} at {Rate} ({Source})",
+            amount, account.Currency, pounds, rate, quote.Source);
         return (pounds, null);
     }
 
