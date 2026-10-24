@@ -107,9 +107,14 @@ public static class BudgetCalculator
             var nativeMonth = native ? d.MonthAmount : d.NativeMonthAmount;
             var nativePlanned = nativeMonth ?? nativeDefault ?? 0;
             var nativePaid = native ? d.Paid : d.NativePaid ?? 0;
-            // The plan works in pounds; its suggestion back in the account's currency.
+            // The plan works in pounds; its suggestion back in the account's currency. When it's just
+            // the line's default or month figure, use that exactly: converting a rounded £ figure back
+            // would turn a ₦170,574 instalment into ₦170,576.92.
             var nativeSuggested = native ? d.Suggested
-                : d.Suggested is { } s && d.Rate is > 0 ? Math.Round(s / d.Rate.Value, 2) : null;
+                : d.Suggested is not { } s ? null
+                : s == d.DefaultAmount ? d.NativeDefault
+                : s == d.MonthAmount ? d.NativeMonthAmount
+                : d.Rate is > 0 ? Math.Round(s / d.Rate.Value, 2) : null;
 
             return new DebtLine(d.AccountId, d.Name, d.DefaultAmount, d.MonthAmount, planned, d.Paid,
                 planned - d.Paid, Percent(d.Paid, planned), d.Suggested,

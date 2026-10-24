@@ -342,6 +342,19 @@ public class BudgetCalculatorTests
     }
 
     [Fact]
+    public void SuggestionThatIsTheInstalment_IsTheExactNairaInstalment()
+    {
+        // ₦170,574 at 0.00052 is £88.70 (rounded); £88.70 back would be ₦170,576.92.
+        var m = Calc([], debts:
+        [
+            new DebtInput(12, "Loan app", DefaultAmount: 88.70m, MonthAmount: null, Paid: 0m, Suggested: 88.70m,
+                Currency: "NGN", Rate: 0.00052m, NativeDefault: 170574m, NativeMonthAmount: null, NativePaid: 0m),
+        ]);
+
+        Assert.Equal(170574m, m.Debts.Single().NativeSuggested);
+    }
+
+    [Fact]
     public void NairaDebtWithNoRate_KeepsItsNairaFigure_ButCountsNothingInPounds()
     {
         var m = Calc([], debts:
