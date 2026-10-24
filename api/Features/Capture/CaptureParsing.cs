@@ -36,11 +36,26 @@ public static class CategoryGuesser
         ("bolt", "Transport"), ("uber", "Transport")
     ];
 
+    public const string Fallback = "Other";
+
     public static string Guess(string merchant)
     {
         var m = merchant.ToLowerInvariant();
         foreach (var (keyword, category) in Rules)
             if (m.Contains(keyword)) return category;
-        return "Other";
+        return Fallback;
+    }
+
+    // Turns a guessed name into one of my (unarchived, expense) categories: a top-level one with
+    // that name first, then one anywhere in the tree, then "Other". Null if even "Other" is gone.
+    public static int? Resolve(string guessedName, IReadOnlyList<(int Id, int? ParentId, string Name)> expenseCategories)
+    {
+        (int Id, int? ParentId, string Name)? Find(string name, bool topLevelOnly) =>
+            expenseCategories
+                .Where(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase) && (!topLevelOnly || c.ParentId is null))
+                .Cast<(int Id, int? ParentId, string Name)?>()
+                .FirstOrDefault();
+
+        return (Find(guessedName, true) ?? Find(guessedName, false) ?? Find(Fallback, true) ?? Find(Fallback, false))?.Id;
     }
 }

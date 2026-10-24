@@ -21,15 +21,19 @@ public class SummaryTests(PostgresFixture pg) : IClassFixture<PostgresFixture>
         await db.Database.MigrateAsync();
         var settings = new SettingsService(db, Options.Create(new BudgetOptions { MonthlyIncome = 2000m }), NullLogger<SettingsService>.Instance);
         var lloyds = (await db.Accounts.SingleAsync(a => a.Name == "Lloyds Current")).Id;
+        _food = await TestCategories.IdAsync(db, "Food");
+        _salary = await TestCategories.IdAsync(db, "Salary", CategoryKind.Income);
         return new Setup(db, new LedgerService(db, new ExchangeRateService(db), NullLogger<LedgerService>.Instance),
             settings, new SummaryService(db, settings, NullLogger<SummaryService>.Instance), lloyds);
     }
 
-    private static LedgerEntry Expense(decimal amount, DateOnly date, int account) =>
-        new(amount, "Shop", "Food", date, TransactionType.Expense, account);
+    private int _food, _salary;
 
-    private static LedgerEntry Salary(decimal amount, DateOnly date, int account) =>
-        new(amount, "Salary", "Salary", date, TransactionType.Income, account);
+    private LedgerEntry Expense(decimal amount, DateOnly date, int account) =>
+        new(amount, "Shop", _food, date, TransactionType.Expense, account);
+
+    private LedgerEntry Salary(decimal amount, DateOnly date, int account) =>
+        new(amount, "Salary", _salary, date, TransactionType.Income, account);
 
     [Fact]
     public async Task WithPayday_SpendingFollowsThePayPeriod()

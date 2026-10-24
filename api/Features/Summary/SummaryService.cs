@@ -1,5 +1,6 @@
 using LifeTracker.Api.Common;
 using LifeTracker.Api.Data;
+using LifeTracker.Api.Features.Categories;
 using LifeTracker.Api.Features.Settings;
 using LifeTracker.Api.Models;
 using Microsoft.EntityFrameworkCore;
@@ -51,13 +52,19 @@ public class SummaryService(AppDbContext db, SettingsService settings, ILogger<S
         // GbpAmount, not Amount: a ₦5,000 purchase counts as its £ value, not as £5,000.
         var totals = await db.Transactions
             .Where(t => t.Date >= start && t.Date < end && t.Type == TransactionType.Expense)
-            .GroupBy(t => t.Category)
-            .Select(g => new { Category = g.Key, Total = g.Sum(t => t.GbpAmount) })
+            .GroupBy(t => t.CategoryId)
+            .Select(g => new { CategoryId = g.Key, Total = g.Sum(t => t.GbpAmount) })
             .ToListAsync();
 
+        // Rolled up to the top-level categories, so "Subscriptions" includes AI, Claude and the rest.
+        var categories = await db.Categories.Select(c => new { c.Id, c.ParentId, c.Name }).ToListAsync();
+        var parents = categories.ToDictionary(c => c.Id, c => c.ParentId);
+        var names = categories.ToDictionary(c => c.Id, c => c.Name);
+
         var byCategory = totals
+            .GroupBy(x => x.CategoryId is { } id ? names[CategoryTree.TopLevel(id, parents)] : "Uncategorised")
+            .Select(g => new CategoryTotal(g.Key, g.Sum(x => x.Total)))
             .OrderByDescending(x => x.Total)
-            .Select(x => new CategoryTotal(x.Category, x.Total))
             .ToList();
 
         var spent = byCategory.Sum(c => c.Total);

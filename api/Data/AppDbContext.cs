@@ -8,6 +8,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<AccountAlias> AccountAliases => Set<AccountAlias>();
+    public DbSet<Category> Categories => Set<Category>();
 
 
     public DbSet<AppSettings> Settings => Set<AppSettings>();
@@ -20,7 +21,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(t => t.GbpAmount).HasPrecision(18, 2);
             e.Property(t => t.ToAmount).HasPrecision(18, 2);
             e.Property(t => t.Description).HasMaxLength(200);
-            e.Property(t => t.Category).HasMaxLength(50);
             e.Property(t => t.Type).HasConversion<string>().HasMaxLength(20); // stored as 'Expense', not 0
 
             // Two foreign keys to the same table, so each one is configured explicitly.
@@ -35,6 +35,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasForeignKey(t => t.ToAccountId)
             .OnDelete(DeleteBehavior.Restrict);
 
+            e.HasOne(t => t.Category)
+            .WithMany()
+            .HasForeignKey(t => t.CategoryId)
+            .OnDelete(DeleteBehavior.Restrict);   // a category with transactions is archived, not deleted
+
             e.ToTable(t =>
             {
                 // The database itself rejects a transfer without a destination, a destination on
@@ -47,6 +52,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 t.HasCheckConstraint(
                     "CK_Transactions_ToAmountOnlyOnTransfers",
                     "\"ToAmount\" IS NULL OR (\"Type\" = 'Transfer' AND \"ToAmount\" > 0)");
+
+                // Spending and income always have a category; a transfer between my accounts never does.
+                t.HasCheckConstraint(
+                    "CK_Transactions_CategoryUnlessTransfer",
+                    "(\"Type\" = 'Transfer') = (\"CategoryId\" IS NULL)");
             });
         });
 
@@ -65,6 +75,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .WithOne()
             .HasForeignKey(x => x.AccountId)
             .OnDelete(DeleteBehavior.Cascade);   // delete an account, and its aliases go too
+        });
+
+        modelBuilder.Entity<Category>(e =>
+        {
+            e.Property(c => c.Name).HasMaxLength(100);
+            e.Property(c => c.Kind).HasConversion<string>().HasMaxLength(20);
+            e.Property(c => c.DefaultMonthlyAmount).HasPrecision(18, 2);
+
+            e.HasOne(c => c.Parent)
+            .WithMany(c => c.Children)
+            .HasForeignKey(c => c.ParentId)
+            .OnDelete(DeleteBehavior.Restrict);   // no deleting a category that has subcategories
+
+            // No two categories with the same name and kind under the same parent. NULLS NOT DISTINCT
+            // makes that hold at the top level too, where ParentId is null (Postgres 15+).
+            e.HasIndex(c => new { c.ParentId, c.Kind, c.Name }).IsUnique().AreNullsDistinct(false);
         });
 
         modelBuilder.Entity<AccountAlias>(e =>

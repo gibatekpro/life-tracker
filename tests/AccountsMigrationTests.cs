@@ -143,7 +143,7 @@ public class AccountsMigrationTests(PostgresFixture pg) : IClassFixture<Postgres
         Assert.Equal(debtIds["Card B"], created.ToAccountId);
         Assert.Equal(50.00m, created.Amount);
         Assert.Equal(new DateOnly(2026, 10, 4), created.Date);
-        Assert.Equal("Debt", created.Category);
+        Assert.Null(created.CategoryId);   // transfers have no category
     }
 
     [Fact]
@@ -171,7 +171,7 @@ public class AccountsMigrationTests(PostgresFixture pg) : IClassFixture<Postgres
 
         db.Transactions.Add(new Transaction
         {
-            Amount = 10m, Description = "Broken", Category = "Debt", Date = new DateOnly(2026, 10, 5),
+            Amount = 10m, Description = "Broken", Date = new DateOnly(2026, 10, 5),
             Type = TransactionType.Transfer, Account = lloyds
         });
 
@@ -187,7 +187,7 @@ public class AccountsMigrationTests(PostgresFixture pg) : IClassFixture<Postgres
         var lloyds = await db.Accounts.SingleAsync(a => a.Name == "Lloyds Current");
 
         var result = await new LedgerService(db, new ExchangeRateService(db), NullLogger<LedgerService>.Instance).RecordAsync(new LedgerEntry(
-            30m, "Payment to Card A", "Debt", new DateOnly(2026, 10, 6),
+            30m, "Payment to Card A", null, new DateOnly(2026, 10, 6),
             TransactionType.Transfer, lloyds.Id, debtIds["Card A"]));
 
         Assert.Null(result.Error);

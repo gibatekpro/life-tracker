@@ -16,7 +16,7 @@ public class LedgerCurrencyTests(PostgresFixture pg) : IClassFixture<PostgresFix
 {
     private static readonly DateOnly Oct1 = new(2026, 10, 1);
 
-    private sealed record Setup(AppDbContext Db, LedgerService Ledger, Account Lloyds, Account PalmPay, Account LoanApp);
+    private sealed record Setup(AppDbContext Db, LedgerService Ledger, Account Lloyds, Account PalmPay, Account LoanApp, int Food);
 
     // A fresh, fully migrated database (which already has Lloyds Current and Revolut),
     // plus a naira current account and a naira loan app.
@@ -33,14 +33,14 @@ public class LedgerCurrencyTests(PostgresFixture pg) : IClassFixture<PostgresFix
         await db.SaveChangesAsync();
 
         var ledger = new LedgerService(db, new ExchangeRateService(db), NullLogger<LedgerService>.Instance);
-        return new Setup(db, ledger, lloyds, palmPay, loanApp);
+        return new Setup(db, ledger, lloyds, palmPay, loanApp, await TestCategories.IdAsync(db, "Food"));
     }
 
     private static LedgerEntry PoundsToNaira(Setup s, decimal pounds, decimal naira, DateOnly date) =>
-        new(pounds, "Send home", "Transfer", date, TransactionType.Transfer, s.Lloyds.Id, s.PalmPay.Id, ToAmount: naira);
+        new(pounds, "Send home", null, date, TransactionType.Transfer, s.Lloyds.Id, s.PalmPay.Id, ToAmount: naira);
 
     private static LedgerEntry NairaExpense(Setup s, decimal naira, DateOnly date, decimal? gbp = null) =>
-        new(naira, "Market", "Food", date, TransactionType.Expense, s.PalmPay.Id, GbpAmount: gbp);
+        new(naira, "Market", s.Food, date, TransactionType.Expense, s.PalmPay.Id, GbpAmount: gbp);
 
     [Fact]
     public async Task PoundsToNaira_MovesEachBalanceInItsOwnCurrency()
@@ -64,7 +64,7 @@ public class LedgerCurrencyTests(PostgresFixture pg) : IClassFixture<PostgresFix
         await using var _ = s.Db;
 
         var result = await s.Ledger.RecordAsync(
-            new LedgerEntry(10m, "Send home", "Transfer", Oct1, TransactionType.Transfer, s.Lloyds.Id, s.PalmPay.Id));
+            new LedgerEntry(10m, "Send home", null, Oct1, TransactionType.Transfer, s.Lloyds.Id, s.PalmPay.Id));
 
         Assert.Contains("amount received in NGN", result.Error);
         Assert.Equal(1000m, s.Lloyds.Balance);
@@ -78,7 +78,7 @@ public class LedgerCurrencyTests(PostgresFixture pg) : IClassFixture<PostgresFix
         var revolut = await s.Db.Accounts.SingleAsync(a => a.Name == "Revolut");
 
         var result = await s.Ledger.RecordAsync(new LedgerEntry(
-            10m, "Move", "Transfer", Oct1, TransactionType.Transfer, s.Lloyds.Id, revolut.Id, ToAmount: 12m));
+            10m, "Move", null, Oct1, TransactionType.Transfer, s.Lloyds.Id, revolut.Id, ToAmount: 12m));
 
         Assert.Contains("no separate received amount", result.Error);
     }
@@ -125,7 +125,7 @@ public class LedgerCurrencyTests(PostgresFixture pg) : IClassFixture<PostgresFix
         await using var _ = s.Db;
 
         var result = await s.Ledger.RecordAsync(
-            new LedgerEntry(5m, "Lunch", "Food", Oct1, TransactionType.Expense, s.Lloyds.Id, GbpAmount: 5m));
+            new LedgerEntry(5m, "Lunch", s.Food, Oct1, TransactionType.Expense, s.Lloyds.Id, GbpAmount: 5m));
 
         Assert.Contains("only for something in another currency", result.Error);
     }
@@ -137,9 +137,9 @@ public class LedgerCurrencyTests(PostgresFixture pg) : IClassFixture<PostgresFix
         await using var _ = s.Db;
 
         var tooMuch = await s.Ledger.RecordAsync(new LedgerEntry(
-            30m, "Loan repayment", "Debt", Oct1, TransactionType.Transfer, s.Lloyds.Id, s.LoanApp.Id, ToAmount: 60000m));
+            30m, "Loan repayment", null, Oct1, TransactionType.Transfer, s.Lloyds.Id, s.LoanApp.Id, ToAmount: 60000m));
         var ok = await s.Ledger.RecordAsync(new LedgerEntry(
-            25m, "Loan repayment", "Debt", Oct1, TransactionType.Transfer, s.Lloyds.Id, s.LoanApp.Id, ToAmount: 45000m));
+            25m, "Loan repayment", null, Oct1, TransactionType.Transfer, s.Lloyds.Id, s.LoanApp.Id, ToAmount: 45000m));
 
         Assert.Contains("50000.00 NGN owed", tooMuch.Error);
         Assert.Null(ok.Error);
@@ -154,11 +154,11 @@ public class LedgerCurrencyTests(PostgresFixture pg) : IClassFixture<PostgresFix
         await using var _ = s.Db;
         await s.Ledger.RecordAsync(PoundsToNaira(s, 10m, 18000m, Oct1));   // PalmPay ₦18,000, rate ₦1,800
         var lunch = await s.Ledger.RecordAsync(
-            new LedgerEntry(5m, "Lunch", "Food", Oct1, TransactionType.Expense, s.Lloyds.Id));
+            new LedgerEntry(5m, "Lunch", s.Food, Oct1, TransactionType.Expense, s.Lloyds.Id));
 
         // It was really ₦9,000 from PalmPay: the amount is re-entered in naira.
         var result = await s.Ledger.UpdateAsync(lunch.Transaction!.Id,
-            new LedgerEntry(9000m, "Lunch", "Food", Oct1, TransactionType.Expense, s.PalmPay.Id));
+            new LedgerEntry(9000m, "Lunch", s.Food, Oct1, TransactionType.Expense, s.PalmPay.Id));
 
         Assert.Null(result!.Error);
         Assert.Equal(990m, s.Lloyds.Balance);       // the £5 is back

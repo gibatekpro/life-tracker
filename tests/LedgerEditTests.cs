@@ -25,12 +25,15 @@ public class LedgerEditTests(PostgresFixture pg) : IClassFixture<PostgresFixture
         var aqua = new Account { Name = "Aqua", Type = AccountType.CreditCard, Balance = 500m, Apr = 29.9m, MonthlyPayment = 50m };
         db.Accounts.Add(aqua);
         await db.SaveChangesAsync();
+        _food = await TestCategories.IdAsync(db, "Food");
 
         return new Setup(db, new LedgerService(db, new ExchangeRateService(db), NullLogger<LedgerService>.Instance), lloyds, aqua);
     }
 
-    private static LedgerEntry Expense(decimal amount, int accountId, string description = "Lunch") =>
-        new(amount, description, "Food", Oct1, TransactionType.Expense, accountId);
+    private int _food;
+
+    private LedgerEntry Expense(decimal amount, int accountId, string description = "Lunch") =>
+        new(amount, description, _food, Oct1, TransactionType.Expense, accountId);
 
     [Fact]
     public async Task ChangingTheAmount_MovesTheBalanceByTheDifference()
@@ -54,12 +57,14 @@ public class LedgerEditTests(PostgresFixture pg) : IClassFixture<PostgresFixture
         await using var _ = s.Db;
         var t = (await s.Ledger.RecordAsync(Expense(20m, s.Lloyds.Id))).Transaction!;
 
+        var transport = await TestCategories.IdAsync(s.Db, "Transport");
+
         var result = await s.Ledger.UpdateAsync(t.Id,
-            new LedgerEntry(20m, "Train to Leeds", "Transport", new DateOnly(2026, 9, 30), TransactionType.Expense, s.Lloyds.Id));
+            new LedgerEntry(20m, "Train to Leeds", transport, new DateOnly(2026, 9, 30), TransactionType.Expense, s.Lloyds.Id));
 
         Assert.Equal(980m, s.Lloyds.Balance);
         Assert.Equal("Train to Leeds", result!.Transaction!.Description);
-        Assert.Equal("Transport", result.Transaction.Category);
+        Assert.Equal(transport, result.Transaction.CategoryId);
         Assert.Equal(new DateOnly(2026, 9, 30), result.Transaction.Date);
     }
 
@@ -84,7 +89,7 @@ public class LedgerEditTests(PostgresFixture pg) : IClassFixture<PostgresFixture
         var t = (await s.Ledger.RecordAsync(Expense(100m, s.Lloyds.Id, "Aqua payment"))).Transaction!;
 
         var result = await s.Ledger.UpdateAsync(t.Id, new LedgerEntry(
-            100m, "Aqua payment", "Debt", Oct1, TransactionType.Transfer, s.Lloyds.Id, s.Aqua.Id));
+            100m, "Aqua payment", null, Oct1, TransactionType.Transfer, s.Lloyds.Id, s.Aqua.Id));
 
         Assert.Null(result!.Error);
         Assert.Equal(900m, s.Lloyds.Balance);
@@ -100,7 +105,7 @@ public class LedgerEditTests(PostgresFixture pg) : IClassFixture<PostgresFixture
 
         // Paying more than is owed is rejected, after the old effect was undone in memory.
         var result = await s.Ledger.UpdateAsync(t.Id, new LedgerEntry(
-            600m, "Too much", "Debt", Oct1, TransactionType.Transfer, s.Lloyds.Id, s.Aqua.Id));
+            600m, "Too much", null, Oct1, TransactionType.Transfer, s.Lloyds.Id, s.Aqua.Id));
 
         Assert.Contains("more than", result!.Error);
         await using var fresh = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>()
@@ -137,7 +142,7 @@ public class LedgerEditTests(PostgresFixture pg) : IClassFixture<PostgresFixture
         var s = await SetupAsync();
         await using var _ = s.Db;
         var t = (await s.Ledger.RecordAsync(new LedgerEntry(
-            100m, "Aqua payment", "Debt", Oct1, TransactionType.Transfer, s.Lloyds.Id, s.Aqua.Id))).Transaction!;
+            100m, "Aqua payment", null, Oct1, TransactionType.Transfer, s.Lloyds.Id, s.Aqua.Id))).Transaction!;
 
         await s.Ledger.DeleteAsync(t.Id);
 

@@ -3,11 +3,11 @@ using LifeTracker.Api.Models;
 
 namespace LifeTracker.Api.Features.Accounts;
 
-// What a caller wants to record. ToAccountId is only for transfers.
+// What a caller wants to record. ToAccountId is only for transfers; CategoryId is for everything else.
 // ToAmount: for a transfer between currencies, what arrived (e.g. ₦18,000 for £10 sent).
 // GbpAmount: my own £ value for something in another currency, instead of the automatic one.
 public record LedgerEntry(
-    decimal Amount, string Description, string Category, DateOnly Date,
+    decimal Amount, string Description, int? CategoryId, DateOnly Date,
     TransactionType Type, int AccountId, int? ToAccountId = null,
     decimal? ToAmount = null, decimal? GbpAmount = null);
 
@@ -34,6 +34,9 @@ public class LedgerService(AppDbContext db, ExchangeRateService rates, ILogger<L
             entry.Type, entry.AccountId, entry.ToAccountId, entry.Amount, entry.ToAmount, entry.GbpAmount);
         if (error is not null) return Reject(entry.Type, entry.Amount, error);
 
+        var (category, categoryError) = await CategoryAsync(entry.Type, entry.CategoryId, keepArchived: null);
+        if (categoryError is not null) return Reject(entry.Type, entry.Amount, categoryError);
+
         var (pounds, poundsError) = await PoundsAsync(entry.Amount, entry.Date, account!, toAccount, entry.ToAmount, entry.GbpAmount);
         if (poundsError is not null) return Reject(entry.Type, entry.Amount, poundsError);
 
@@ -43,7 +46,7 @@ public class LedgerService(AppDbContext db, ExchangeRateService rates, ILogger<L
             GbpAmount = pounds!.Value,
             ToAmount = entry.ToAmount,
             Description = entry.Description,
-            Category = entry.Category,
+            Category = category,
             Date = entry.Date,
             Type = entry.Type,
             Account = account!,
@@ -81,6 +84,10 @@ public class LedgerService(AppDbContext db, ExchangeRateService rates, ILogger<L
             entry.Type, entry.AccountId, entry.ToAccountId, entry.Amount, entry.ToAmount, entry.GbpAmount);
         if (error is not null) return Reject(entry.Type, entry.Amount, error);
 
+        // Keeping the category it already has is fine even if that's been archived since.
+        var (category, categoryError) = await CategoryAsync(entry.Type, entry.CategoryId, keepArchived: t.CategoryId);
+        if (categoryError is not null) return Reject(entry.Type, entry.Amount, categoryError);
+
         var (pounds, poundsError) = await PoundsAsync(entry.Amount, entry.Date, account!, toAccount, entry.ToAmount, entry.GbpAmount);
         if (poundsError is not null) return Reject(entry.Type, entry.Amount, poundsError);
 
@@ -89,7 +96,8 @@ public class LedgerService(AppDbContext db, ExchangeRateService rates, ILogger<L
         t.GbpAmount = pounds!.Value;
         t.ToAmount = entry.ToAmount;
         t.Description = entry.Description;
-        t.Category = entry.Category;
+        t.Category = category;
+        t.CategoryId = category?.Id;
         t.Date = entry.Date;
         t.Type = entry.Type;
         t.Account = account!;
@@ -166,6 +174,28 @@ public class LedgerService(AppDbContext db, ExchangeRateService rates, ILogger<L
             return (null, null, $"That's more than the {toAccount.Balance:0.00} {toAccount.Currency} owed on {toAccount.Name}.");
 
         return (account, toAccount, null);
+    }
+
+    // Spending and income need a category of the same kind; a transfer between my accounts has none.
+    // keepArchived: the category an edited transaction already has, which it may keep after archiving.
+    private async Task<(Category? Category, string? Error)> CategoryAsync(TransactionType type, int? categoryId, int? keepArchived)
+    {
+        if (type == TransactionType.Transfer)
+            return categoryId is null ? (null, null) : (null, "A transfer between your accounts has no category.");
+
+        if (categoryId is null) return (null, $"Choose a category for this {type.ToString().ToLowerInvariant()}.");
+
+        var category = await db.Categories.FindAsync(categoryId);
+        if (category is null) return (null, $"Category {categoryId} doesn't exist.");
+
+        var expectedKind = type == TransactionType.Income ? CategoryKind.Income : CategoryKind.Expense;
+        if (category.Kind != expectedKind)
+            return (null, $"{category.Name} is an {category.Kind.ToString().ToLowerInvariant()} category, so it can't be used for {type.ToString().ToLowerInvariant()}.");
+
+        if (category.IsArchived && category.Id != keepArchived)
+            return (null, $"{category.Name} is archived. Unarchive it in Settings to use it again.");
+
+        return (category, null);
     }
 
     // The transaction's value in pounds, for the monthly summary.

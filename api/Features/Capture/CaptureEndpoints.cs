@@ -2,6 +2,7 @@ using LifeTracker.Api.Data;
 using LifeTracker.Api.Models;
 using LifeTracker.Api.Common;
 using LifeTracker.Api.Features.Accounts;
+using LifeTracker.Api.Features.Categories;
 using LifeTracker.Api.Features.Settings;
 using LifeTracker.Api.Features.Transactions;
 using Microsoft.EntityFrameworkCore;
@@ -63,17 +64,30 @@ public static class CaptureEndpoints
                     req.Card, resolution.AccountId, resolution.MatchedBy);
 
             // Always an Expense: Apple Pay is me buying something. The category is a best guess
-            // from the merchant name, which I can change later.
+            // from the merchant name, matched to my categories (falling back to "Other"),
+            // which I can change later.
+            var guessed = CategoryGuesser.Guess(merchant);
+            var expenseCategories = await db.Categories
+                .Where(c => c.Kind == CategoryKind.Expense && !c.IsArchived)
+                .Select(c => new { c.Id, c.ParentId, c.Name })
+                .ToListAsync();
+            var categoryId = CategoryGuesser.Resolve(guessed, expenseCategories.Select(c => (c.Id, c.ParentId, c.Name)).ToList());
+            if (categoryId is null)
+            {
+                logger.LogWarning("No category matches {Guessed} and there's no Other category; capture not recorded", guessed);
+                return Results.BadRequest(new { error = $"No category matches '{guessed}', and there's no 'Other' category to fall back on." });
+            }
+
             var result = await ledger.RecordAsync(new LedgerEntry(
                 amount,
                 merchant.Length > 200 ? merchant[..200] : merchant,
-                CategoryGuesser.Guess(merchant),
+                categoryId,
                 UkDate.Today(),
                 TransactionType.Expense,
                 resolution.AccountId));
 
             return result.Transaction is { } t
-                ? Results.Created($"/transactions/{t.Id}", TransactionDto.From(t))
+                ? Results.Created($"/transactions/{t.Id}", TransactionDto.From(t, await db.CategoryPathsAsync()))
                 : Results.BadRequest(new { error = result.Error });
         });
 

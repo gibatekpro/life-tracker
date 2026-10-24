@@ -135,6 +135,50 @@ namespace LifeTracker.Api.Migrations
                     b.ToTable("Settings", (string)null);
                 });
 
+            modelBuilder.Entity("LifeTracker.Api.Models.Category", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal?>("DefaultMonthlyAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<bool>("IsArchived")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int?>("ParentId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentId", "Kind", "Name")
+                        .IsUnique();
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("ParentId", "Kind", "Name"), false);
+
+                    b.ToTable("Categories");
+                });
+
             modelBuilder.Entity("LifeTracker.Api.Models.Transaction", b =>
                 {
                     b.Property<int>("Id")
@@ -150,10 +194,8 @@ namespace LifeTracker.Api.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -186,10 +228,14 @@ namespace LifeTracker.Api.Migrations
 
                     b.HasIndex("AccountId");
 
+                    b.HasIndex("CategoryId");
+
                     b.HasIndex("ToAccountId");
 
                     b.ToTable("Transactions", t =>
                         {
+                            t.HasCheckConstraint("CK_Transactions_CategoryUnlessTransfer", "(\"Type\" = 'Transfer') = (\"CategoryId\" IS NULL)");
+
                             t.HasCheckConstraint("CK_Transactions_ToAmountOnlyOnTransfers", "\"ToAmount\" IS NULL OR (\"Type\" = 'Transfer' AND \"ToAmount\" > 0)");
 
                             t.HasCheckConstraint("CK_Transactions_TransferHasDestination", "(\"Type\" = 'Transfer') = (\"ToAccountId\" IS NOT NULL) AND (\"ToAccountId\" IS NULL OR \"ToAccountId\" <> \"AccountId\")");
@@ -213,6 +259,16 @@ namespace LifeTracker.Api.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
+            modelBuilder.Entity("LifeTracker.Api.Models.Category", b =>
+                {
+                    b.HasOne("LifeTracker.Api.Models.Category", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Parent");
+                });
+
             modelBuilder.Entity("LifeTracker.Api.Models.Transaction", b =>
                 {
                     b.HasOne("LifeTracker.Api.Models.Account", "Account")
@@ -221,6 +277,11 @@ namespace LifeTracker.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("LifeTracker.Api.Models.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("LifeTracker.Api.Models.Account", "ToAccount")
                         .WithMany()
                         .HasForeignKey("ToAccountId")
@@ -228,12 +289,19 @@ namespace LifeTracker.Api.Migrations
 
                     b.Navigation("Account");
 
+                    b.Navigation("Category");
+
                     b.Navigation("ToAccount");
                 });
 
             modelBuilder.Entity("LifeTracker.Api.Models.Account", b =>
                 {
                     b.Navigation("Aliases");
+                });
+
+            modelBuilder.Entity("LifeTracker.Api.Models.Category", b =>
+                {
+                    b.Navigation("Children");
                 });
 #pragma warning restore 612, 618
         }
