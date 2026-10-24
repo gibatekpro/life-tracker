@@ -10,6 +10,7 @@ using LifeTracker.Api.Security;
 using LifeTracker.Api.Features.Capture;
 using LifeTracker.Api.Features.Accounts;
 using LifeTracker.Api.Features.Categories;
+using LifeTracker.Api.Features.Budgets;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +24,7 @@ builder.Services.AddScoped<SettingsService>();
 builder.Services.AddScoped<ExchangeRateService>();
 builder.Services.AddScoped<LedgerService>();
 builder.Services.AddScoped<CategoryService>();
+builder.Services.AddScoped<BudgetService>();
 
 // Enums go over JSON as names ("CreditCard"), not numbers.
 builder.Services.ConfigureHttpJsonOptions(o =>
@@ -51,6 +53,7 @@ else
 
 app.MapAccountEndpoints();
 app.MapCategoryEndpoints();
+app.MapBudgetEndpoints();
 app.MapDebtEndpoints();
 app.MapCaptureEndpoints();
 app.MapSummaryEndpoints();

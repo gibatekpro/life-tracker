@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using LifeTracker.Api.Features.Settings;
 using LifeTracker.Api.Common;
 using LifeTracker.Api.Features.Accounts;
+using LifeTracker.Api.Features.Budgets;
 namespace LifeTracker.Api.Features.Debts;
 
 // A debt (a card or loan account) and when it'll be paid off at its current monthly payment.
@@ -112,39 +113,10 @@ public static class DebtEndpoints
 
         // The plan for all debts together, using the avalanche method (see AvalanchePlanner).
         // "extra" is the simulator on the dashboard: "what if I threw another £50 a month at this?"
-        // The plan works in pounds (my budget is in pounds), so naira debts are converted first.
-        group.MapGet("/avalanche", async (decimal? extra, AppDbContext db, SettingsService settings, ExchangeRateService rates) =>
-        {
-            var today = UkDate.Today();
-            var accounts = await db.Debts()
-                .Where(d => d.Balance > 0)   // a cleared card has nothing left to plan
-                .ToListAsync();
-
-            var poundRates = await RatesAsync(accounts.Select(a => a.Currency), rates);
-            var debts = new List<PlannerDebt>();
-            foreach (var a in accounts)
-            {
-                if (poundRates[a.Currency] is not { } rate)
-                {
-                    logger.LogWarning("{Name} is left out of the avalanche plan: no transfer between GBP and {Currency} yet",
-                        a.Name, a.Currency);
-                    continue;
-                }
-                debts.Add(new PlannerDebt(a.Id, a.Name,
-                    Currencies.ToPounds(a.Balance, rate), a.Apr, Currencies.ToPounds(a.MonthlyPayment, rate)));
-            }
-            var s = await settings.GetAsync();
-
-            var plan = AvalanchePlanner.Plan(debts, today, extra ?? 0, s.MonthlyDebtBudget);
-
-            if (!plan.CanBePaidOff)
-                logger.LogWarning("Avalanche plan can't clear the debts within 50 years at £{Budget}/month", plan.MonthlyBudget);
-            else
-                logger.LogDebug("Avalanche plan: £{Budget}/month clears {Count} debts in {Months} months ({DebtFreeDate:yyyy-MM-dd})",
-                    plan.MonthlyBudget, debts.Count, plan.Months, plan.DebtFreeDate);
-
-            return plan;
-        });
+        // The plan works in pounds, and its monthly budget is this budget month's debt budget
+        // (see BudgetService.AvalancheAsync).
+        group.MapGet("/avalanche", async (decimal? extra, BudgetService budgets) =>
+            await budgets.AvalancheAsync(extra ?? 0));
 
         return group;
     }

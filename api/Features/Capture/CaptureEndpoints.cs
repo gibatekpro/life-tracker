@@ -1,7 +1,9 @@
+using System.Globalization;
 using LifeTracker.Api.Data;
 using LifeTracker.Api.Models;
 using LifeTracker.Api.Common;
 using LifeTracker.Api.Features.Accounts;
+using LifeTracker.Api.Features.Budgets;
 using LifeTracker.Api.Features.Categories;
 using LifeTracker.Api.Features.Settings;
 using LifeTracker.Api.Features.Transactions;
@@ -12,6 +14,13 @@ namespace LifeTracker.Api.Features.Capture;
 // What the iOS Shortcut sends after an Apple Pay payment. Everything arrives as text,
 // exactly as Wallet shows it, e.g. Amount "£4.50", Merchant "Tesco Express", Card "Lloyd's".
 public record ApplePayCapture(string Amount, string Merchant, string? Card);
+
+// Where the purchase leaves its budget line, for the Shortcut's notification.
+public record CaptureBudget(string Name, decimal Planned, decimal Spent, decimal Remaining, decimal DailyAllowance, decimal? PercentUsed);
+
+// What the Shortcut gets back: the saved transaction, its budget line (if it has one), and the
+// notification text ready to show, e.g. "Food: £150.00 of £200.00 · £3.20/day left".
+public record CaptureResponse(TransactionDto Transaction, CaptureBudget? Budget, string Notification);
 
 // Automatic spending capture. When I pay with Apple Pay, an iOS Shortcuts automation posts
 // the payment here, so it's logged without me typing anything. The phone isn't on this Mac,
@@ -26,7 +35,7 @@ public static class CaptureEndpoints
             .CreateLogger("LifeTracker.Api.Features.Capture");
 
         group.MapPost("/apple-pay", async (
-            ApplePayCapture req, AppDbContext db, LedgerService ledger, SettingsService settings) =>
+            ApplePayCapture req, AppDbContext db, LedgerService ledger, SettingsService settings, BudgetService budgets) =>
         {
             logger.LogInformation("Apple Pay capture received: {Merchant} {Amount} ({Card})",
                 req.Merchant, req.Amount, req.Card);
@@ -86,9 +95,24 @@ public static class CaptureEndpoints
                 TransactionType.Expense,
                 resolution.AccountId));
 
-            return result.Transaction is { } t
-                ? Results.Created($"/transactions/{t.Id}", TransactionDto.From(t, await db.CategoryPathsAsync()))
-                : Results.BadRequest(new { error = result.Error });
+            if (result.Transaction is not { } t) return Results.BadRequest(new { error = result.Error });
+
+            // How the category's budget stands now: its own line, or the nearest parent with a budget.
+            var month = (await budgets.GetMonthAsync()).Budget;
+            var categories = await db.Categories
+                .Select(c => new BudgetCategory(c.Id, c.ParentId, c.Name, c.SortOrder, c.IsArchived, c.DefaultMonthlyAmount, null))
+                .ToListAsync();
+            var line = BudgetCalculator.LineFor(month, t.CategoryId!.Value, categories);
+            var paths = await db.CategoryPathsAsync();
+            var notification = line is null
+                ? string.Create(CultureInfo.InvariantCulture, $"{t.Description}: £{t.GbpAmount:0.00} · {paths[t.CategoryId!.Value]} has no budget")
+                : BudgetCalculator.Notification(line);
+
+            logger.LogInformation("Captured {TransactionId}: {Notification}", t.Id, notification);
+            return Results.Created($"/transactions/{t.Id}", new CaptureResponse(
+                TransactionDto.From(t, paths),
+                line is null ? null : new CaptureBudget(line.Name, line.Planned, line.Spent, line.Remaining, line.DailyAllowance, line.PercentUsed),
+                notification));
         });
 
         return group;

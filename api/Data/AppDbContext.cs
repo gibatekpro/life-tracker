@@ -9,6 +9,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<AccountAlias> AccountAliases => Set<AccountAlias>();
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<BudgetMonthAmount> BudgetMonthAmounts => Set<BudgetMonthAmount>();
 
 
     public DbSet<AppSettings> Settings => Set<AppSettings>();
@@ -91,6 +92,29 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             // No two categories with the same name and kind under the same parent. NULLS NOT DISTINCT
             // makes that hold at the top level too, where ParentId is null (Postgres 15+).
             e.HasIndex(c => new { c.ParentId, c.Kind, c.Name }).IsUnique().AreNullsDistinct(false);
+        });
+
+        modelBuilder.Entity<BudgetMonthAmount>(e =>
+        {
+            e.Property(b => b.Amount).HasPrecision(18, 2);
+
+            e.HasOne(b => b.Category)
+            .WithMany()
+            .HasForeignKey(b => b.CategoryId)
+            .OnDelete(DeleteBehavior.Restrict);   // budget history keeps a category from being deleted
+
+            e.HasOne(b => b.Account)
+            .WithMany()
+            .HasForeignKey(b => b.AccountId)
+            .OnDelete(DeleteBehavior.Cascade);    // an account can only be deleted unused; its budget figures go with it
+
+            // One figure per category (or debt) per month.
+            e.HasIndex(b => new { b.CategoryId, b.PeriodStart }).IsUnique();
+            e.HasIndex(b => new { b.AccountId, b.PeriodStart }).IsUnique();
+
+            e.ToTable(t => t.HasCheckConstraint(
+                "CK_BudgetMonthAmounts_CategoryOrAccount",
+                "(\"CategoryId\" IS NULL) <> (\"AccountId\" IS NULL) AND \"Amount\" >= 0"));
         });
 
         modelBuilder.Entity<AccountAlias>(e =>

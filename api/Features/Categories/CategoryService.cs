@@ -84,12 +84,14 @@ public class CategoryService(AppDbContext db, ILogger<CategoryService> logger)
 
         var transactions = await db.Transactions.CountAsync(t => t.CategoryId == id);
         var children = await db.Categories.CountAsync(c => c.ParentId == id);
-        if (transactions > 0 || children > 0)
+        var budgetMonths = await db.BudgetMonthAmounts.CountAsync(b => b.CategoryId == id);
+        if (transactions > 0 || children > 0 || budgetMonths > 0)
         {
             var uses = string.Join(" and ", new[]
             {
                 transactions > 0 ? $"{transactions} transaction{(transactions == 1 ? "" : "s")}" : null,
                 children > 0 ? $"{children} subcategor{(children == 1 ? "y" : "ies")}" : null,
+                budgetMonths > 0 ? $"budgets in {budgetMonths} month{(budgetMonths == 1 ? "" : "s")}" : null,
             }.OfType<string>());
             logger.LogWarning("Refused to delete category {CategoryId} ({Name}): it has {Uses}", id, category.Name, uses);
             return CategoryResult.Fail(CategoryProblem.Conflict, $"{category.Name} has {uses}. Archive it instead to keep its history.");

@@ -135,6 +135,41 @@ namespace LifeTracker.Api.Migrations
                     b.ToTable("Settings", (string)null);
                 });
 
+            modelBuilder.Entity("LifeTracker.Api.Models.BudgetMonthAmount", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AccountId")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("PeriodStart")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId", "PeriodStart")
+                        .IsUnique();
+
+                    b.HasIndex("CategoryId", "PeriodStart")
+                        .IsUnique();
+
+                    b.ToTable("BudgetMonthAmounts", t =>
+                        {
+                            t.HasCheckConstraint("CK_BudgetMonthAmounts_CategoryOrAccount", "(\"CategoryId\" IS NULL) <> (\"AccountId\" IS NULL) AND \"Amount\" >= 0");
+                        });
+                });
+
             modelBuilder.Entity("LifeTracker.Api.Models.Category", b =>
                 {
                     b.Property<int>("Id")
@@ -257,6 +292,23 @@ namespace LifeTracker.Api.Migrations
                         .WithMany()
                         .HasForeignKey("DefaultAccountId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("LifeTracker.Api.Models.BudgetMonthAmount", b =>
+                {
+                    b.HasOne("LifeTracker.Api.Models.Account", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("LifeTracker.Api.Models.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Account");
+
+                    b.Navigation("Category");
                 });
 
             modelBuilder.Entity("LifeTracker.Api.Models.Category", b =>
