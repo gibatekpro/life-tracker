@@ -320,4 +320,50 @@ public class BudgetCalculatorTests
 
         Assert.Equal("Food: £230.00 of £200.00 · £30.00 over", BudgetCalculator.Notification(Line(m, 1)));
     }
+
+    // Debts in their own currency
+
+    [Fact]
+    public void NairaDebt_CountsInPounds_AndShowsInNaira()
+    {
+        // ₦30,000 set for the month, at £0.0005 per ₦: £15. ₦20,000 has arrived (£10 sent).
+        var m = Calc([], debts:
+        [
+            new DebtInput(12, "Loan app", DefaultAmount: 12.50m, MonthAmount: 15m, Paid: 10m, Suggested: 15m,
+                Currency: "NGN", Rate: 0.0005m, NativeDefault: 25000m, NativeMonthAmount: 30000m, NativePaid: 20000m),
+        ]);
+
+        var d = m.Debts.Single();
+        Assert.Equal((15m, 10m, 5m), (d.Planned, d.Paid, d.Remaining));
+        Assert.Equal((30000m, 20000m, 10000m), (d.NativePlanned, d.NativePaid, d.NativeRemaining));
+        Assert.Equal(30000m, d.NativeSuggested);    // £15 back in naira
+        Assert.Equal(15m, m.PlannedDebts);          // the £ figure is what comes off unallocated
+        Assert.Equal(1985m, m.Unallocated);
+    }
+
+    [Fact]
+    public void NairaDebtWithNoRate_KeepsItsNairaFigure_ButCountsNothingInPounds()
+    {
+        var m = Calc([], debts:
+        [
+            new DebtInput(12, "Loan app", null, null, 0m, null,
+                Currency: "NGN", Rate: null, NativeDefault: 25000m, NativeMonthAmount: 30000m, NativePaid: 0m),
+        ]);
+
+        var d = m.Debts.Single();
+        Assert.Equal(0m, d.Planned);
+        Assert.Equal(30000m, d.NativePlanned);
+        Assert.Null(d.Rate);
+        Assert.True(m.HasMonthDebtAmounts);         // a naira figure still counts as set for the month
+    }
+
+    [Fact]
+    public void PoundDebt_HasTheSameFiguresInItsOwnCurrency()
+    {
+        var m = Calc([], debts: [new DebtInput(10, "Aqua", 44.25m, 100m, 30m, 120m)]);
+
+        var d = m.Debts.Single();
+        Assert.Equal((100m, 30m, 70m, 120m), (d.NativePlanned, d.NativePaid, d.NativeRemaining, d.NativeSuggested));
+        Assert.Equal("GBP", d.Currency);
+    }
 }

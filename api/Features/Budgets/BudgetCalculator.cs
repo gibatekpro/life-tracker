@@ -9,11 +9,15 @@ public record BudgetCategory(
     int Id, int? ParentId, string Name, int SortOrder, bool IsArchived,
     decimal? DefaultAmount, decimal? MonthAmount);
 
-// A card or loan for the month: its default (the account's monthly payment, in pounds; null if a
-// naira loan has no rate yet), this month's own figure, what's been paid in so far, and what
-// the avalanche plan suggests paying.
+// A card or loan for the month, in pounds: its default (the account's monthly payment; null if a
+// naira loan has no rate yet), this month's own figure, what's been paid in so far, and what the
+// avalanche plan suggests paying. Then the same in the account's own currency, and Rate, the
+// account currency -> GBP rate (1 for pounds; null with no rate yet). For a £ account the
+// Native* figures can be left out: they're the £ ones.
 public record DebtInput(
-    int AccountId, string Name, decimal? DefaultAmount, decimal? MonthAmount, decimal Paid, decimal? Suggested);
+    int AccountId, string Name, decimal? DefaultAmount, decimal? MonthAmount, decimal Paid, decimal? Suggested,
+    string Currency = "GBP", decimal? Rate = 1m,
+    decimal? NativeDefault = null, decimal? NativeMonthAmount = null, decimal? NativePaid = null);
 
 public record BudgetInput(
     BudgetPeriod Period,
@@ -30,9 +34,13 @@ public record BudgetLine(
     decimal OwnPlanned, decimal OwnSpent, decimal Planned, decimal Spent, decimal Remaining,
     decimal? PercentUsed, decimal Projected, decimal DailyAllowance, IReadOnlyList<BudgetLine> Children);
 
+// A debt's line, in pounds (what counts in the month's totals), then in its own currency (what I
+// see and set for a naira loan). NativeSuggested is the avalanche suggestion converted back.
 public record DebtLine(
     int AccountId, string Name, decimal? DefaultAmount, decimal? MonthAmount, decimal Planned, decimal Paid,
-    decimal Remaining, decimal? PercentUsed, decimal? Suggested);
+    decimal Remaining, decimal? PercentUsed, decimal? Suggested,
+    string Currency, decimal? Rate, decimal? NativeDefault, decimal? NativeMonthAmount, decimal NativePlanned,
+    decimal NativePaid, decimal NativeRemaining, decimal? NativeSuggested);
 
 public record BudgetMonth(
     int Year, int Month, DateOnly PeriodStart, DateOnly PeriodEnd,
@@ -87,8 +95,21 @@ public static class BudgetCalculator
         var debts = input.Debts.Select(d =>
         {
             var planned = d.MonthAmount ?? d.DefaultAmount ?? 0;
+
+            // In the account's own currency (for a £ account, the same figures).
+            var native = d.Currency == "GBP";
+            var nativeDefault = native ? d.DefaultAmount : d.NativeDefault;
+            var nativeMonth = native ? d.MonthAmount : d.NativeMonthAmount;
+            var nativePlanned = nativeMonth ?? nativeDefault ?? 0;
+            var nativePaid = native ? d.Paid : d.NativePaid ?? 0;
+            // The plan works in pounds; its suggestion back in the account's currency.
+            var nativeSuggested = native ? d.Suggested
+                : d.Suggested is { } s && d.Rate is > 0 ? Math.Round(s / d.Rate.Value, 2) : null;
+
             return new DebtLine(d.AccountId, d.Name, d.DefaultAmount, d.MonthAmount, planned, d.Paid,
-                planned - d.Paid, Percent(d.Paid, planned), d.Suggested);
+                planned - d.Paid, Percent(d.Paid, planned), d.Suggested,
+                d.Currency, d.Rate, nativeDefault, nativeMonth, nativePlanned, nativePaid,
+                nativePlanned - nativePaid, nativeSuggested);
         }).ToList();
 
         var plannedSpending = lines.Sum(l => l.Planned);
@@ -104,7 +125,7 @@ public static class BudgetCalculator
 
         // Decision 1: once any debt amount is set for this month, the month's debt lines are the
         // avalanche plan's budget; until then it uses the monthly debt budget from Settings.
-        var hasMonthDebtAmounts = input.Debts.Any(d => d.MonthAmount is not null);
+        var hasMonthDebtAmounts = input.Debts.Any(d => d.MonthAmount is not null || d.NativeMonthAmount is not null);
 
         return new BudgetMonth(
             p.Year, p.Month, p.Start, p.LastDay, days, elapsed, left,

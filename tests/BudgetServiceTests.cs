@@ -213,4 +213,30 @@ public class BudgetServiceTests(PostgresFixture pg) : IClassFixture<PostgresFixt
         Assert.Equal(CategoryProblem.Conflict, result.Problem);
         Assert.Contains("budgets in 1 month", result.Error);
     }
+
+    [Fact]
+    public async Task NairaLoan_IsSetInNaira_AndCountsInPounds()
+    {
+        var s = await SetupAsync();
+        await using var _ = s.Db;
+        var loan = new Account { Name = "Loan app", Type = AccountType.Loan, Currency = "NGN", Balance = 100000m, MonthlyPayment = 25000m };
+        var palmPay = new Account { Name = "PalmPay", Type = AccountType.Current, Currency = "NGN" };
+        s.Db.Accounts.AddRange(loan, palmPay);
+        await s.Db.SaveChangesAsync();
+        await new ExchangeRateService(s.Db).SetAsync("NGN", "GBP", 0.0005m);
+        var p = Now();
+
+        // ₦30,000 for this month instead of the ₦25,000 instalment; £10 sent, ₦20,000 arrived.
+        await s.Budgets.SetAmountAsync(p.Year, p.Month, new BudgetLineKey(null, loan.Id), 30000m);
+        await s.Ledger.RecordAsync(new LedgerEntry(10m, "Repay", null, p.Start, TransactionType.Transfer, s.Lloyds.Id, loan.Id, ToAmount: 20000m));
+
+        var view = await s.Budgets.GetMonthAsync();
+        var d = view.Budget.Debts.Single(x => x.AccountId == loan.Id);
+
+        Assert.Equal((12.50m, 15m, 10m), (d.DefaultAmount, d.Planned, d.Paid));          // pounds
+        Assert.Equal((25000m, 30000m, 20000m), (d.NativeDefault, d.NativePlanned, d.NativePaid));   // naira
+        Assert.Equal(0.0005m, d.Rate);
+        Assert.Contains(view.Budget.Debts, x => x.AccountId == s.Card.Id);
+        Assert.Equal(15m + 50m, view.Budget.PlannedDebts);   // the loan's £15 and the card's £50 default
+    }
 }

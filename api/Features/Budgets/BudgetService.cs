@@ -57,7 +57,8 @@ public class BudgetService(
                 c.DefaultMonthlyAmount, MonthAmount(amounts, new BudgetLineKey(c.Id, null)))).ToList(),
             spent,
             debts.Select(d => new DebtInput(d.Account.Id, d.Account.Name, d.Default, d.MonthAmount, d.Paid,
-                suggested.TryGetValue(d.Account.Id, out var x) ? x : null)).ToList(),
+                suggested.TryGetValue(d.Account.Id, out var x) ? x : null,
+                d.Account.Currency, d.Rate, d.Account.MonthlyPayment, d.NativeMonthAmount, d.NativePaid)).ToList(),
             s.MonthlyDebtBudget));
 
         logger.LogDebug("Budget {Start} to {End}: planned £{Planned} of £{Income}, spent £{Spent}, safe £{Safe}/day",
@@ -163,19 +164,24 @@ public class BudgetService(
     private static decimal? MonthAmount(Dictionary<BudgetLineKey, decimal> amounts, BudgetLineKey key) =>
         amounts.TryGetValue(key, out var amount) ? amount : null;
 
-    private sealed record DebtFigures(Account Account, decimal? Default, decimal? MonthAmount, decimal Paid);
+    // A debt's month in pounds (for the totals) and in its own currency (what I see and set).
+    // Rate is its currency -> GBP rate, null when there's none yet (then the £ figures are null too).
+    private sealed record DebtFigures(Account Account, decimal? Rate, decimal? Default, decimal? MonthAmount, decimal Paid,
+        decimal? NativeMonthAmount, decimal NativePaid);
 
     // One line per card or loan that I owe on, or paid into this month, or set a figure for.
-    // The default is the account's monthly payment in pounds (a naira loan converts at my latest
-    // transfer rate, or has no default until there's one). Paid is the transfers into it this month.
+    // A month's figure for a debt is in the account's own currency (₦ for a naira loan), converted
+    // to pounds at the rate for that currency (mine, or my latest transfer's). The default is the
+    // account's monthly payment. Paid is the transfers into it this month: in pounds, their stored £
+    // value; in its own currency, what arrived.
     private async Task<List<DebtFigures>> DebtsAsync(BudgetPeriod period, Dictionary<BudgetLineKey, decimal> amounts)
     {
         var paid = await db.Transactions
             .Where(t => t.Type == TransactionType.Transfer && t.ToAccountId != null
                         && t.Date >= period.Start && t.Date < period.End)
             .GroupBy(t => t.ToAccountId!.Value)
-            .Select(g => new { AccountId = g.Key, Total = g.Sum(t => t.GbpAmount) })
-            .ToDictionaryAsync(x => x.AccountId, x => x.Total);
+            .Select(g => new { AccountId = g.Key, Pounds = g.Sum(t => t.GbpAmount), Arrived = g.Sum(t => t.ToAmount ?? t.Amount) })
+            .ToDictionaryAsync(x => x.AccountId);
 
         var accounts = await db.Accounts
             .Where(a => a.Type == AccountType.CreditCard || a.Type == AccountType.Loan)
@@ -185,11 +191,14 @@ public class BudgetService(
         var result = new List<DebtFigures>();
         foreach (var a in accounts)
         {
-            var monthAmount = MonthAmount(amounts, new BudgetLineKey(null, a.Id));
+            var nativeMonth = MonthAmount(amounts, new BudgetLineKey(null, a.Id));
             var paidIn = paid.GetValueOrDefault(a.Id);
-            if (a.Balance <= 0 && paidIn == 0 && monthAmount is null) continue;
+            if (a.Balance <= 0 && paidIn is null && nativeMonth is null) continue;
 
-            result.Add(new DebtFigures(a, await rates.ToPoundsAsync(a.MonthlyPayment, a.Currency), monthAmount, paidIn));
+            var rate = (await rates.GetAsync(a.Currency, Currencies.Home)).Rate;
+            decimal? Pounds(decimal? amount) => amount is { } x && rate is { } r ? Currencies.Convert(x, r) : null;
+            result.Add(new DebtFigures(a, rate, Pounds(a.MonthlyPayment), Pounds(nativeMonth), paidIn?.Pounds ?? 0,
+                nativeMonth, paidIn?.Arrived ?? 0));
         }
         return result;
     }
@@ -197,7 +206,7 @@ public class BudgetService(
     // Decision 1: once any debt figure is set for the month, the month's debt lines (figure, or
     // default) are the debt budget; until then, the debt budget from Settings.
     private static decimal? DebtBudget(List<DebtFigures> debts, AppSettings s) =>
-        debts.Any(d => d.MonthAmount is not null)
+        debts.Any(d => d.NativeMonthAmount is not null)
             ? debts.Sum(d => d.MonthAmount ?? d.Default ?? 0)
             : s.MonthlyDebtBudget;
 
