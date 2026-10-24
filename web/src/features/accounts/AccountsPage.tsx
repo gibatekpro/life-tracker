@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { getAccounts, getDebts } from '../../api';
-import type { Account, DebtWithProjection } from '../../types';
+import { getAccounts, getDebts, getExchangeRates } from '../../api';
+import type { Account, DebtWithProjection, ExchangeRate } from '../../types';
 import { useData } from '../../data/useData';
 import { formatMoney, formatMonthYear } from '../../lib/format';
 import { cn } from '../../lib/cn';
@@ -13,8 +13,9 @@ import { Alert, Badge, EmptyState, PageHeader, ProgressBar, Skeleton, Stat } fro
 import { useQuickAdd } from '../transactions/quickAdd';
 import AccountForm from './AccountForm';
 import { payDraft, typeIcon, typeLabel } from './accountLabels';
+import { ApproxPounds, RateNote } from './Converted';
 
-function CurrentTile({ a }: { a: Account }) {
+function CurrentTile({ a, rates }: { a: Account; rates: ExchangeRate[] | undefined }) {
   return (
     <Link to={`/accounts/${a.id}`}
       className="group rounded-2xl border border-line bg-surface p-5 shadow-card transition hover:border-accent/40">
@@ -26,11 +27,12 @@ function CurrentTile({ a }: { a: Account }) {
       <p className={cn('mt-1 text-2xl font-semibold tracking-tight tabular-nums', a.balance < 0 && 'text-negative')}>
         {formatMoney(a.balance, a.currency)}
       </p>
+      <ApproxPounds amount={a.balance} currency={a.currency} rates={rates} />
     </Link>
   );
 }
 
-function DebtTile({ item, onPay }: { item: DebtWithProjection; onPay: () => void }) {
+function DebtTile({ item, rates, onPay }: { item: DebtWithProjection; rates: ExchangeRate[] | undefined; onPay: () => void }) {
   const { debt: d, projection: p } = item;
   const used = d.creditLimit ? d.balance / d.creditLimit : null;
   return (
@@ -48,6 +50,7 @@ function DebtTile({ item, onPay }: { item: DebtWithProjection; onPay: () => void
 
       <p className="mt-4 text-sm text-muted">Owed</p>
       <p className="text-2xl font-semibold tracking-tight text-negative tabular-nums">{formatMoney(d.balance, d.currency)}</p>
+      <ApproxPounds amount={d.balance} currency={d.currency} rates={rates} />
 
       {used !== null && (
         <div className="mt-3">
@@ -84,12 +87,14 @@ function DebtTile({ item, onPay }: { item: DebtWithProjection; onPay: () => void
 export default function AccountsPage() {
   const accounts = useData('accounts', getAccounts);
   const debts = useData('debts', getDebts);
+  const rates = useData('rates', getExchangeRates);
   const openQuickAdd = useQuickAdd();
   const navigate = useNavigate();
   const [adding, setAdding] = useState(false);
 
   const current = (accounts.data ?? []).filter((a) => a.type === 'Current');
   const o = debts.data;
+  const foreign = [...new Set((accounts.data ?? []).map((a) => a.currency).filter((c) => c !== 'GBP'))];
 
   return (
     <>
@@ -105,6 +110,12 @@ export default function AccountsPage() {
         <Card>{o ? <Stat label="Debt-free" value={o.debts.length ? formatMonthYear(o.debtFreeDate) : 'Already'} valueClassName="text-positive" /> : <Skeleton className="h-16" />}</Card>
       </div>
 
+      {foreign.length > 0 && (
+        <div className="-mt-4 mb-6 grid gap-1">
+          {foreign.map((c) => <RateNote key={c} currency={c} rates={rates.data} />)}
+        </div>
+      )}
+
       {o && o.currenciesWithoutRate.length > 0 && (
         <Alert tone="warning" className="mb-6">
           {o.currenciesWithoutRate.join(', ')} debts aren't in these £ totals yet. Record a transfer between pounds and
@@ -118,7 +129,7 @@ export default function AccountsPage() {
           <Card><EmptyState icon="bank" title="No bank accounts yet" action={<Button onClick={() => setAdding(true)}>Add one</Button>} /></Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {current.map((a) => <CurrentTile key={a.id} a={a} />)}
+            {current.map((a) => <CurrentTile key={a.id} a={a} rates={rates.data} />)}
           </div>
         )}
       </section>
@@ -130,7 +141,7 @@ export default function AccountsPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {o.debts.map((item) => (
-              <DebtTile key={item.debt.id} item={item} onPay={() => openQuickAdd(payDraft(item.debt, accounts.data ?? []))} />
+              <DebtTile key={item.debt.id} item={item} rates={rates.data} onPay={() => openQuickAdd(payDraft(item.debt, accounts.data ?? []))} />
             ))}
           </div>
         )}

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { deleteAccount, getAccount, getAccountPayments, getAccounts, getDebts, getTransactions } from '../../api';
+import { deleteAccount, getAccount, getAccountPayments, getAccounts, getDebts, getExchangeRates, getTransactions } from '../../api';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
 import { formatDate, formatMoney, formatMonthYear } from '../../lib/format';
@@ -16,6 +16,7 @@ import AccountForm from './AccountForm';
 import AliasesCard from './AliasesCard';
 import WhatIfCard from './WhatIfCard';
 import { isDebt, payDraft, typeIcon, typeLabel } from './accountLabels';
+import { ApproxPounds, RateNote } from './Converted';
 
 // One account in full: its balance, and for a card or loan the payoff picture, a what-if,
 // and payment history. Also its Apple Pay names, recent transactions, edit and delete.
@@ -28,6 +29,7 @@ export default function AccountDetailPage() {
   const debts = useData('debts', getDebts);
   const transactions = useData('transactions', getTransactions);
   const payments = useData(`payments-${id}`, () => getAccountPayments(id), !deleted);
+  const rates = useData('rates', getExchangeRates);
   const openQuickAdd = useQuickAdd();
   const { refresh } = useRefresh();
   const navigate = useNavigate();
@@ -86,7 +88,8 @@ export default function AccountDetailPage() {
       <Card className="mb-6">
         <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
           <Stat label={debt ? 'Owed' : 'Balance'} value={formatMoney(a.balance, a.currency)}
-            valueClassName={debt || a.balance < 0 ? 'text-negative' : undefined} />
+            valueClassName={debt || a.balance < 0 ? 'text-negative' : undefined}
+            sub={a.currency !== 'GBP' ? <ApproxPounds amount={a.balance} currency={a.currency} rates={rates.data} className="tabular-nums" /> : undefined} />
           {debt && <Stat label="APR" value={`${a.apr}%`} sub={a.apr === 0 ? 'Interest included in the total' : undefined} />}
           {debt && <Stat label="Monthly payment" value={formatMoney(a.monthlyPayment, a.currency)}
             sub={a.minimumPayment > 0 ? `Minimum ${formatMoney(a.minimumPayment, a.currency)}` : undefined} />}
@@ -96,6 +99,7 @@ export default function AccountDetailPage() {
               sub={projection.canBePaidOff ? `${projection.months} months · ${formatMoney(projection.totalInterest, a.currency)} interest` : 'Payment is below the interest'} />
           )}
         </div>
+        {a.currency !== 'GBP' && <div className="mt-4"><RateNote currency={a.currency} rates={rates.data} /></div>}
         {used !== null && (
           <div className="mt-6">
             <div className="mb-1.5 flex justify-between text-sm">

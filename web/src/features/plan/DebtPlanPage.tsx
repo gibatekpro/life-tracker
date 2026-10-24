@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
-import { getAvalanchePlan, getDebts } from '../../api';
+import { getAvalanchePlan, getDebts, getExchangeRates } from '../../api';
+import type { Account, ExchangeRate } from '../../types';
 import { useData } from '../../data/useData';
 import { useDebounce } from '../../hooks/useDebounce';
 import { formatMoney, formatMonthYear } from '../../lib/format';
@@ -8,6 +9,17 @@ import Card from '../../components/ui/Card';
 import { Alert, EmptyState, PageHeader, Skeleton } from '../../components/ui/Bits';
 import ExtraSimulator from './ExtraSimulator';
 import PayoffChart from './PayoffChart';
+import { ApproxPounds, RateNote } from '../accounts/Converted';
+
+// A debt in another currency: what's owed in it, and roughly in pounds.
+function ForeignOwed({ account: a, rates }: { account: Account | undefined; rates: ExchangeRate[] | undefined }) {
+  if (!a || a.currency === 'GBP') return null;
+  return (
+    <p className="text-sm tabular-nums">
+      {formatMoney(a.balance, a.currency)} owed · <ApproxPounds amount={a.balance} currency={a.currency} rates={rates} />
+    </p>
+  );
+}
 
 // The plan for getting out of debt, using the avalanche method: every debt gets its normal
 // payment, and anything extra goes to the highest interest rate first. When a debt is cleared,
@@ -18,6 +30,9 @@ export default function DebtPlanPage() {
   const baseline = useData('plan-0', () => getAvalanchePlan(0));
   const plan = useData(`plan-${extra}`, () => getAvalanchePlan(extra));
   const debts = useData('debts', getDebts);
+  const rates = useData('rates', getExchangeRates);
+  const debtAccount = (id: number) => debts.data?.debts.find((d) => d.debt.id === id)?.debt;
+  const foreign = [...new Set((debts.data?.debts ?? []).map((d) => d.debt.currency).filter((c) => c !== 'GBP'))];
 
   const b = baseline.data;
   const p = plan.data;
@@ -80,12 +95,18 @@ export default function DebtPlanPage() {
                         <div>
                           <Link to={`/accounts/${x.id}`} className="font-medium hover:underline">{x.name}</Link>
                           <p className="text-sm text-muted">Cleared {formatMonthYear(x.payoffDate)} · month {x.month}</p>
+                          <ForeignOwed account={debtAccount(x.id)} rates={rates.data} />
                         </div>
                         <p className="text-sm text-muted tabular-nums">{formatMoney(x.interestPaid)} interest</p>
                       </div>
                     </li>
                   ))}
                 </ol>
+                {foreign.length > 0 && (
+                  <div className="mt-4 grid gap-1 border-t border-line pt-3">
+                    {foreign.map((c) => <RateNote key={c} currency={c} rates={rates.data} />)}
+                  </div>
+                )}
               </Card>
             )}
           </div>
