@@ -10,6 +10,10 @@ import Card from '../../components/ui/Card';
 import Modal from '../../components/ui/Modal';
 import { Alert, Badge, EmptyState, SegmentedControl, Skeleton } from '../../components/ui/Bits';
 import CategoryForm from './CategoryForm';
+import CollapsibleTree from '../../components/tree/CollapsibleTree';
+import ExpandButton from '../../components/tree/ExpandButton';
+import { buildTree } from '../../components/tree/tree';
+import { useIsSmallScreen } from '../../hooks/useIsSmallScreen';
 
 type Editing = { category: Category } | { parentId: number | null } | null;
 
@@ -29,6 +33,8 @@ export default function CategoriesCard() {
   const [editing, setEditing] = useState<Editing>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // On small screens only the top level shows until a category is opened.
+  const small = useIsSmallScreen();
 
   const all = categories.data ?? [];
   const shown = all.filter((c) => c.kind === kind && (showArchived || !c.isArchived));
@@ -63,23 +69,28 @@ export default function CategoriesCard() {
       {!categories.data ? <Skeleton className="h-48" /> : shown.length === 0 ? (
         <EmptyState icon="tag" title="No categories yet" />
       ) : (
-        <ul className="divide-y divide-line rounded-xl border border-line">
-          {shown.map((c) => {
+        <CollapsibleTree className="rounded-xl border border-line" page={`settings-categories-${kind}`} collapsible={small}
+          nodes={buildTree(shown, (c) => c.id, (c) => c.parentId)}
+          renderRow={({ item: c, children }, { depth, expandable, expanded, toggle, controls }) => {
             const unused = c.transactionCount === 0 && c.childCount === 0;
+            const name = (
+              <span className={cn('text-sm font-medium', c.isArchived && 'text-subtle')}>{c.name}</span>
+            );
             return (
-              <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5 pr-3"
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5 pr-3"
                 // Indent by depth, capped so a deep tree stays readable on a phone.
-                style={{ paddingLeft: `${1 + Math.min(c.depth, 5) * 1.25}rem` }}>
+                style={{ paddingLeft: `${1 + Math.min(depth, 5) * 1.25}rem` }}>
                 <div className="min-w-0 flex-1">
-                  <p className={cn('flex items-center gap-2 truncate text-sm font-medium', c.isArchived && 'text-subtle')}>
-                    {c.depth > 0 && <span aria-hidden className="text-subtle">└</span>}
-                    {c.name}
+                  <div className="flex items-center gap-2">
+                    {depth > 0 && !expandable && <span aria-hidden className="text-subtle">└</span>}
+                    {expandable ? <ExpandButton expanded={expanded} controls={controls} onClick={toggle}>{name}</ExpandButton> : name}
                     {c.isArchived && <Badge>Archived</Badge>}
-                  </p>
+                  </div>
                   <p className="text-xs text-muted">
                     {kind === 'Expense' && (c.defaultMonthlyAmount !== null ? `${formatMoney(c.defaultMonthlyAmount)} a month` : 'No default budget')}
                     {kind === 'Expense' && ' · '}
                     {c.transactionCount} transaction{c.transactionCount === 1 ? '' : 's'}
+                    {expandable && !expanded && ` · ${children.length} subcategor${children.length === 1 ? 'y' : 'ies'}`}
                   </p>
                 </div>
 
@@ -107,10 +118,9 @@ export default function CategoriesCard() {
                     )}
                   </div>
                 )}
-              </li>
+              </div>
             );
-          })}
-        </ul>
+          }} />
       )}
 
       <Modal open={editing !== null} onClose={() => setEditing(null)}

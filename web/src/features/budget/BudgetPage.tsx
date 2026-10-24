@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { copyPreviousBudget, getBudgetMonth, getCategories, resetBudgetAmount, setBudgetAmount } from '../../api';
-import type { BudgetLineKey } from '../../types';
+import type { BudgetLine, BudgetLineKey } from '../../types';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
 import { formatMoney, monthName, periodLabel } from '../../lib/format';
@@ -10,8 +10,15 @@ import Card from '../../components/ui/Card';
 import Modal from '../../components/ui/Modal';
 import { Alert, EmptyState, PageHeader, ProgressBar, Skeleton, Stat } from '../../components/ui/Bits';
 import AddLineForm from './AddLineForm';
+import CollapsibleTree from '../../components/tree/CollapsibleTree';
+import type { TreeNode } from '../../components/tree/tree';
+import { useIsSmallScreen } from '../../hooks/useIsSmallScreen';
 import BudgetLineRow from './BudgetLineRow';
 import DebtLineRow from './DebtLineRow';
+
+// The budget's lines (already a tree) as CollapsibleTree nodes.
+const toNodes = (lines: BudgetLine[]): TreeNode<BudgetLine>[] =>
+  lines.map((l) => ({ id: l.categoryId, item: l, children: toNodes(l.children) }));
 
 function shiftMonth(ym: string, by: number) {
   const [y, m] = ym.split('-').map(Number);
@@ -31,6 +38,8 @@ export default function BudgetPage() {
   });
   const categories = useData('categories', getCategories);
   const { refresh } = useRefresh();
+  // On small screens only the top-level categories show until opened; larger screens show everything.
+  const small = useIsSmallScreen();
   const [adding, setAdding] = useState(false);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -109,13 +118,12 @@ export default function BudgetPage() {
                   Give categories a default in Settings to have them every month, or add a line for just this month.
                 </EmptyState>
               ) : (
-                <ul className="-my-3 divide-y divide-line">
-                  {b.lines.map((l) => (
-                    <BudgetLineRow key={l.categoryId} line={l} depth={0} daysLeft={b.daysLeft}
+                <CollapsibleTree className="-my-3" page="budget" collapsible={small} nodes={toNodes(b.lines)}
+                  renderRow={(node, context) => (
+                    <BudgetLineRow line={node.item} context={context} daysLeft={b.daysLeft}
                       onSave={(categoryId, amount) => save({ categoryId }, amount)}
                       onReset={(categoryId) => reset({ categoryId })} />
-                  ))}
-                </ul>
+                  )} />
               )}
             </Card>
 
