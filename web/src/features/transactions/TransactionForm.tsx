@@ -9,6 +9,8 @@ import { Field, Input, MoneyInput } from '../../components/ui/Field';
 import { Alert, SegmentedControl } from '../../components/ui/Bits';
 import AccountSelect from '../accounts/AccountSelect';
 import CategorySelect from '../categories/CategorySelect';
+import CascadingCategoryPicker from '../categories/CascadingCategoryPicker';
+import { useIsSmallScreen } from '../../hooks/useIsSmallScreen';
 import type { TransactionDraft } from './quickAdd';
 
 const types: { value: TransactionType; label: string }[] = [
@@ -33,6 +35,8 @@ export default function TransactionForm({ accounts, categories: allCategories, r
   const { refresh } = useRefresh();
   const firstCurrent = accounts.find((a) => a.type === 'Current') ?? accounts[0];
   const editing = t !== undefined;
+  // On small screens the category is picked one level at a time; larger screens list the whole tree.
+  const small = useIsSmallScreen();
 
   const [type, setType] = useState<TransactionType>(t?.type ?? draft?.type ?? 'Expense');
   const [amount, setAmount] = useState(t ? String(t.amount) : draft?.amount ? String(draft.amount) : '');
@@ -151,7 +155,10 @@ export default function TransactionForm({ accounts, categories: allCategories, r
           </Field>
         ) : (
           <Field label="Category">
-            {(id) => (
+            {(id) => small ? (
+              <CascadingCategoryPicker id={id} categories={allCategories} kind={type === 'Income' ? 'Income' : 'Expense'}
+                value={chosenCategory} onChange={setCategoryId} />
+            ) : (
               <CategorySelect id={id} required categories={allCategories} kind={type === 'Income' ? 'Income' : 'Expense'}
                 value={chosenCategory} onChange={(e) => setCategoryId(Number(e.target.value))} />
             )}
