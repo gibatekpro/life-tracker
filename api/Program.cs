@@ -70,3 +70,5 @@ app.MapTransactionEndpoints();
 
 app.Run();
 
+// Lets the tests start the API in memory (WebApplicationFactory<Program>).
+public partial class Program;
