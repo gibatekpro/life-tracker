@@ -174,3 +174,66 @@ export interface Settings {
   monthStartDay: number; // 1-28; budget months start on this day
   updatedAt: string;
 }
+// One category's line in a budget month. own* is the category itself; planned and spent
+// include its subcategories. monthAmount is this month's own figure (null = using the default).
+export interface BudgetLine {
+  categoryId: number;
+  name: string;
+  isArchived: boolean;
+  defaultAmount: number | null;
+  monthAmount: number | null;
+  ownPlanned: number;
+  ownSpent: number;
+  planned: number;
+  spent: number;
+  remaining: number;
+  percentUsed: number | null;
+  projected: number; // month-end spending at today's pace
+  dailyAllowance: number; // what can go per day for the rest of the month
+  children: BudgetLine[];
+}
+
+// A card or loan's line: default = its monthly payment in £ (null for a naira loan with no rate yet).
+export interface DebtLine {
+  accountId: number;
+  name: string;
+  defaultAmount: number | null;
+  monthAmount: number | null;
+  planned: number;
+  paid: number;
+  remaining: number;
+  percentUsed: number | null;
+  suggested: number | null; // what the avalanche plan would pay it this month
+}
+
+export interface BudgetMonth {
+  year: number;
+  month: number;
+  periodStart: string;
+  periodEnd: string;
+  daysInPeriod: number;
+  daysElapsed: number;
+  daysLeft: number;
+  income: number;
+  plannedSpending: number;
+  plannedDebts: number;
+  totalPlanned: number;
+  unallocated: number;
+  spent: number;
+  debtPaid: number;
+  safeToSpend: number;
+  safeToSpendPerDay: number;
+  hasMonthDebtAmounts: boolean; // true once a debt figure is set: the debt lines are the avalanche budget
+  debtBudget: number | null;
+  lines: BudgetLine[];
+  debts: DebtLine[];
+}
+
+export interface BudgetMonthView {
+  budget: BudgetMonth;
+  incomeMode: IncomeMode;
+  settingsDebtBudget: number | null;
+}
+
+// A budget line is a spending category or a debt account.
+export type BudgetLineKey = { categoryId: number; accountId?: undefined } | { accountId: number; categoryId?: undefined };

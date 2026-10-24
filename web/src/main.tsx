@@ -22,6 +22,7 @@ const router = createBrowserRouter([
         children: [
           { index: true, lazy: page(() => import('./features/overview/OverviewPage')) },
           { path: 'transactions', lazy: page(() => import('./features/transactions/TransactionsPage')) },
+          { path: 'budget', lazy: page(() => import('./features/budget/BudgetPage')) },
           { path: 'accounts', lazy: page(() => import('./features/accounts/AccountsPage')) },
           { path: 'accounts/:id', lazy: page(() => import('./features/accounts/AccountDetailPage')) },
           { path: 'plan', lazy: page(() => import('./features/plan/DebtPlanPage')) },

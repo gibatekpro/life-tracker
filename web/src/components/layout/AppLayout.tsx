@@ -12,12 +12,14 @@ import type { Transaction } from '../../types';
 
 type ModalState = { draft: TransactionDraft } | { transaction: Transaction } | null;
 
-const nav: { to: string; label: string; icon: IconName }[] = [
-  { to: '/', label: 'Overview', icon: 'home' },
-  { to: '/transactions', label: 'Transactions', icon: 'list' },
-  { to: '/accounts', label: 'Accounts', icon: 'wallet' },
-  { to: '/plan', label: 'Debt plan', icon: 'target' },
-  { to: '/settings', label: 'Settings', icon: 'settings' },
+// short: the label on the phone's bottom tabs, where six full labels don't fit.
+const nav: { to: string; label: string; short: string; icon: IconName }[] = [
+  { to: '/', label: 'Overview', short: 'Home', icon: 'home' },
+  { to: '/transactions', label: 'Transactions', short: 'Activity', icon: 'list' },
+  { to: '/budget', label: 'Budget', short: 'Budget', icon: 'budget' },
+  { to: '/accounts', label: 'Accounts', short: 'Accounts', icon: 'wallet' },
+  { to: '/plan', label: 'Debt plan', short: 'Plan', icon: 'target' },
+  { to: '/settings', label: 'Settings', short: 'Settings', icon: 'settings' },
 ];
 
 function Brand() {
@@ -81,7 +83,7 @@ export default function AppLayout() {
 
         {/* Bottom tabs (phones) */}
         <nav aria-label="Main"
-          className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-5 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+          className="fixed inset-x-0 bottom-0 z-10 grid grid-cols-6 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
           {nav.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.to === '/'}
               className={({ isActive }) => cn(
@@ -89,7 +91,7 @@ export default function AppLayout() {
                 isActive ? 'text-accent' : 'text-muted',
               )}>
               <Icon name={item.icon} />
-              {item.label}
+              {item.short}
             </NavLink>
           ))}
         </nav>

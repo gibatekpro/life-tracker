@@ -1,5 +1,6 @@
 import type {
-  Account, AccountAlias, AccountPayment, AvalanchePlan, Category, CreateTransaction, SaveCategory,
+  Account, AccountAlias, AccountPayment, AvalanchePlan, BudgetLineKey, BudgetMonthView, Category, CreateTransaction,
+  SaveCategory,
   DebtsOverview, IncomeMode, MonthlySummary, SaveAccount, Settings, Transaction, WhatIfComparison,
 } from './types';
 
@@ -50,6 +51,18 @@ export const updateCategory = (id: number, c: SaveCategory) => request<Category>
 export const archiveCategory = (id: number) => request<Category>('POST', `/categories/${id}/archive`);
 export const unarchiveCategory = (id: number) => request<Category>('POST', `/categories/${id}/unarchive`);
 export const deleteCategory = (id: number) => request<void>('DELETE', `/categories/${id}`);
+
+// Budgets: a month's lines (no year/month = the budget month I'm in now). A figure set for a month
+// overrides the default for that month only; resetting goes back to the default.
+export const getBudgetMonth = (year?: number, month?: number) =>
+  request<BudgetMonthView>('GET', year && month ? `/budgets/month?year=${year}&month=${month}` : '/budgets/month');
+export const setBudgetAmount = (year: number, month: number, key: BudgetLineKey, amount: number) =>
+  request<void>('PUT', '/budgets/month/amount', { year, month, ...key, amount });
+export const resetBudgetAmount = (year: number, month: number, key: BudgetLineKey) =>
+  request<void>('DELETE', `/budgets/month/amount?year=${year}&month=${month}&${
+    key.categoryId !== undefined ? `categoryId=${key.categoryId}` : `accountId=${key.accountId}`}`);
+export const copyPreviousBudget = (year: number, month: number) =>
+  request<{ copied: number }>('POST', '/budgets/month/copy-previous', { year, month });
 
 // Debts (read-only views over card and loan accounts)
 export const getDebts = () => request<DebtsOverview>('GET', '/debts');
