@@ -10,6 +10,7 @@ import TransactionRow from '../transactions/TransactionRow';
 import { useQuickAdd } from '../transactions/quickAdd';
 import type { Account } from '../../types';
 import SpendingTrendChart from './SpendingTrendChart';
+import SafeToSpendCard from './SafeToSpendCard';
 
 // The last six budget months' summaries, oldest first, ending with the one I'm in now
 // (which, before payday, is still last month's).
@@ -124,27 +125,31 @@ export default function OverviewPage() {
           </Card>
         </div>
 
-        <Card title="Accounts" className="self-start" action={<Link to="/accounts" className="text-sm font-medium text-accent hover:underline">Manage</Link>}>
-          {!accounts.data ? <Skeleton className="h-48" /> : (
-            <ul className="divide-y divide-line">
-              {accounts.data.map((a) => (
-                <li key={a.id}>
-                  <Link to={`/accounts/${a.id}`} className="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 hover:bg-surface-muted">
-                    <span className="truncate text-sm">{a.name}</span>
-                    <span className={cn('text-sm font-medium tabular-nums', a.type === 'Current' ? 'text-ink' : 'text-negative')}>
-                      {a.type === 'Current' ? '' : '−'}{formatMoney(a.balance, a.currency)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-          {debts.data && debts.data.currenciesWithoutRate.length > 0 && (
-            <Alert tone="warning" className="mt-4">
-              {debts.data.currenciesWithoutRate.join(', ')} debts aren't in the £ total until you record a transfer in that currency.
-            </Alert>
-          )}
-        </Card>
+        <div className="grid content-start gap-6">
+          <SafeToSpendCard />
+
+          <Card title="Accounts" action={<Link to="/accounts" className="text-sm font-medium text-accent hover:underline">Manage</Link>}>
+            {!accounts.data ? <Skeleton className="h-48" /> : (
+              <ul className="divide-y divide-line">
+                {accounts.data.map((a) => (
+                  <li key={a.id}>
+                    <Link to={`/accounts/${a.id}`} className="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 hover:bg-surface-muted">
+                      <span className="truncate text-sm">{a.name}</span>
+                      <span className={cn('text-sm font-medium tabular-nums', a.type === 'Current' ? 'text-ink' : 'text-negative')}>
+                        {a.type === 'Current' ? '' : '−'}{formatMoney(a.balance, a.currency)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {debts.data && debts.data.currenciesWithoutRate.length > 0 && (
+              <Alert tone="warning" className="mt-4">
+                {debts.data.currenciesWithoutRate.join(', ')} debts aren't in the £ total until you record a transfer in that currency.
+              </Alert>
+            )}
+          </Card>
+        </div>
       </div>
 
       <Card title="Recent transactions" className="mt-6"
