@@ -12,6 +12,26 @@ public static class Currencies
 {
     public const string Home = "GBP";
 
+    // The currencies accounts and rates can use.
+    public static readonly IReadOnlyList<string> Supported = ["GBP", "NGN", "EUR", "USD"];
+
+    public static bool IsSupported(string? code) => code is not null && Supported.Contains(code);
+
+    // An amount in one currency, in another: ₦5,000 at 0.00052 £ per ₦ is £2.60. Rounded to the penny (or kobo).
+    public static decimal Convert(decimal amount, decimal rate) => Math.Round(amount * rate, 2);
+
+    // The rate a transfer implies for the direction from -> to (units of `to` per 1 `from`), whichever
+    // way the money actually went: £10 -> ₦18,000 gives GBP->NGN 1,800 and NGN->GBP 1/1,800.
+    // Null if the transfer wasn't between those two currencies.
+    public static decimal? RateFromTransfer(
+        string from, string to, string sentCurrency, decimal sent, string receivedCurrency, decimal received)
+    {
+        if (sent <= 0 || received <= 0) return null;
+        if (sentCurrency == from && receivedCurrency == to) return received / sent;
+        if (sentCurrency == to && receivedCurrency == from) return sent / received;
+        return null;
+    }
+
     // " ngn" -> "NGN". Null if it isn't a three-letter code like GBP or NGN.
     public static string? Normalise(string? code)
     {
