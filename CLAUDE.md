@@ -5,7 +5,7 @@ A personal life-tracking app: spending, debt payoff, habits and personal growth.
 ## Stack
 - **api/** – ASP.NET Core Web API (.NET 10, pinned in global.json), project `LifeTracker.Api`
 - **web/** – React + TypeScript (Vite) dashboard; the dev server proxies `/api` to the API on port 5080
-- **mobile/** – React Native with Expo for iPhone (not created yet)
+- **mobile/** – React Native with Expo (SDK 58, Expo Router) for iPhone, run in Expo Go over Tailscale
 - **Database** – PostgreSQL 17 via Docker Compose (`docker-compose.yml` at repo root, credentials in `.env`, never committed)
 - **ORM** – EF Core with the Npgsql provider
 - **API testing** – Scalar UI at `/scalar` (reads the OpenAPI doc)
@@ -49,6 +49,16 @@ A personal life-tracking app: spending, debt payoff, habits and personal growth.
 - **Small screens** (below `lg`, where the bottom navbar shows; `useIsSmallScreen`) – category trees collapse: `components/tree/CollapsibleTree` (nested lists, each page supplies rows, open rows remembered per page by `useExpanded` in guarded localStorage) with `ExpandButton` (aria-expanded/aria-controls); the transaction form uses `CascadingCategoryPicker`. Larger screens show the full tree.
 - **Rates in the UI** – Settings → Currencies edits both directions; `lib/rates.ts` and `features/accounts/Converted.tsx` (`ApproxPounds`, `RateNote`) show "≈ £" beside other currencies (display only).
 - **Tailwind gotcha** – two classes for the same property (e.g. `p-4` and `p-0`) don't override by order in the markup; add an option to the component (like Card's `flush`) instead.
+
+## Mobile app (mobile/)
+- **Stack** – Expo SDK 58 (Expo Go on the phone only runs the latest SDK, so upgrade when Expo does: `npx expo install expo@latest --fix`), React Native, TypeScript, Expo Router with routes in `src/app` (`(tabs)/` = Home, Add, Activity as `NativeTabs`; `settings.tsx` pushed over them from the gear). iOS only: no web target, no CORS on the API (a native app isn't a browser). Add packages with `npx expo install`, not `npm install`, so versions match the SDK; Expo Go only has its bundled native modules.
+- **Running on the phone** – Expo Go over Tailscale. `mobile/.env` (git-ignored, from `.env.example`) holds `EXPO_PUBLIC_API_URL=http://<mac-tailscale-ip>:5080`; `MAC_TAILSCALE_IP=<ip> npm start` sets `REACT_NATIVE_PACKAGER_HOSTNAME` so the QR code points at the Mac's Tailscale IP. Never use `expo start --tunnel` or `tailscale serve` (serve proxies from loopback, which skips the API key check).
+- **API key** – the phone isn't loopback, so `NetworkApiKeyMiddleware` wants `X-Api-Key` (the API's `Security:ApiKey` user secret). It's pasted once in Settings and kept in the iOS Keychain by `expo-secure-store` (`lib/apiKey.ts`), never in `.env` or source: `EXPO_PUBLIC_` values are compiled into the JS bundle. Settings only shows whether a key is saved. Never log it.
+- **Data** – `src/api.ts` follows web's `request<T>()`, adds the key and a 10s timeout (a sleeping Mac → "Can't reach the API…"), and throws `ApiError` with the status (401 → "API key missing or wrong, set it in Settings"). `useData`/`refresh()` work as on the web; saving the key calls `refresh()`.
+- **Types** – `src/types.ts` is a copy of `web/src/types.ts`; change both together until they're generated from OpenAPI. `lib/format.ts` is a subset of the web's.
+- **Styling** – `StyleSheet` only (no styling library yet). Colours come from `src/theme/tokens.ts` (same names and values as `web/src/index.css`) through `useTokens()`, which swaps light/dark by `useColorScheme`. Primitives in `components/ui` (Button, Card, Stat) and `components/Screen` (a tab page with title, gear and pull-to-refresh).
+- **Checks** – `npm run typecheck`, `npm run lint` (`expo lint`).
+- **Plain HTTP** – Expo Go allows `http://` to the Tailscale IP; a future development build will need an App Transport Security exception (or HTTPS).
 
 ## Database migrations
 - `AccountsAndTransfers` converted the old Debts/DebtPayments/spending-flags model; it is hand-written SQL and has no `Down()` (restore a backup instead).
