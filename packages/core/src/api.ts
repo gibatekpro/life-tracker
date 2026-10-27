@@ -73,6 +73,7 @@ export function createApi({ baseUrl, getHeaders, timeoutMs, messages = {} }: Api
   return {
     // Transactions
     getTransactions: () => request<Transaction[]>('GET', '/transactions'),
+    getTransaction: (id: number) => request<Transaction>('GET', `/transactions/${id}`),
     createTransaction: (t: CreateTransaction) => request<Transaction>('POST', '/transactions', t),
     // An edit sends the whole transaction again; the API moves the balances to match.
     updateTransaction: (id: number, t: CreateTransaction) => request<Transaction>('PUT', `/transactions/${id}`, t),

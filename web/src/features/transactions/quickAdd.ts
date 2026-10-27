@@ -1,15 +1,10 @@
 import { createContext, useContext } from 'react';
-import type { Transaction, TransactionType } from '@lifetracker/core';
+import type { Transaction, TransactionDraft } from '@lifetracker/core';
 
 // Any page can open the one transaction form: empty or partly filled in for a new transaction
 // (e.g. "Pay" on a card opens a transfer to that card), or with an existing one to edit.
-export interface TransactionDraft {
-  type?: TransactionType;
-  accountId?: number;
-  toAccountId?: number;
-  amount?: number;
-  description?: string;
-}
+// TransactionDraft is shared with the phone, so it lives in core.
+export type { TransactionDraft };
 
 interface TransactionModal {
   add: (draft?: TransactionDraft) => void;
