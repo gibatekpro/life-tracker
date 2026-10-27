@@ -29,6 +29,8 @@ export const {
     return apiKey ? { 'X-Api-Key': apiKey } : {};
   },
   timeoutMs: 10_000,
+  // Generating an insight waits on OpenAI, which the API allows up to a minute.
+  slowTimeoutMs: 90_000,
   messages: {
     unreachable: `Can't reach the API at ${baseUrl}. Is the Mac awake, the API running and Tailscale on?`,
     // The middleware answers 401 with no body.

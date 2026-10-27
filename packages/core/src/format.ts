@@ -37,6 +37,10 @@ export const toIsoDate = (d: Date) =>
 export const formatDate = (iso: string) =>
   parseDate(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
+// A moment, e.g. when an insight was generated: "27 Oct 2026, 18:40".
+export const formatDateTime = (iso: string) =>
+  new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
 export const formatDayMonth = (iso: string) =>
   parseDate(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 

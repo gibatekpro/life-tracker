@@ -24,6 +24,9 @@ export interface ApiOptions {
   getHeaders?: () => Record<string, string> | Promise<Record<string, string>>;
   // Give up after this long; without it a request waits as long as the platform lets it.
   timeoutMs?: number;
+  // The limit for calls that wait on something slow instead (generating an insight asks OpenAI, which
+  // the API allows a minute). Defaults to timeoutMs.
+  slowTimeoutMs?: number;
   // This app's own wording for when the API can't be reached (or timed out), and for a 401.
   // Without them, network errors are thrown as they are and a 401 is treated like any error.
   messages?: { unreachable?: string; unauthorized?: string };
@@ -31,15 +34,16 @@ export interface ApiOptions {
 
 // Every endpoint, for one app. Each app makes one of these with its own address and headers
 // (web/src/api.ts, mobile/src/api.ts).
-export function createApi({ baseUrl, getHeaders, timeoutMs, messages = {} }: ApiOptions) {
+export function createApi({ baseUrl, getHeaders, timeoutMs, slowTimeoutMs = timeoutMs, messages = {} }: ApiOptions) {
   // Every call goes through here. When the API says no, its message ({ error } or a plain string)
   // becomes the error's message, so forms can show exactly what was wrong.
-  async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  async function request<T>(method: string, path: string, body?: unknown, { slow = false } = {}): Promise<T> {
     const headers: Record<string, string> = { ...(await getHeaders?.()) };
     if (body !== undefined) headers['Content-Type'] = 'application/json';
 
-    const controller = timeoutMs === undefined ? undefined : new AbortController();
-    const timer = controller && setTimeout(() => controller.abort(), timeoutMs);
+    const limit = slow ? slowTimeoutMs : timeoutMs;
+    const controller = limit === undefined ? undefined : new AbortController();
+    const timer = controller && setTimeout(() => controller.abort(), limit);
     let res: Response;
     try {
       res = await fetch(`${baseUrl}${path}`, {
@@ -114,7 +118,7 @@ export function createApi({ baseUrl, getHeaders, timeoutMs, messages = {} }: Api
     // insight unless regenerate is set; with no key configured the API answers 503.
     getInsights: () => request<Insight[]>('GET', '/insights'),
     generateInsight: (year: number, month: number, regenerate = false) =>
-      request<Insight>('POST', '/insights', { year, month, regenerate }),
+      request<Insight>('POST', '/insights', { year, month, regenerate }, { slow: true }),
     deleteInsight: (id: number) => request<void>('DELETE', `/insights/${id}`),
 
     // Debts (read-only views over card and loan accounts)

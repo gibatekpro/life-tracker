@@ -4,23 +4,15 @@ import { deleteInsight, generateInsight, getBudgetMonth, getInsights } from '../
 import type { Insight } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
-import { formatDate, formatMoney, monthName, periodLabel } from '@lifetracker/core';
+import {
+  formatDateTime, formatMoney, generateLabel, generatingNote, insightFooter, insightsForMonth, isKeyNotConfigured, monthName,
+  periodLabel, savingsNote, shiftMonth, shownInsight, toYm,
+} from '@lifetracker/core';
 import { cn } from '../../lib/cn';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import ExpandButton from '../../components/tree/ExpandButton';
 import { Alert, EmptyState, PageHeader, Skeleton } from '../../components/ui/Bits';
-
-const NotConfigured = 'OpenAI key not configured';
-
-function shiftMonth(ym: string, by: number) {
-  const [y, m] = ym.split('-').map(Number);
-  const d = new Date(y, m - 1 + by);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
-const formatWhen = (iso: string) =>
-  new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
 // AI insights for a budget month. Generate asks my API, which sends OpenAI a summary of the month
 // (categories, merchants, budgets and debts; no account numbers, ids or aliases) and saves the answer.
@@ -42,10 +34,9 @@ export default function InsightsPage() {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const b = view.data?.budget;
-  const ym = b ? `${b.year}-${String(b.month).padStart(2, '0')}` : null;
-  const forMonth = (insights.data ?? []).filter((i) => b && i.year === b.year && i.month === b.month);
-  // The one picked from the list, if it's this month's; otherwise the month's newest (the list is newest first).
-  const shown = forMonth.find((i) => i.id === selectedId) ?? forMonth[0];
+  const ym = b ? toYm(b.year, b.month) : null;
+  const forMonth = b ? insightsForMonth(insights.data ?? [], b.year, b.month) : [];
+  const shown = shownInsight(forMonth, selectedId);
 
   function goTo(month: string, id: number | null = null) {
     setSelectedId(id);
@@ -89,7 +80,7 @@ export default function InsightsPage() {
         description="An AI read of a budget month: possible waste, ways to save, and how it fits with paying off debt."
         actions={b && (
           <Button variant="primary" icon="sparkles" onClick={generate} disabled={generating || insights.loading && !insights.data}>
-            {generating ? 'Generating…' : shown ? 'Regenerate' : 'Generate'}
+            {generateLabel(generating, shown !== undefined)}
           </Button>
         )} />
 
@@ -104,7 +95,7 @@ export default function InsightsPage() {
       {(view.error || insights.error) && <Alert tone="negative" className="mb-6">{view.error ?? insights.error}</Alert>}
       {error && (
         <Alert tone="negative" className="mb-6">
-          {error === NotConfigured ? (
+          {isKeyNotConfigured(error) ? (
             <>
               <p className="font-medium">No OpenAI key is set up yet.</p>
               <p className="mt-1">
@@ -117,7 +108,7 @@ export default function InsightsPage() {
         </Alert>
       )}
       {generating && (
-        <Alert className="mb-6">Asking OpenAI about {b ? monthName(b.year, b.month) : 'this month'}. This can take up to a minute.</Alert>
+        <Alert className="mb-6">{generatingNote(b?.year, b?.month)}</Alert>
       )}
 
       {!b || !insights.data ? <Skeleton className="h-96" /> : (
@@ -143,14 +134,14 @@ export default function InsightsPage() {
               <ul className="-my-1 grid gap-1">
                 {insights.data.map((i) => (
                   <li key={i.id}>
-                    <button type="button" onClick={() => goTo(`${i.year}-${String(i.month).padStart(2, '0')}`, i.id)}
+                    <button type="button" onClick={() => goTo(toYm(i.year, i.month), i.id)}
                       aria-current={shown?.id === i.id ? 'true' : undefined}
                       className={cn(
                         '-mx-2 w-[calc(100%+1rem)] rounded-lg px-2 py-2 text-left text-sm hover:bg-surface-muted',
                         shown?.id === i.id && 'bg-accent-soft hover:bg-accent-soft',
                       )}>
                       <span className="block font-medium">{monthName(i.year, i.month)}</span>
-                      <span className="block text-xs text-muted">{formatWhen(i.createdAt)}</span>
+                      <span className="block text-xs text-muted">{formatDateTime(i.createdAt)}</span>
                     </button>
                   </li>
                 ))}
@@ -173,7 +164,6 @@ function InsightView({ insight, showPrompt, onTogglePrompt, confirmingDelete, on
   onConfirmDelete: () => void;
 }) {
   const r = insight.result;
-  const totalSaving = r.savingTips.reduce((sum, t) => sum + t.estimatedMonthlySaving, 0);
   const promptId = `prompt-${insight.id}`;
 
   return (
@@ -199,7 +189,7 @@ function InsightView({ insight, showPrompt, onTogglePrompt, confirmingDelete, on
       </Card>
 
       <Card title="Ways to save"
-        description={r.savingTips.length > 0 ? `Up to about ${formatMoney(totalSaving)} a month, if you did them all.` : undefined}>
+        description={savingsNote(insight) ?? undefined}>
         {r.savingTips.length === 0 ? <p className="text-sm text-muted">No suggestions this time.</p> : (
           <ul className="-my-3 divide-y divide-line">
             {r.savingTips.map((t, n) => (
@@ -218,10 +208,7 @@ function InsightView({ insight, showPrompt, onTogglePrompt, confirmingDelete, on
 
       <div className="rounded-xl bg-surface-muted p-4 text-xs text-muted">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <p>
-            Generated {formatWhen(insight.createdAt)} · {insight.model} · {insight.inputTokens.toLocaleString('en-GB')} in
-            + {insight.outputTokens.toLocaleString('en-GB')} out tokens · for the month from {formatDate(insight.periodStart)}
-          </p>
+          <p>{insightFooter(insight)}</p>
           {!confirmingDelete && <Button key="delete" size="sm" variant="ghost" icon="trash" onClick={onDelete}>Delete</Button>}
         </div>
         {confirmingDelete && (

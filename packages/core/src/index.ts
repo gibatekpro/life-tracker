@@ -15,3 +15,4 @@ export * from './overview';
 export * from './charts';
 export * from './accountForm';
 export * from './plan';
+export * from './insights';
