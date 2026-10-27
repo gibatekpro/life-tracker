@@ -2,7 +2,7 @@
 
 A personal finance and life-tracking app: spending, budgets, accounts across GBP and NGN,
 debt payoff planning and Apple Pay capture. Built with ASP.NET Core, PostgreSQL and
-React + TypeScript, with an iPhone app (React Native / Expo) in progress.
+React + TypeScript, and an iPhone app (React Native / Expo) that does everything the web app does.
 
 ## Run the iPhone app
 
@@ -13,8 +13,12 @@ Needs Tailscale on the Mac and the iPhone, and Expo Go on the iPhone.
    `mobile/` copy `.env.example` to `.env` and put the Mac's Tailscale IP
    (`tailscale ip -4`) in `EXPO_PUBLIC_API_URL`.
 3. In `mobile/`: `MAC_TAILSCALE_IP=<that ip> npm start` and scan the QR code with the iPhone's camera.
-4. In the app, tap the gear and paste the API key (`Security:ApiKey` from the API's user secrets).
-   It's stored in the iPhone's Keychain, never in the code or `.env`.
+4. In the app, open More → Settings → This phone and paste the API key (`Security:ApiKey` from the
+   API's user secrets). It's stored in the iPhone's Keychain, never in the code or `.env`.
+
+The app has the web's sections: Home, Activity, Budget and Plan as tabs, and Accounts, Insights
+and Settings under More. Calculations and wording shared by both apps live in `packages/core`
+(`npm test` at the root runs its tests).
 
 ## How it was built
 
