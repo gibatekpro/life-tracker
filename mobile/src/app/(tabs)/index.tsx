@@ -4,7 +4,7 @@ import Screen from '@/components/Screen';
 export default function HomeScreen() {
   return (
     <Screen title="Home">
-      <Placeholder>This month's budget will show here.</Placeholder>
+      <Placeholder>Your budget for this month will show here.</Placeholder>
     </Screen>
   );
 }

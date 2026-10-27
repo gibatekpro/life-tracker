@@ -22,12 +22,15 @@
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~58.0.4",
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "start": "expo start",
+    "start": "REACT_NATIVE_PACKAGER_HOSTNAME=${MAC_TAILSCALE_IP:?Set MAC_TAILSCALE_IP to your Mac Tailscale IP, e.g. MAC_TAILSCALE_IP=100.x.y.z npm start} expo start",
     "ios": "expo start --ios",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "typecheck": "tsc --noEmit"
   },
   "private": true
 }
