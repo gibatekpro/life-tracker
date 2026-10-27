@@ -69,7 +69,7 @@ export default function ActivityScreen() {
     <SectionList
       sections={ready ? sections : []}
       keyExtractor={(item) => String(item.id)}
-      renderItem={({ item }) => <TransactionRow t={item} />}
+      renderItem={({ item }) => <TransactionRow t={item} showDate={false} />}
       renderSectionHeader={({ section }) => (
         <Text style={[styles.day, { color: t.muted, backgroundColor: t.canvas }]}>{formatDayHeading(section.date).toUpperCase()}</Text>
       )}

@@ -1,4 +1,4 @@
-import { formatMoney, showsPoundsValue, type Transaction } from '@lifetracker/core';
+import { formatDayMonth, formatMoney, showsPoundsValue, type Transaction } from '@lifetracker/core';
 import { SymbolView, type SFSymbol } from 'expo-symbols';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -14,10 +14,12 @@ const look: Record<Transaction['type'], { icon: SFSymbol; circle: keyof Tokens; 
 // One transaction in a list, as on the web: what it was, where the money went and how much.
 // Spending shows as −£, money in as +£ (green), transfers neutrally (they aren't spending).
 // When neither side is in pounds, its £ value shows underneath. Tapping it opens it to edit.
-export default function TransactionRow({ t }: { t: Transaction }) {
+// showDate is off where the list is already grouped by day.
+export default function TransactionRow({ t, showDate = true }: { t: Transaction; showDate?: boolean }) {
   const tokens = useTokens();
   const { icon, circle, colour } = look[t.type];
   const sign = t.type === 'Income' ? '+' : t.type === 'Expense' ? '−' : '';
+  const under = [showsPoundsValue(t) && `≈ ${formatMoney(t.gbpAmount)}`, showDate && formatDayMonth(t.date)].filter(Boolean).join(' · ');
 
   return (
     <Pressable
@@ -42,7 +44,7 @@ export default function TransactionRow({ t }: { t: Transaction }) {
           {sign}{formatMoney(t.amount, t.currency)}
           {t.toAmount !== null && t.toCurrency ? ` → ${formatMoney(t.toAmount, t.toCurrency)}` : ''}
         </Text>
-        {showsPoundsValue(t) && <Text style={[styles.sub, { color: tokens.muted }]}>≈ {formatMoney(t.gbpAmount)}</Text>}
+        {under ? <Text style={[styles.sub, { color: tokens.muted }]}>{under}</Text> : null}
       </View>
       <SymbolView name="chevron.right" size={12} tintColor={tokens.subtle} />
     </Pressable>

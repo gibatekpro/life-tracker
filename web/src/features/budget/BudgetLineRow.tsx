@@ -1,11 +1,10 @@
 import type { BudgetLine } from '@lifetracker/core';
-import { formatMoney } from '@lifetracker/core';
+import { formatMoney, lineTone } from '@lifetracker/core';
 import { cn } from '../../lib/cn';
 import { Badge, ProgressBar } from '../../components/ui/Bits';
 import ExpandButton from '../../components/tree/ExpandButton';
 import type { RowContext } from '../../components/tree/CollapsibleTree';
 import AmountEditor from './AmountEditor';
-import { lineTone } from './tone';
 
 // One category's line: spent of planned (planned can be changed in place), a progress bar, and
 // what's left. Its subcategories are drawn by CollapsibleTree, under the row; on a small screen

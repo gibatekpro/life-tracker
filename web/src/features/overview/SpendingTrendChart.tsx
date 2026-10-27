@@ -1,21 +1,14 @@
 import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { MonthlySummary } from '@lifetracker/core';
 import { useTokens } from '../../hooks/useTokens';
-import { formatMoney, formatMoneyShort } from '@lifetracker/core';
+import { formatMoney, formatMoneyShort, spendingTrend } from '@lifetracker/core';
 
-const shortMonth = (s: MonthlySummary) => new Date(s.year, s.month - 1).toLocaleDateString('en-GB', { month: 'short' });
-
-// Spending per budget month for the last six, to see the trend.
-// With a fixed take-home pay, it's drawn as a line once spending gets near it (while spending is
-// far below, the line would squash the bars flat). With recorded income, each month's income
-// is its own bar beside the spending, since it changes from month to month.
+// Spending per budget month for the last six, to see the trend. What to draw (bars, the take-home
+// pay line or a note) is core's spendingTrend, shared with the phone.
 export default function SpendingTrendChart({ months }: { months: MonthlySummary[] }) {
   const t = useTokens(['accent', 'muted', 'line', 'surface', 'ink', 'chart-6'] as const);
-  const recorded = months.at(-1)?.incomeMode === 'Recorded';
-  const income = months.at(-1)?.monthlyIncome ?? 0;
-  const data = months.map((s) => ({ month: shortMonth(s), spent: s.totalSpent, income: s.monthlyIncome }));
-  const highest = Math.max(0, ...data.map((d) => d.spent));
-  const showIncome = !recorded && income > 0 && highest >= income * 0.5;
+  const { bars, recorded, income, showIncomeLine: showIncome, note } = spendingTrend(months);
+  const data = bars.map((b) => ({ month: b.label, spent: b.spent, income: b.income }));
 
   return (
     <div>
@@ -39,9 +32,7 @@ export default function SpendingTrendChart({ months }: { months: MonthlySummary[
           </BarChart>
         </ResponsiveContainer>
       </div>
-      {!recorded && !showIncome && income > 0 && (
-        <p className="mt-2 text-xs text-muted">Take-home pay {formatMoney(income)} a month; spending is well below it.</p>
-      )}
+      {note && <p className="mt-2 text-xs text-muted">{note}</p>}
     </div>
   );
 }

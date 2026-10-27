@@ -1,14 +1,15 @@
 import { Link } from 'react-router';
 import { getAccounts, getDebts, getMonthlySummary, getTransactions } from '../../api';
 import { useData } from '../../data/useData';
-import { formatMoney, formatMonthYear, periodLabel } from '@lifetracker/core';
+import {
+  categoryShares, earlierMonths, formatMoney, leftNote, moneyHeld, owedNote, periodLabel, spentNote, spentShare, spentShareTone,
+} from '@lifetracker/core';
 import { cn } from '../../lib/cn';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import { Alert, EmptyState, PageHeader, ProgressBar, Skeleton, Stat } from '../../components/ui/Bits';
 import TransactionRow from '../transactions/TransactionRow';
 import { useQuickAdd } from '../transactions/quickAdd';
-import type { Account } from '@lifetracker/core';
 import SpendingTrendChart from './SpendingTrendChart';
 import SafeToSpendCard from './SafeToSpendCard';
 
@@ -16,19 +17,8 @@ import SafeToSpendCard from './SafeToSpendCard';
 // (which, before payday, is still last month's).
 async function lastSixMonths() {
   const current = await getMonthlySummary();
-  const earlier = await Promise.all([5, 4, 3, 2, 1].map((back) => {
-    const d = new Date(current.year, current.month - 1 - back);
-    return getMonthlySummary(d.getFullYear(), d.getMonth() + 1);
-  }));
+  const earlier = await Promise.all(earlierMonths(current.year, current.month, 5).map((m) => getMonthlySummary(m.year, m.month)));
   return [...earlier, current];
-}
-
-// Money held, added up per currency: "£1,240.50 · ₦50,000.00".
-function heldByCurrency(accounts: Account[]) {
-  const totals = new Map<string, number>();
-  for (const a of accounts.filter((x) => x.type === 'Current'))
-    totals.set(a.currency, (totals.get(a.currency) ?? 0) + a.balance);
-  return [...totals].sort(([a], [b]) => (a === 'GBP' ? -1 : b === 'GBP' ? 1 : a.localeCompare(b)));
 }
 
 // "How am I doing?" at a glance: this month's spending against income, what I have,
@@ -42,8 +32,8 @@ export default function OverviewPage() {
   const openQuickAdd = useQuickAdd();
 
   const s = summary.data;
-  const spentShare = s && s.monthlyIncome > 0 ? s.totalSpent / s.monthlyIncome : 0;
-  const held = accounts.data ? heldByCurrency(accounts.data) : [];
+  const share = s ? spentShare(s) : 0;
+  const held = accounts.data ? moneyHeld(accounts.data) : undefined;
   const error = summary.error ?? accounts.error ?? debts.error ?? transactions.error;
 
   return (
@@ -61,11 +51,9 @@ export default function OverviewPage() {
         <Card>
           {s ? (
             <>
-              <Stat label="Spent this month" value={formatMoney(s.totalSpent)}
-                sub={`of ${formatMoney(s.monthlyIncome)} ${s.incomeMode === 'Fixed' ? 'take-home pay' : 'income received'}`} />
+              <Stat label="Spent this month" value={formatMoney(s.totalSpent)} sub={spentNote(s)} />
               <div className="mt-4">
-                <ProgressBar label="Share of income spent" value={spentShare}
-                  tone={spentShare > 0.9 ? 'negative' : spentShare > 0.75 ? 'warning' : 'accent'} />
+                <ProgressBar label="Share of income spent" value={share} tone={spentShareTone(share)} />
               </div>
             </>
           ) : <Skeleton className="h-24" />}
@@ -74,25 +62,19 @@ export default function OverviewPage() {
           {s ? (
             <Stat label="Left this month" value={formatMoney(s.remaining)}
               valueClassName={s.remaining < 0 ? 'text-negative' : 'text-positive'}
-              sub={s.incomeMode === 'Recorded' && s.monthlyIncome === 0 ? 'No income recorded yet'
-                : s.remaining < 0 ? 'Over budget' : `${Math.round((1 - spentShare) * 100)}% of income left`} />
+              sub={leftNote(s)} />
           ) : <Skeleton className="h-24" />}
         </Card>
         <Card>
-          {accounts.data ? (
-            <Stat label="Money held"
-              value={held.length ? formatMoney(held[0][1], held[0][0]) : formatMoney(0)}
-              valueClassName={held.length && held[0][1] < 0 ? 'text-negative' : undefined}
-              sub={held.length > 1
-                ? held.slice(1).map(([c, v]) => formatMoney(v, c)).join(' · ')
-                : `${accounts.data.filter((a) => a.type === 'Current').length} current accounts`} />
+          {held ? (
+            <Stat label="Money held" value={held.value} valueClassName={held.negative ? 'text-negative' : undefined} sub={held.sub} />
           ) : <Skeleton className="h-24" />}
         </Card>
         <Card>
           {debts.data ? (
             <Stat label="Total owed" value={formatMoney(debts.data.totalBalance)}
               valueClassName="text-negative"
-              sub={debts.data.debts.length === 0 ? 'No debts' : `Debt-free ${formatMonthYear(debts.data.debtFreeDate)}`} />
+              sub={owedNote(debts.data)} />
           ) : <Skeleton className="h-24" />}
         </Card>
       </div>
@@ -108,16 +90,16 @@ export default function OverviewPage() {
               <EmptyState icon="tag" title="No spending yet this month">Expenses you record show up here by category.</EmptyState>
             ) : (
               <ul className="grid gap-4">
-                {s.byCategory.map((c) => (
+                {categoryShares(s).map((c) => (
                   <li key={c.category}>
                     <div className="mb-1.5 flex items-baseline justify-between gap-4 text-sm">
                       <span className="font-medium">{c.category}</span>
                       <span className="tabular-nums">
                         {formatMoney(c.total)}
-                        <span className="ml-2 text-muted">{Math.round((c.total / s.totalSpent) * 100)}%</span>
+                        <span className="ml-2 text-muted">{c.percent}%</span>
                       </span>
                     </div>
-                    <ProgressBar label={`${c.category} share of spending`} value={c.total / s.byCategory[0].total} />
+                    <ProgressBar label={`${c.category} share of spending`} value={c.bar} />
                   </li>
                 ))}
               </ul>
