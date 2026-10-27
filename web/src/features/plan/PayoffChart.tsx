@@ -1,5 +1,6 @@
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { AvalanchePlan } from '@lifetracker/core';
+import { payoffChartRows } from '@lifetracker/core';
 import { useTokens } from '../../hooks/useTokens';
 
 // How many months until each debt is cleared, at the current budget and with the extra amount,
@@ -10,11 +11,7 @@ export default function PayoffChart({ baseline, plan, showExtra }: {
   showExtra: boolean;
 }) {
   const t = useTokens(['chart-6', 'accent', 'muted', 'line', 'surface', 'ink'] as const);
-  const data = baseline.payoffs.map((p) => ({
-    name: p.name,
-    now: p.month,
-    withExtra: plan.payoffs.find((x) => x.id === p.id)?.month,
-  }));
+  const data = payoffChartRows(baseline, plan);
 
   return (
     <div className="h-[calc(3.5rem*var(--rows)+3rem)]" style={{ ['--rows' as string]: data.length }}>

@@ -1,5 +1,5 @@
 import type { AvalanchePlan } from '@lifetracker/core';
-import { formatMoney } from '@lifetracker/core';
+import { extraOutcome } from '@lifetracker/core';
 import Card from '../../components/ui/Card';
 import { Field, MoneyInput } from '../../components/ui/Field';
 
@@ -11,8 +11,7 @@ export default function ExtraSimulator({ input, onInput, extra, baseline: b, pla
   baseline: AvalanchePlan;
   plan: AvalanchePlan;
 }) {
-  const monthsSaved = b.months - p.months;
-  const interestSaved = b.totalInterest - p.totalInterest;
+  const outcome = extraOutcome(extra, b, p);
 
   return (
     <Card title="Pay a bit more?" description="See what an extra amount each month would change.">
@@ -23,23 +22,14 @@ export default function ExtraSimulator({ input, onInput, extra, baseline: b, pla
         value={Math.min(500, Number(input) || 0)} onChange={(e) => onInput(e.target.value)}
         className="mt-4 w-full accent-accent" />
       <div className="mt-4 rounded-xl bg-surface-muted p-4 text-sm">
-        {extra === 0 ? (
-          <p className="text-muted">Drag the slider or type an amount.</p>
-        ) : !p.canBePaidOff ? (
-          <p className="text-muted">Still not enough to clear the debts.</p>
-        ) : !b.canBePaidOff ? (
-          <p className="font-medium text-positive">With the extra, the debts can be cleared.</p>
-        ) : monthsSaved > 0 ? (
-          <>
-            <p className="text-lg font-semibold text-positive">{monthsSaved} {monthsSaved === 1 ? 'month' : 'months'} sooner</p>
-            <p className="text-muted">and {formatMoney(interestSaved)} less interest</p>
-          </>
-        ) : (
-          <>
-            <p className="text-lg font-semibold text-positive">{formatMoney(interestSaved)} less interest</p>
-            <p className="text-muted">Same debt-free month, but cheaper.</p>
-          </>
-        )}
+        {outcome.tone === 'muted' ? <p className="text-muted">{outcome.headline}</p>
+          : !outcome.sub ? <p className="font-medium text-positive">{outcome.headline}</p>
+          : (
+            <>
+              <p className="text-lg font-semibold text-positive">{outcome.headline}</p>
+              <p className="text-muted">{outcome.sub}</p>
+            </>
+          )}
       </div>
     </Card>
   );

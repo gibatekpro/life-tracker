@@ -1,25 +1,16 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { getAvalanchePlan, getDebts, getExchangeRates } from '../../api';
-import type { Account, ExchangeRate } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useDebounce } from '../../hooks/useDebounce';
-import { formatMoney, formatMonthYear } from '@lifetracker/core';
+import {
+  foreignCurrencies, foreignOwed, formatMoney, monthlyBudgetNote, payoffChartDescription, payoffNote, planHeadline, planMissingRates,
+} from '@lifetracker/core';
 import Card from '../../components/ui/Card';
 import { Alert, EmptyState, PageHeader, Skeleton } from '../../components/ui/Bits';
 import ExtraSimulator from './ExtraSimulator';
 import PayoffChart from './PayoffChart';
-import { ApproxPounds, RateNote } from '../accounts/Converted';
-
-// A debt in another currency: what's owed in it, and roughly in pounds.
-function ForeignOwed({ account: a, rates }: { account: Account | undefined; rates: ExchangeRate[] | undefined }) {
-  if (!a || a.currency === 'GBP') return null;
-  return (
-    <p className="text-sm tabular-nums">
-      {formatMoney(a.balance, a.currency)} owed · <ApproxPounds amount={a.balance} currency={a.currency} rates={rates} />
-    </p>
-  );
-}
+import { RateNote } from '../accounts/Converted';
 
 // The plan for getting out of debt, using the avalanche method: every debt gets its normal
 // payment, and anything extra goes to the highest interest rate first. When a debt is cleared,
@@ -32,7 +23,8 @@ export default function DebtPlanPage() {
   const debts = useData('debts', getDebts);
   const rates = useData('rates', getExchangeRates);
   const debtAccount = (id: number) => debts.data?.debts.find((d) => d.debt.id === id)?.debt;
-  const foreign = [...new Set((debts.data?.debts ?? []).map((d) => d.debt.currency).filter((c) => c !== 'GBP'))];
+  const foreign = foreignCurrencies((debts.data?.debts ?? []).map((d) => d.debt));
+  const missingRates = debts.data ? planMissingRates(debts.data.currenciesWithoutRate) : null;
 
   const b = baseline.data;
   const p = plan.data;
@@ -49,12 +41,7 @@ export default function DebtPlanPage() {
         description="Pay every debt its normal payment, and put anything extra on the highest interest rate first." />
 
       {error && <Alert tone="negative" className="mb-6">{error}</Alert>}
-      {debts.data && debts.data.currenciesWithoutRate.length > 0 && (
-        <Alert tone="warning" className="mb-6">
-          {debts.data.currenciesWithoutRate.join(', ')} debts aren't in this plan yet: record a transfer between pounds and
-          {' '}{debts.data.currenciesWithoutRate.join('/')} so they can be converted.
-        </Alert>
-      )}
+      {missingRates && <Alert tone="warning" className="mb-6">{missingRates}</Alert>}
 
       {!p || !b ? <Skeleton className="h-64" /> : b.payoffs.length === 0 && b.canBePaidOff ? (
         <Card><EmptyState icon="target" title="Nothing to pay off">Add a credit card or loan on the Accounts page to plan its payoff.</EmptyState></Card>
@@ -62,25 +49,22 @@ export default function DebtPlanPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="grid content-start gap-6 lg:col-span-2">
             <Card>
-              {p.canBePaidOff ? (
-                <>
-                  <p className="text-sm text-muted">Debt-free by</p>
-                  <p className="mt-1 text-4xl font-semibold tracking-tight text-positive">{formatMonthYear(p.debtFreeDate)}</p>
-                  <p className="mt-2 text-sm text-muted">
-                    {p.months} months · {formatMoney(p.totalInterest)} interest · paying {formatMoney(p.monthlyBudget)} a month
-                  </p>
-                </>
-              ) : (
-                <Alert tone="negative">
-                  At {formatMoney(p.monthlyBudget)} a month the debts can't be cleared within 50 years. Try a higher amount.
-                </Alert>
-              )}
+              {(() => {
+                const h = planHeadline(p);
+                return h.clears ? (
+                  <>
+                    <p className="text-sm text-muted">Debt-free by</p>
+                    <p className="mt-1 text-4xl font-semibold tracking-tight text-positive">{h.date}</p>
+                    <p className="mt-2 text-sm text-muted">{h.note}</p>
+                  </>
+                ) : <Alert tone="negative">{h.message}</Alert>;
+              })()}
             </Card>
 
             <div className="lg:hidden">{simulator}</div>
 
             {p.canBePaidOff && b.canBePaidOff && (
-              <Card title="When each debt is cleared" description={extra > 0 ? 'Months from now, at your current budget and with the extra.' : 'Months from now.'}>
+              <Card title="When each debt is cleared" description={payoffChartDescription(extra)}>
                 <PayoffChart baseline={b} plan={p} showExtra={extra > 0} />
               </Card>
             )}
@@ -94,8 +78,10 @@ export default function DebtPlanPage() {
                       <div className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-4">
                         <div>
                           <Link to={`/accounts/${x.id}`} className="font-medium hover:underline">{x.name}</Link>
-                          <p className="text-sm text-muted">Cleared {formatMonthYear(x.payoffDate)} · month {x.month}</p>
-                          <ForeignOwed account={debtAccount(x.id)} rates={rates.data} />
+                          <p className="text-sm text-muted">{payoffNote(x)}</p>
+                          {foreignOwed(debtAccount(x.id), rates.data) && (
+                            <p className="text-sm tabular-nums">{foreignOwed(debtAccount(x.id), rates.data)}</p>
+                          )}
                         </div>
                         <p className="text-sm text-muted tabular-nums">{formatMoney(x.interestPaid)} interest</p>
                       </div>
@@ -115,10 +101,7 @@ export default function DebtPlanPage() {
             <div className="hidden lg:block">{simulator}</div>
 
             <Card title="Monthly budget">
-              <p className="text-sm text-muted">
-                The plan pays {formatMoney(b.monthlyBudget)} a month: your planned payments, or your fixed debt budget if
-                it's higher. A fixed budget keeps a cleared card's payment working on the rest.
-              </p>
+              <p className="text-sm text-muted">{monthlyBudgetNote(b)}</p>
               <Link to="/settings" className="mt-3 inline-block text-sm font-medium text-accent hover:underline">Set the debt budget</Link>
             </Card>
           </div>
