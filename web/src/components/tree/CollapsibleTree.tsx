@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useExpanded } from '../../hooks/useExpanded';
 import { cn } from '../../lib/cn';
-import type { TreeNode } from './tree';
+import type { TreeNode } from '@lifetracker/core';
 
 export interface RowContext {
   depth: number;

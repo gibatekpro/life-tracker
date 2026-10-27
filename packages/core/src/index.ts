@@ -3,3 +3,5 @@
 export * from './types';
 export * from './format';
 export * from './rates';
+export * from './tree';
+export * from './categories';

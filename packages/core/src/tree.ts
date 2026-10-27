@@ -1,4 +1,4 @@
-// A node of a tree for CollapsibleTree: an id, the page's own item, and its children.
+// A node of a tree (the web draws these with CollapsibleTree): an id, the item, and its children.
 export interface TreeNode<T> {
   id: number;
   item: T;

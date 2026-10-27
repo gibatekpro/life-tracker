@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { copyPreviousBudget, getBudgetMonth, getCategories, resetBudgetAmount, setBudgetAmount } from '../../api';
-import type { BudgetLine, BudgetLineKey } from '@lifetracker/core';
+import type { BudgetLine, BudgetLineKey, TreeNode } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
 import { formatMoney, monthName, periodLabel } from '@lifetracker/core';
@@ -11,7 +11,6 @@ import Modal from '../../components/ui/Modal';
 import { Alert, EmptyState, PageHeader, ProgressBar, Skeleton, Stat } from '../../components/ui/Bits';
 import AddLineForm from './AddLineForm';
 import CollapsibleTree from '../../components/tree/CollapsibleTree';
-import type { TreeNode } from '../../components/tree/tree';
 import { useIsSmallScreen } from '../../hooks/useIsSmallScreen';
 import BudgetLineRow from './BudgetLineRow';
 import DebtLineRow from './DebtLineRow';

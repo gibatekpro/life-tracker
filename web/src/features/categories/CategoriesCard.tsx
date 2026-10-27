@@ -3,7 +3,7 @@ import { archiveCategory, deleteCategory, getCategories, unarchiveCategory } fro
 import type { Category, CategoryKind } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
-import { formatMoney } from '@lifetracker/core';
+import { buildTree, formatMoney } from '@lifetracker/core';
 import { cn } from '../../lib/cn';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -12,7 +12,6 @@ import { Alert, Badge, EmptyState, SegmentedControl, Skeleton } from '../../comp
 import CategoryForm from './CategoryForm';
 import CollapsibleTree from '../../components/tree/CollapsibleTree';
 import ExpandButton from '../../components/tree/ExpandButton';
-import { buildTree } from '../../components/tree/tree';
 import { useIsSmallScreen } from '../../hooks/useIsSmallScreen';
 
 type Editing = { category: Category } | { parentId: number | null } | null;
