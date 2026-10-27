@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { archiveCategory, deleteCategory, getCategories, unarchiveCategory } from '../../api';
-import type { Category, CategoryKind } from '../../types';
+import type { Category, CategoryKind } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
 import { formatMoney } from '../../lib/format';

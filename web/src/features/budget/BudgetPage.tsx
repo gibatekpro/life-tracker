@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { copyPreviousBudget, getBudgetMonth, getCategories, resetBudgetAmount, setBudgetAmount } from '../../api';
-import type { BudgetLine, BudgetLineKey } from '../../types';
+import type { BudgetLine, BudgetLineKey } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
 import { formatMoney, monthName, periodLabel } from '../../lib/format';

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { createTransaction, deleteTransaction, updateTransaction } from '../../api';
-import type { Account, Category, ExchangeRate, Transaction, TransactionType } from '../../types';
+import type { Account, Category, ExchangeRate, Transaction, TransactionType } from '@lifetracker/core';
 import { useRefresh } from '../../data/refresh';
 import { currencySymbol, formatMoney, todayIso } from '../../lib/format';
 import { describeSource, formatRate, quoteFor } from '../../lib/rates';

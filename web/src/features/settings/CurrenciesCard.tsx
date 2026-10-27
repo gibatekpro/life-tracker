@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { clearExchangeRate, getExchangeRates, getSettings, setExchangeRate, updateSettings } from '../../api';
-import type { ExchangeRate } from '../../types';
+import type { ExchangeRate } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
 import { currencySymbol } from '../../lib/format';

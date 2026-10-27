@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { createCategory, updateCategory } from '../../api';
-import type { Category, CategoryKind } from '../../types';
+import type { Category, CategoryKind } from '@lifetracker/core';
 import { useRefresh } from '../../data/refresh';
 import Button from '../../components/ui/Button';
 import { Field, Input, MoneyInput } from '../../components/ui/Field';

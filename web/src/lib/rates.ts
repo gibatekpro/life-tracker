@@ -1,4 +1,4 @@
-import type { ExchangeRate } from '../types';
+import type { ExchangeRate } from '@lifetracker/core';
 import { formatDate, formatDayMonth } from './format';
 
 // The rate for from -> to out of the list GET /exchange-rates returns (1 for the same currency).

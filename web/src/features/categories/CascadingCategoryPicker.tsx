@@ -1,4 +1,4 @@
-import type { Category, CategoryKind } from '../../types';
+import type { Category, CategoryKind } from '@lifetracker/core';
 import { Select } from '../../components/ui/Field';
 
 // A category picker for small screens, one level at a time: choose a top-level category, then

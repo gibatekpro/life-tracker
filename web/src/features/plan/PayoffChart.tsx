@@ -1,5 +1,5 @@
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import type { AvalanchePlan } from '../../types';
+import type { AvalanchePlan } from '@lifetracker/core';
 import { useTokens } from '../../hooks/useTokens';
 
 // How many months until each debt is cleared, at the current budget and with the extra amount,

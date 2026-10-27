@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { createAccount, updateAccount } from '../../api';
-import type { Account, AccountType } from '../../types';
+import type { Account, AccountType } from '@lifetracker/core';
 import { useRefresh } from '../../data/refresh';
 import { currencySymbol } from '../../lib/format';
 import Button from '../../components/ui/Button';

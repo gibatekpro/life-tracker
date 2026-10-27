@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { deleteInsight, generateInsight, getBudgetMonth, getInsights } from '../../api';
-import type { Insight } from '../../types';
+import type { Insight } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
 import { formatDate, formatMoney, monthName, periodLabel } from '../../lib/format';

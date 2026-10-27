@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { getAccounts, getDebts, getExchangeRates } from '../../api';
-import type { Account, DebtWithProjection, ExchangeRate } from '../../types';
+import type { Account, DebtWithProjection, ExchangeRate } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { formatMoney, formatMonthYear } from '../../lib/format';
 import { cn } from '../../lib/cn';

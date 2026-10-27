@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { getAvalanchePlan, getDebts, getExchangeRates } from '../../api';
-import type { Account, ExchangeRate } from '../../types';
+import type { Account, ExchangeRate } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useDebounce } from '../../hooks/useDebounce';
 import { formatMoney, formatMonthYear } from '../../lib/format';

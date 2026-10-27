@@ -8,7 +8,7 @@ import Icon from '../ui/Icon';
 import Modal from '../ui/Modal';
 import TransactionForm from '../../features/transactions/TransactionForm';
 import { TransactionModalContext, type TransactionDraft } from '../../features/transactions/quickAdd';
-import type { Transaction } from '../../types';
+import type { Transaction } from '@lifetracker/core';
 import BottomNav from './BottomNav';
 import { navItems } from './navItems';
 

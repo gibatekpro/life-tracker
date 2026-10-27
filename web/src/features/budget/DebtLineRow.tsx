@@ -1,4 +1,4 @@
-import type { DebtLine } from '../../types';
+import type { DebtLine } from '@lifetracker/core';
 import { formatMoney } from '../../lib/format';
 import Button from '../../components/ui/Button';
 import { Badge, ProgressBar } from '../../components/ui/Bits';

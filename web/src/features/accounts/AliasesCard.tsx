@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { addAlias, removeAlias } from '../../api';
-import type { Account } from '../../types';
+import type { Account } from '@lifetracker/core';
 import { useRefresh } from '../../data/refresh';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';

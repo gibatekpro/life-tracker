@@ -1,5 +1,5 @@
 import type { SelectHTMLAttributes } from 'react';
-import type { Category, CategoryKind } from '../../types';
+import type { Category, CategoryKind } from '@lifetracker/core';
 import { Select } from '../../components/ui/Field';
 
 // A category picker that shows the tree in order, each option labelled with its full path:

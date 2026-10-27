@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { getAccounts, getMonthlySummary, getTransactions } from '../../api';
-import type { Transaction, TransactionType } from '../../types';
+import type { Transaction, TransactionType } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { formatDayHeading, formatMoney, periodLabel } from '../../lib/format';
 import Button from '../../components/ui/Button';

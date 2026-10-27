@@ -8,7 +8,7 @@ import Card from '../../components/ui/Card';
 import { Alert, EmptyState, PageHeader, ProgressBar, Skeleton, Stat } from '../../components/ui/Bits';
 import TransactionRow from '../transactions/TransactionRow';
 import { useQuickAdd } from '../transactions/quickAdd';
-import type { Account } from '../../types';
+import type { Account } from '@lifetracker/core';
 import SpendingTrendChart from './SpendingTrendChart';
 import SafeToSpendCard from './SafeToSpendCard';
 

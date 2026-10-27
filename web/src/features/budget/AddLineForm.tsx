@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import type { Category } from '../../types';
+import type { Category } from '@lifetracker/core';
 import Button from '../../components/ui/Button';
 import { Field, MoneyInput } from '../../components/ui/Field';
 import { Alert } from '../../components/ui/Bits';

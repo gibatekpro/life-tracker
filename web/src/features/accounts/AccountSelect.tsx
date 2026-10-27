@@ -1,5 +1,5 @@
 import type { SelectHTMLAttributes } from 'react';
-import type { Account } from '../../types';
+import type { Account } from '@lifetracker/core';
 import { Select } from '../../components/ui/Field';
 
 const groups = [

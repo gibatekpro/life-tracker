@@ -1,5 +1,5 @@
 import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import type { MonthlySummary } from '../../types';
+import type { MonthlySummary } from '@lifetracker/core';
 import { useTokens } from '../../hooks/useTokens';
 import { formatMoney, formatMoneyShort } from '../../lib/format';
 

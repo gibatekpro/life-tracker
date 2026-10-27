@@ -1,5 +1,5 @@
 import { getApiKey } from './lib/apiKey';
-import type { BudgetMonthView } from './types';
+import type { BudgetMonthView } from '@lifetracker/core';
 
 // The Mac's Tailscale address, from mobile/.env. Expo swaps in the value at bundle time,
 // so it must be read exactly as process.env.EXPO_PUBLIC_API_URL (no destructuring).

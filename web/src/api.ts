@@ -3,7 +3,7 @@ import type {
   ExchangeRate, Insight,
   SaveCategory,
   DebtsOverview, IncomeMode, MonthlySummary, SaveAccount, Settings, Transaction, WhatIfComparison,
-} from './types';
+} from '@lifetracker/core';
 
 // Every call goes through here: the Vite dev server forwards /api to the API on port 5080.
 // When the API says no, its message ({ error } or a plain string) becomes the Error's message,

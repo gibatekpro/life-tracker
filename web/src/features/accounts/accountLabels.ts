@@ -1,4 +1,4 @@
-import type { Account, AccountType } from '../../types';
+import type { Account, AccountType } from '@lifetracker/core';
 import type { IconName } from '../../components/ui/Icon';
 import type { TransactionDraft } from '../transactions/quickAdd';
 

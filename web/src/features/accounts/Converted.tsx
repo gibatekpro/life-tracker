@@ -1,4 +1,4 @@
-import type { ExchangeRate } from '../../types';
+import type { ExchangeRate } from '@lifetracker/core';
 import { currencySymbol, formatMoney } from '../../lib/format';
 import { describeSource, formatRate, quoteFor, rateFor } from '../../lib/rates';
 

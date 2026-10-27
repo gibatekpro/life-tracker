@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { getWhatIf } from '../../api';
-import type { Account } from '../../types';
+import type { Account } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useDebounce } from '../../hooks/useDebounce';
 import { currencySymbol, formatMoney, formatMonthYear } from '../../lib/format';

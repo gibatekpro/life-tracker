@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { getAccounts, getSettings, setDefaultAccount, updateSettings } from '../../api';
-import type { IncomeMode, Settings } from '../../types';
+import type { IncomeMode, Settings } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
 import Button from '../../components/ui/Button';

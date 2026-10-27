@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import { getBudgetMonth } from '../../api';
-import type { BudgetLine } from '../../types';
+import type { BudgetLine } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { formatMoney } from '../../lib/format';
 import Card from '../../components/ui/Card';

@@ -1,4 +1,4 @@
-import type { BudgetLine } from '../../types';
+import type { BudgetLine } from '@lifetracker/core';
 import { formatMoney } from '../../lib/format';
 import { cn } from '../../lib/cn';
 import { Badge, ProgressBar } from '../../components/ui/Bits';
