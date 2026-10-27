@@ -4,8 +4,8 @@ import {
   type Account, type FormData, type Transaction, type TransactionDraft, type TransactionFormValues,
 } from '@lifetracker/core';
 import * as Haptics from 'expo-haptics';
-import { Stack } from 'expo-router';
-import { useRef, useState, type ComponentRef } from 'react';
+import { Stack, useFocusEffect } from 'expo-router';
+import { useCallback, useRef, useState, type ComponentRef } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { createTransaction, deleteTransaction, updateTransaction } from '@/api';
@@ -48,6 +48,13 @@ export default function TransactionForm({ data, draft, transaction, onDone }: {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null); // "Saved Tesco, £12.40" on the Add tab
   const [busy, setBusy] = useState(false);
+
+  // Ready to type the amount whenever a new transaction's form comes into view. Not autoFocus:
+  // the tabs are all mounted up front, and focusing an input in the hidden Add tab makes iOS
+  // switch to it.
+  useFocusEffect(useCallback(() => {
+    if (!editing) amountRef.current?.focus();
+  }, [editing]));
 
   const view = describeForm(values, data);
   const { isTransfer, from, to, fromCurrency, crossesCurrencies, asksForPounds } = view;
@@ -145,7 +152,7 @@ export default function TransactionForm({ data, draft, transaction, onDone }: {
         <FormSection footer={crossesCurrencies ? view.receivedHint : undefined}>
           <View>
             <Text style={[styles.caption, { color: t.muted }]}>{crossesCurrencies ? `Sent (${fromCurrency})` : 'Amount'}</Text>
-            <MoneyInput large ref={amountRef} symbol={currencySymbol(fromCurrency)} autoFocus={!editing}
+            <MoneyInput large ref={amountRef} symbol={currencySymbol(fromCurrency)}
               accessibilityLabel={crossesCurrencies ? 'Amount sent' : 'Amount'}
               value={values.amount} onChangeText={(amount) => change({ ...values, amount })} />
           </View>

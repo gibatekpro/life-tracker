@@ -5,13 +5,12 @@ import { useTokens } from '@/theme/tokens';
 
 // An amount with its currency symbol in front, typed on the decimal keypad.
 // large: the main amount at the top of the form.
-export default function MoneyInput({ symbol, value, onChangeText, placeholder = '0.00', large = false, autoFocus, ref, accessibilityLabel }: {
+export default function MoneyInput({ symbol, value, onChangeText, placeholder = '0.00', large = false, ref, accessibilityLabel }: {
   symbol: string;
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
   large?: boolean;
-  autoFocus?: boolean;
   ref?: Ref<ComponentRef<typeof TextInput>>;
   accessibilityLabel: string;
 }) {
@@ -28,7 +27,6 @@ export default function MoneyInput({ symbol, value, onChangeText, placeholder = 
         placeholder={placeholder}
         placeholderTextColor={t.subtle}
         keyboardType="decimal-pad"
-        autoFocus={autoFocus}
         accessibilityLabel={accessibilityLabel}
         style={[size, styles.input, { color: t.ink }]}
       />
