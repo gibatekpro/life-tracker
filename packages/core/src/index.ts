@@ -6,3 +6,4 @@ export * from './rates';
 export * from './tree';
 export * from './categories';
 export * from './api';
+export * from './transactions';
