@@ -8,4 +8,4 @@ React + TypeScript, with an iPhone app (React Native / Expo) planned.
 
 I designed the architecture and data model, and directed and reviewed every change.
 Much of the implementation was written in collaboration with Claude Code, Anthropic's
-AI coding tool.
+AI coding tool.  
