@@ -1,0 +1,12 @@
+{
+  "name": "life-tracker",
+  "private": true,
+  "workspaces": [
+    "web",
+    "mobile",
+    "packages/core"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}

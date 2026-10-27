@@ -1,0 +1,18 @@
+{
+  // Checks core on its own, as strictly as the strictest app. DOM is in `lib` only for the types of
+  // fetch, Response and AbortController, which React Native has too; never use window or document.
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"]
+}
