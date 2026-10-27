@@ -1,17 +1,18 @@
-import { router } from 'expo-router';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { getBudgetMonth } from '@/api';
+import ErrorCard from '@/components/ErrorCard';
 import Screen from '@/components/Screen';
-import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import Stat from '@/components/ui/Stat';
 import { useRefresh } from '@/data/refresh';
 import { useData } from '@/data/useData';
 import { formatDate, formatDayMonth, formatMoney } from '@lifetracker/core';
+import { openNewTransaction } from '@/features/transactions/open';
 import { useTokens } from '@/theme/tokens';
 
 // The budget month I'm in now (the API works out the dates from payday), at a glance.
+// "+" opens the transaction form as a modal.
 export default function HomeScreen() {
   const t = useTokens();
   const { refresh } = useRefresh();
@@ -20,15 +21,8 @@ export default function HomeScreen() {
 
   return (
     // The pull spinner only shows over data already on screen; the first load has its own.
-    <Screen title="Home" refreshing={loading && !!budget} onRefresh={refresh}>
-      {error && (
-        <Card style={{ backgroundColor: t.negativeSoft, borderColor: t.negativeSoft }}>
-          <Text style={{ color: t.negative, fontSize: 15 }}>{error}</Text>
-          {errorStatus === 401
-            ? <Button title="Open Settings" onPress={() => router.push('/settings')} />
-            : <Button title="Try again" variant="secondary" onPress={refresh} />}
-        </Card>
-      )}
+    <Screen title="Home" refreshing={loading && !!budget} onRefresh={refresh} onAdd={() => openNewTransaction()}>
+      {error && <ErrorCard message={error} status={errorStatus} />}
 
       {!budget && loading && <ActivityIndicator style={styles.spinner} color={t.muted} />}
 
