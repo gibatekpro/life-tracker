@@ -3,15 +3,26 @@
 // A proper minus sign (−), not a hyphen, so negative amounts line up with the "−£" we show for spending.
 const withMinus = (s: string) => s.replace('-', '−');
 
-// £10.00, ₦18,000.00. narrowSymbol shows "₦" rather than "NGN".
-export const formatMoney = (amount: number, currency = 'GBP') =>
-  withMinus(amount.toLocaleString('en-GB', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' }));
+// The symbols of the currencies the app supports. Written out rather than asked of Intl: the
+// phone's JavaScript engine (Hermes) ignores currencyDisplay 'narrowSymbol' and shows "NGN 5,000.00".
+const symbols: Record<string, string> = { GBP: '£', NGN: '₦', EUR: '€', USD: '$' };
+
+const money = (amount: number, currency: string, digits: number) => {
+  const symbol = symbols[currency];
+  if (!symbol) {
+    return withMinus(amount.toLocaleString('en-GB', {
+      style: 'currency', currency, currencyDisplay: 'narrowSymbol', minimumFractionDigits: digits, maximumFractionDigits: digits,
+    }));
+  }
+  const digitsText = Math.abs(amount).toLocaleString('en-GB', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return `${amount < 0 ? '−' : ''}${symbol}${digitsText}`;
+};
+
+// £10.00, ₦18,000.00, −£4.50.
+export const formatMoney = (amount: number, currency = 'GBP') => money(amount, currency, 2);
 
 // Whole units for chart axes: £2,548.
-export const formatMoneyShort = (amount: number, currency = 'GBP') =>
-  withMinus(amount.toLocaleString('en-GB', {
-    style: 'currency', currency, currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0,
-  }));
+export const formatMoneyShort = (amount: number, currency = 'GBP') => money(amount, currency, 0);
 
 // The API sends dates as "2026-10-21". Parsed as local dates, so they never shift by a day.
 export const parseDate = (iso: string) => {
@@ -55,7 +66,7 @@ export function ukTodayIso(now = new Date()) {
 }
 
 export const currencySymbol = (currency: string) =>
-  (0).toLocaleString('en-GB', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' })
+  symbols[currency] ?? (0).toLocaleString('en-GB', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' })
     .replace(/[\d.,\s]/g, '');
 
 // "Wed 21 Oct", for grouping a list by day.
