@@ -3,7 +3,7 @@ import { clearExchangeRate, getExchangeRates, getSettings, setExchangeRate, upda
 import type { ExchangeRate } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
-import { currencySymbol, describeSource, formatRate } from '@lifetracker/core';
+import { describeSource, rateCurrencies, rateEditLabel, rateEditStart, rateLabel } from '@lifetracker/core';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import { Input } from '../../components/ui/Field';
@@ -36,7 +36,7 @@ function RateRow({ r }: { r: ExchangeRate }) {
     <li className="flex flex-wrap items-center justify-between gap-3 py-3">
       <div className="min-w-0">
         <p className="text-sm font-medium tabular-nums">
-          {currencySymbol(r.from)}1 = {r.rate !== null ? `${currencySymbol(r.to)}${formatRate(r.rate)}` : '—'}
+          {rateLabel(r)}
           <span className="ml-2 text-xs font-normal text-muted">{r.from} → {r.to}</span>
         </p>
         <p className="mt-0.5 flex items-center gap-2 text-xs text-muted">
@@ -55,8 +55,8 @@ function RateRow({ r }: { r: ExchangeRate }) {
         </form>
       ) : (
         <div className="flex gap-1">
-          <Button size="sm" variant="ghost" icon="pencil" onClick={() => { setValue(String(r.manualRate ?? r.rate ?? '')); setEditing(true); }}>
-            {r.manualRate !== null ? 'Change' : 'Set my rate'}
+          <Button size="sm" variant="ghost" icon="pencil" onClick={() => { setValue(rateEditStart(r)); setEditing(true); }}>
+            {rateEditLabel(r)}
           </Button>
           {r.manualRate !== null && (
             <Button size="sm" variant="ghost" icon="undo" onClick={() => run(() => clearExchangeRate(r.from, r.to))}>Clear</Button>
@@ -76,7 +76,7 @@ export default function CurrenciesCard() {
   const { refresh } = useRefresh();
   const [error, setError] = useState<string | null>(null);
 
-  const currencies = [...new Set((rates.data ?? []).map((r) => (r.from === 'GBP' ? r.to : r.from)))];
+  const currencies = rateCurrencies(rates.data ?? []);
   const s = settings.data;
 
   async function toggleTransferRates(useTransferRates: boolean) {

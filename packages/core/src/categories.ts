@@ -39,3 +39,9 @@ export function categoryLevels(categories: Category[], kind: CategoryKind, value
   }
   return levels;
 }
+
+// The categories a picker offers, in the API's tree order, each labelled with its path (web:
+// CategorySelect): only `kind`; archived ones hidden unless one is the current value; `exclude`
+// left out (e.g. a category and its subcategories, when choosing its parent).
+export const selectableCategories = (categories: Category[], kind: CategoryKind, value: number | null | undefined, exclude?: Set<number>) =>
+  categories.filter((c) => c.kind === kind && (!c.isArchived || c.id === value) && !exclude?.has(c.id));

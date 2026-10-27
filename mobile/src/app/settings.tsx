@@ -1,105 +1,46 @@
-import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
+import { ActivityIndicator, Text } from 'react-native';
 
-import Button from '@/components/ui/Button';
+import { getAccounts, getSettings } from '@/api';
+import ErrorCard from '@/components/ErrorCard';
+import Screen from '@/components/Screen';
 import Card from '@/components/ui/Card';
 import { useRefresh } from '@/data/refresh';
-import { clearApiKey, getApiKey, saveApiKey } from '@/lib/apiKey';
+import { useData } from '@/data/useData';
+import ApplePayCard from '@/features/settings/ApplePayCard';
+import BudgetSettingsForm from '@/features/settings/BudgetSettingsCard';
+import CategoriesCard from '@/features/settings/CategoriesCard';
+import CurrenciesCard from '@/features/settings/CurrenciesCard';
+import ThisPhoneCard from '@/features/settings/ThisPhoneCard';
 import { useTokens } from '@/theme/tokens';
 
-// Pushed over the tabs from the gear button; the stack gives it a native header.
-// The API key is pasted here once and kept in the Keychain (see lib/apiKey.ts). The screen
-// only ever shows whether a key is saved, never the key itself.
+// My personal settings (web: SettingsPage): the numbers the summary and debt plan use, categories,
+// currencies, and how Apple Pay captures find their account. "This phone" comes first: it's how the
+// phone reaches the API at all, and where a 401 sends you.
 export default function SettingsScreen() {
   const t = useTokens();
-  const { refresh } = useRefresh(); // so screens behind this one reload with the new key
-  const [hasKey, setHasKey] = useState<boolean | null>(null); // null while checking
-  const [draft, setDraft] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getApiKey().then(
-      (key) => setHasKey(!!key),
-      () => setError("Couldn't read the Keychain."),
-    );
-  }, []);
-
-  const save = async () => {
-    setError(null);
-    try {
-      await saveApiKey(draft);
-      setDraft('');
-      setHasKey(true);
-      refresh();
-    } catch {
-      setError("Couldn't save the key.");
-    }
-  };
-
-  const clear = () =>
-    Alert.alert('Clear the API key?', 'The app will stop reaching the API until you paste it again.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear',
-        style: 'destructive',
-        onPress: async () => {
-          setError(null);
-          try {
-            await clearApiKey();
-            setHasKey(false);
-            refresh();
-          } catch {
-            setError("Couldn't clear the key.");
-          }
-        },
-      },
-    ]);
+  const { refresh } = useRefresh();
+  const settings = useData('settings', getSettings);
+  const accounts = useData('accounts', getAccounts);
+  const failed = [settings, accounts].find((d) => d.error);
+  const s = settings.data;
 
   return (
-    <ScrollView
-      style={{ backgroundColor: t.canvas }}
-      contentContainerStyle={styles.content}
-      contentInsetAdjustmentBehavior="automatic"
-      keyboardShouldPersistTaps="handled"
-    >
-      <Card>
-        <Text style={[styles.heading, { color: t.ink }]}>API key</Text>
-        <Text style={{ color: hasKey ? t.positive : t.warning }}>
-          {hasKey === null ? 'Checking…' : hasKey ? 'A key is saved on this phone.' : 'No key saved yet.'}
-        </Text>
-        <Text style={[styles.hint, { color: t.muted }]}>
-          The API asks for it on every request that doesn&apos;t come from the Mac itself. It&apos;s the
-          Security:ApiKey value in the API&apos;s user secrets, and it stays in this phone&apos;s Keychain.
-        </Text>
-        <TextInput
-          value={draft}
-          onChangeText={setDraft}
-          placeholder={hasKey ? 'Paste a new key to replace it' : 'Paste the API key'}
-          placeholderTextColor={t.subtle}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoComplete="off"
-          style={[styles.input, { backgroundColor: t.surfaceMuted, borderColor: t.line, color: t.ink }]}
-        />
-        <Button title="Save key" onPress={save} disabled={!draft.trim()} />
-        {hasKey && <Button title="Clear key" variant="danger" onPress={clear} />}
-        {error && <Text style={{ color: t.negative }}>{error}</Text>}
+    <Screen description="Your income and budget, categories, and how Apple Pay payments find their account."
+      refreshing={settings.loading && !!s} onRefresh={refresh}>
+      <ThisPhoneCard />
+      {failed && <ErrorCard message={failed.error!} status={failed.errorStatus} />}
+
+      <Card title="Income and budget" description="What the monthly summary measures against, and when your month starts.">
+        {s ? <BudgetSettingsForm key={s.updatedAt} settings={s} /> : <ActivityIndicator color={t.muted} />}
       </Card>
 
-      <Card>
-        <Text style={[styles.heading, { color: t.ink }]}>API address</Text>
-        <Text style={{ color: t.muted }} selectable>
-          {process.env.EXPO_PUBLIC_API_URL ?? 'Not set: copy mobile/.env.example to mobile/.env'}
-        </Text>
+      <CategoriesCard />
+      <CurrenciesCard />
+      <ApplePayCard settings={s} accounts={accounts.data} />
+
+      <Card title="Appearance">
+        <Text style={{ color: t.muted, fontSize: 14 }}>Light and dark mode follow your device&apos;s setting.</Text>
       </Card>
-    </ScrollView>
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  content: { padding: 16, gap: 12 },
-  heading: { fontSize: 17, fontWeight: '600' },
-  hint: { fontSize: 13, lineHeight: 18 },
-  input: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, padding: 12, fontSize: 16 },
-});

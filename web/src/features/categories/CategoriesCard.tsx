@@ -3,7 +3,7 @@ import { archiveCategory, deleteCategory, getCategories, unarchiveCategory } fro
 import type { Category, CategoryKind } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
-import { buildTree, formatMoney } from '@lifetracker/core';
+import { archivedCount as countArchived, buildTree, categoryNote, categoryRemoval, visibleCategories } from '@lifetracker/core';
 import { cn } from '../../lib/cn';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -36,8 +36,8 @@ export default function CategoriesCard() {
   const small = useIsSmallScreen();
 
   const all = categories.data ?? [];
-  const shown = all.filter((c) => c.kind === kind && (showArchived || !c.isArchived));
-  const archivedCount = all.filter((c) => c.kind === kind && c.isArchived).length;
+  const shown = visibleCategories(all, kind, showArchived);
+  const archivedCount = countArchived(all, kind);
 
   async function act(action: () => Promise<unknown>) {
     setError(null);
@@ -71,7 +71,7 @@ export default function CategoriesCard() {
         <CollapsibleTree className="rounded-xl border border-line" page={`settings-categories-${kind}`} collapsible={small}
           nodes={buildTree(shown, (c) => c.id, (c) => c.parentId)}
           renderRow={({ item: c, children }, { depth, expandable, expanded, toggle, controls }) => {
-            const unused = c.transactionCount === 0 && c.childCount === 0;
+            const removal = categoryRemoval(c);
             const name = (
               <span className={cn('text-sm font-medium', c.isArchived && 'text-subtle')}>{c.name}</span>
             );
@@ -85,12 +85,7 @@ export default function CategoriesCard() {
                     {expandable ? <ExpandButton expanded={expanded} controls={controls} onClick={toggle}>{name}</ExpandButton> : name}
                     {c.isArchived && <Badge>Archived</Badge>}
                   </div>
-                  <p className="text-xs text-muted">
-                    {kind === 'Expense' && (c.defaultMonthlyAmount !== null ? `${formatMoney(c.defaultMonthlyAmount)} a month` : 'No default budget')}
-                    {kind === 'Expense' && ' · '}
-                    {c.transactionCount} transaction{c.transactionCount === 1 ? '' : 's'}
-                    {expandable && !expanded && ` · ${children.length} subcategor${children.length === 1 ? 'y' : 'ies'}`}
-                  </p>
+                  <p className="text-xs text-muted">{categoryNote(c, expandable && !expanded ? children.length : undefined)}</p>
                 </div>
 
                 {confirmDelete === c.id ? (
@@ -107,9 +102,9 @@ export default function CategoriesCard() {
                     )}
                     <Button variant="ghost" size="sm" icon="pencil" aria-label={`Edit ${c.name}`}
                       onClick={() => setEditing({ category: c })} />
-                    {c.isArchived ? (
+                    {removal === 'unarchive' ? (
                       <Button variant="ghost" size="sm" onClick={() => act(() => unarchiveCategory(c.id))}>Unarchive</Button>
-                    ) : unused ? (
+                    ) : removal === 'delete' ? (
                       <Button variant="ghost" size="sm" icon="trash" aria-label={`Delete ${c.name}`} onClick={() => setConfirmDelete(c.id)} />
                     ) : (
                       <Button variant="ghost" size="sm" onClick={() => act(() => archiveCategory(c.id))}

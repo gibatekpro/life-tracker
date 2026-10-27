@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { getAccounts, getSettings, setDefaultAccount, updateSettings } from '../../api';
-import type { IncomeMode, Settings } from '@lifetracker/core';
+import type { Settings } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
 import Button from '../../components/ui/Button';
@@ -9,40 +9,29 @@ import Card from '../../components/ui/Card';
 import Icon from '../../components/ui/Icon';
 import { Field, MoneyInput, Select } from '../../components/ui/Field';
 import { Alert, Badge, PageHeader, SegmentedControl, Skeleton } from '../../components/ui/Bits';
-import { ordinal } from '@lifetracker/core';
+import {
+  budgetSettingsValues, buildBudgetSettings, earlyIncomeChoices, incomeModeChoices, incomeModeHint, startDayChoices, startDayHint,
+} from '@lifetracker/core';
 import AccountSelect from '../accounts/AccountSelect';
 import CategoriesCard from '../categories/CategoriesCard';
 import CurrenciesCard from './CurrenciesCard';
-
-const incomeModes: { value: IncomeMode; label: string }[] = [
-  { value: 'Fixed', label: 'Take-home pay' },
-  { value: 'Recorded', label: 'Recorded income' },
-];
-
-const startDays = Array.from({ length: 28 }, (_, i) => i + 1);
 
 // Income, the debt budget and when a budget month starts. Its own component so the inputs
 // start from the saved values.
 function BudgetForm({ settings }: { settings: Settings }) {
   const { refresh } = useRefresh();
-  const [incomeMode, setIncomeMode] = useState<IncomeMode>(settings.incomeMode);
-  const [income, setIncome] = useState(String(settings.monthlyIncome));
-  const [budget, setBudget] = useState(settings.monthlyDebtBudget?.toString() ?? '');
-  const [startDay, setStartDay] = useState(settings.monthStartDay);
-  const [earlyDays, setEarlyDays] = useState(settings.earlyIncomeDays);
+  const [values, setValues] = useState(() => budgetSettingsValues(settings));
+  const set = (patch: Partial<typeof values>) => setValues((v) => ({ ...v, ...patch }));
+  const { incomeMode, income, debtBudget: budget, startDay, earlyDays } = values;
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setStatus(null);
+    const built = buildBudgetSettings(values);
+    if (built.error !== undefined) { setStatus({ ok: false, text: built.error }); return; }
     try {
-      await updateSettings({
-        monthlyIncome: Number(income || 0),
-        monthlyDebtBudget: budget === '' ? null : Number(budget),
-        incomeMode,
-        monthStartDay: startDay,
-        earlyIncomeDays: earlyDays,
-      });
+      await updateSettings(built.request);
       setStatus({ ok: true, text: 'Saved' });
       refresh();
     } catch (err) {
@@ -54,39 +43,36 @@ function BudgetForm({ settings }: { settings: Settings }) {
     <form onSubmit={submit} className="grid gap-5">
       <div className="grid gap-2">
         <p className="text-sm font-medium">Measure spending against</p>
-        <SegmentedControl label="Measure spending against" options={incomeModes} value={incomeMode} onChange={setIncomeMode} />
-        <p className="text-xs text-muted">
-          {incomeMode === 'Fixed'
-            ? 'A set monthly amount. Simple, and right if your pay is the same every month.'
-            : 'The Income transactions you record each month. Right if your pay varies or you have more than one income.'}
-        </p>
+        <SegmentedControl label="Measure spending against" options={incomeModeChoices} value={incomeMode}
+          onChange={(m) => set({ incomeMode: m })} />
+        <p className="text-xs text-muted">{incomeModeHint(incomeMode)}</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {incomeMode === 'Fixed' && (
           <Field label="Monthly take-home pay">
-            {(id) => <MoneyInput id={id} symbol="£" required value={income} onChange={(e) => setIncome(e.target.value)} />}
+            {(id) => <MoneyInput id={id} symbol="£" required value={income} onChange={(e) => set({ income: e.target.value })} />}
           </Field>
         )}
         {incomeMode === 'Recorded' && (
           <Field label="Count income paid early" hint="A salary paid a few days before payday (a weekend) counts towards the month it's for.">
             {(id) => (
-              <Select id={id} value={earlyDays} onChange={(e) => setEarlyDays(Number(e.target.value))}>
-                {[0, 1, 2, 3, 4, 5, 6, 7].map((d) => <option key={d} value={d}>{d === 0 ? 'No, only within the month' : `Up to ${d} day${d === 1 ? '' : 's'} before`}</option>)}
+              <Select id={id} value={earlyDays} onChange={(e) => set({ earlyDays: Number(e.target.value) })}>
+                {earlyIncomeChoices.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
               </Select>
             )}
           </Field>
         )}
         <Field label="Budget month starts on"
-          hint={startDay === 1 ? 'Calendar months.' : `Each month runs from the ${ordinal(startDay)} to the day before the next ${ordinal(startDay)}.`}>
+          hint={startDayHint(startDay)}>
           {(id) => (
-            <Select id={id} value={startDay} onChange={(e) => setStartDay(Number(e.target.value))}>
-              {startDays.map((d) => <option key={d} value={d}>{d === 1 ? '1st (calendar month)' : `${ordinal(d)} (payday)`}</option>)}
+            <Select id={id} value={startDay} onChange={(e) => set({ startDay: Number(e.target.value) })}>
+              {startDayChoices.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </Select>
           )}
         </Field>
         <Field label="Monthly debt budget" hint="Optional. A fixed amount for all debts; when one is cleared, its payment rolls on to the rest.">
-          {(id) => <MoneyInput id={id} symbol="£" placeholder="Not set" value={budget} onChange={(e) => setBudget(e.target.value)} />}
+          {(id) => <MoneyInput id={id} symbol="£" placeholder="Not set" value={budget} onChange={(e) => set({ debtBudget: e.target.value })} />}
         </Field>
       </div>
 

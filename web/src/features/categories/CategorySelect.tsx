@@ -1,5 +1,6 @@
 import type { SelectHTMLAttributes } from 'react';
 import type { Category, CategoryKind } from '@lifetracker/core';
+import { selectableCategories } from '@lifetracker/core';
 import { Select } from '../../components/ui/Field';
 
 // A category picker that shows the tree in order, each option labelled with its full path:
@@ -17,8 +18,7 @@ export default function CategorySelect({ categories, kind, value, topLevelLabel,
     topLevelLabel?: string;     // an extra first choice with value "" (e.g. "Top level")
     exclude?: Set<number>;      // e.g. a category and its subcategories, when choosing its parent
   }) {
-  const shown = categories.filter((c) =>
-    c.kind === kind && (!c.isArchived || c.id === value) && !exclude?.has(c.id));
+  const shown = selectableCategories(categories, kind, value, exclude);
 
   return (
     <Select value={value ?? ''} {...rest}>

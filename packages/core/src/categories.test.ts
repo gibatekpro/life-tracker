@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { categoryChain, categoryLevels } from './categories';
+import { categoryChain, categoryLevels, selectableCategories } from './categories';
 import { category } from './testData';
 
 // Food, Subscriptions › AI › Claude (+ an archived Gemini), Salary (income), in the API's tree order.
@@ -54,5 +54,13 @@ describe('categoryLevels', () => {
 
   it('only offers the other kind for income', () => {
     expect(names(categoryLevels(all, 'Income', undefined)[0].options)).toEqual(['Salary']);
+  });
+});
+
+describe('selectableCategories', () => {
+  it('offers one kind, hiding archived ones unless chosen, leaving out the excluded', () => {
+    expect(names(selectableCategories(all, 'Expense', undefined))).toEqual(['Food', 'Subscriptions', 'AI', 'Claude']);
+    expect(names(selectableCategories(all, 'Expense', 5))).toEqual(['Food', 'Subscriptions', 'AI', 'Claude', 'Gemini']);
+    expect(names(selectableCategories(all, 'Expense', null, new Set([2, 3, 4])))).toEqual(['Food']);
   });
 });

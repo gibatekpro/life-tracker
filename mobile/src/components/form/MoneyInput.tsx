@@ -8,12 +8,15 @@ import { useTokens } from '@/theme/tokens';
 // so an amount that can go below zero (an overdrawn balance) uses the keyboard with punctuation.
 export default function MoneyInput({
   symbol, suffix, value, onChangeText, placeholder = '0.00', large = false, allowNegative = false, autoFocus, ref, accessibilityLabel,
+  inputAccessoryViewID,
 }: {
   symbol: string;
   suffix?: string;
   allowNegative?: boolean;
   // Only in a modal: in a tab, which is mounted before it's shown, focusing makes iOS switch to that tab.
   autoFocus?: boolean;
+  // A KeyboardSaveBar to show above the keyboard while typing here.
+  inputAccessoryViewID?: string;
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
@@ -35,6 +38,7 @@ export default function MoneyInput({
         placeholderTextColor={t.subtle}
         keyboardType={allowNegative ? 'numbers-and-punctuation' : 'decimal-pad'}
         autoFocus={autoFocus}
+        inputAccessoryViewID={inputAccessoryViewID}
         accessibilityLabel={accessibilityLabel}
         style={[size, styles.input, { color: t.ink }]}
       />
