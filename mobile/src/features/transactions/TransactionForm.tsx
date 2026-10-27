@@ -1,5 +1,5 @@
 import {
-  buildTransactionRequest, categoryLevels, currencySymbol, describeForm, formatMoney, initialFormValues, nextEntry,
+  buildTransactionRequest, categoryLevels, currencySymbol, describeForm, formatMoney, initialFormValues,
   ukTodayIso, withAccount, withType,
   type Account, type FormData, type Transaction, type TransactionDraft, type TransactionFormValues, type TransactionType,
 } from '@lifetracker/core';
@@ -34,14 +34,13 @@ const accountOptions = (accounts: Account[]): SelectOption<number>[] =>
 // The phone's transaction form, the native counterpart of the web's TransactionForm: the rules
 // (what it starts with, the received amount from the rate, the request) are core's transactionForm.ts.
 //
-// Save sits in the navigation bar, where the keyboard can't cover it. With onDone (the modal), saving
-// or deleting closes it; without (the Add tab), saving clears the form for the next entry on the
-// same account and type.
+// Save sits in the navigation bar, where the keyboard can't cover it. Saving or deleting calls
+// onDone (the modal closes), then refresh() so every screen behind it reloads, as on the web.
 export default function TransactionForm({ data, draft, transaction, onDone }: {
   data: FormData;
   draft?: TransactionDraft;
   transaction?: Transaction;
-  onDone?: () => void;
+  onDone: () => void;
 }) {
   const t = useTokens();
   const { refresh } = useRefresh();
@@ -52,7 +51,6 @@ export default function TransactionForm({ data, draft, transaction, onDone }: {
   const [values, setValues] = useState<TransactionFormValues>(() =>
     initialFormValues({ ...data, draft, transaction, today: ukTodayIso() }));
   const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState<string | null>(null); // "Saved Tesco, £12.40" on the Add tab
   const [busy, setBusy] = useState(false);
 
   // Ready to type the amount whenever a new transaction's form comes into view. Not autoFocus:
@@ -69,7 +67,6 @@ export default function TransactionForm({ data, draft, transaction, onDone }: {
   const change = (next: TransactionFormValues) => {
     setValues(next);
     setError(null);
-    setSaved(null);
   };
 
   const fail = (message: string) => {
@@ -87,16 +84,10 @@ export default function TransactionForm({ data, draft, transaction, onDone }: {
       if (transaction) await updateTransaction(transaction.id, built.request);
       else await createTransaction(built.request);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      if (onDone) onDone();
-      else {
-        setValues(nextEntry(values, data.categories, ukTodayIso()));
-        setSaved(`Saved ${built.request.description}, ${formatMoney(built.request.amount, fromCurrency)}`);
-        amountRef.current?.focus();
-      }
+      onDone();
       refresh();
     } catch (e) {
       fail((e as Error).message);
-    } finally {
       setBusy(false);
     }
   }
@@ -116,7 +107,7 @@ export default function TransactionForm({ data, draft, transaction, onDone }: {
             try {
               await deleteTransaction(transaction.id);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              onDone?.();
+              onDone();
               refresh();
             } catch (e) {
               fail((e as Error).message);
@@ -147,8 +138,10 @@ export default function TransactionForm({ data, draft, transaction, onDone }: {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
       >
+        <Text style={[styles.subtitle, { color: t.muted }]}>
+          {editing ? 'Balances are corrected to match.' : 'Spending, money in, or a transfer between your accounts.'}
+        </Text>
         {error && <Text style={[styles.banner, { color: t.negative, backgroundColor: t.negativeSoft }]}>{error}</Text>}
-        {saved && <Text style={[styles.banner, { color: t.positive, backgroundColor: t.accentSoft }]}>{saved}</Text>}
         {noAccounts && <Text style={[styles.banner, { color: t.warning, backgroundColor: t.surfaceMuted }]}>
           Add an account on the web first.
         </Text>}
@@ -232,6 +225,7 @@ export default function TransactionForm({ data, draft, transaction, onDone }: {
 
 const styles = StyleSheet.create({
   content: { padding: 16, gap: 20 },
+  subtitle: { fontSize: 15, lineHeight: 20, marginBottom: -6 },
   banner: { fontSize: 15, lineHeight: 20, padding: 12, borderRadius: 10, overflow: 'hidden' },
   caption: { fontSize: 13, fontWeight: '500', paddingTop: 10 },
   text: { fontSize: 17, paddingVertical: 10, minHeight: 44 },

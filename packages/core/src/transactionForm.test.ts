@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { account, category, rate, transaction } from './testData';
 import {
-  buildTransactionRequest, describeForm, firstCategoryFor, initialFormValues, nextEntry, suggestReceived,
+  buildTransactionRequest, describeForm, firstCategoryFor, initialFormValues, suggestReceived,
   withAccount, withType, type TransactionFormValues,
 } from './transactionForm';
 
@@ -140,16 +140,5 @@ describe('buildTransactionRequest', () => {
     const noRate = form({ type: 'Transfer', accountId: 1, toAccountId: 3, amount: '10' });
     expect(buildTransactionRequest(noRate, describeForm(noRate, { ...data, rates: [] })).error)
       .toBe('Enter the amount that arrived.');
-  });
-});
-
-describe('nextEntry', () => {
-  it('clears the form but keeps the account and type', () => {
-    const saved = form({ type: 'Income', accountId: 3, categoryId: 20, amount: '100', description: 'Salary',
-      gbpAmount: '1', date: '2026-10-01' });
-    expect(nextEntry(saved, categories, today)).toEqual({
-      type: 'Income', accountId: 3, categoryId: 20, amount: '', description: '', toAccountId: undefined,
-      toAmount: '', toAmountTyped: false, gbpAmount: '', date: today,
-    });
   });
 });

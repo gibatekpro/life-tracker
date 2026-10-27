@@ -9,11 +9,11 @@ import { useTokens } from '@/theme/tokens';
 import TransactionForm from './TransactionForm';
 
 // Loads what the form needs (accounts, categories, rates, and the transaction when editing),
-// then shows it. Used by the Add tab and by the transaction modal.
+// then shows it, in the transaction modal.
 export default function TransactionFormScreen({ transactionId, draft, onDone }: {
   transactionId?: number;
   draft?: TransactionDraft;
-  onDone?: () => void;
+  onDone: () => void;
 }) {
   const t = useTokens();
   // Once saved or deleted in the modal, stop loading: the refresh() that follows would otherwise
@@ -36,7 +36,7 @@ export default function TransactionFormScreen({ transactionId, draft, onDone }: 
         data={{ accounts: accounts.data!, categories: categories.data!, rates: rates.data! }}
         draft={draft}
         transaction={transaction.data}
-        onDone={onDone && (() => { setClosing(true); onDone(); })}
+        onDone={() => { setClosing(true); onDone(); }}
       />
     );
   }

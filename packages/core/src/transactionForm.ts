@@ -162,17 +162,3 @@ export function buildTransactionRequest(v: TransactionFormValues, view: Transact
     },
   };
 }
-
-// After saving a new transaction: a blank form for the next one, on the same account and type.
-export const nextEntry = (v: TransactionFormValues, categories: Category[], today: string): TransactionFormValues => ({
-  type: v.type,
-  amount: '',
-  description: '',
-  categoryId: firstCategoryFor(categories, v.type),
-  accountId: v.accountId,
-  toAccountId: undefined,
-  toAmount: '',
-  toAmountTyped: false,
-  gbpAmount: '',
-  date: today,
-});
