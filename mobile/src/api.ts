@@ -6,6 +6,9 @@ import { getApiKey } from './lib/apiKey';
 // so it must be read exactly as process.env.EXPO_PUBLIC_API_URL (no destructuring).
 const baseUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, '');
 
+// What the phone says when the API refuses the key (the middleware's 401); ErrorAlert offers Settings for it.
+export const unauthorizedMessage = 'API key missing or wrong, set it in Settings.';
+
 // The phone's API client (the endpoints live in packages/core/src/api.ts). Requests from the phone
 // aren't from the Mac's loopback, so NetworkApiKeyMiddleware wants X-Api-Key (from the Keychain).
 // A sleeping Mac doesn't refuse the connection, it just never answers, hence the timeout.
@@ -34,6 +37,6 @@ export const {
   messages: {
     unreachable: `Can't reach the API at ${baseUrl}. Is the Mac awake, the API running and Tailscale on?`,
     // The middleware answers 401 with no body.
-    unauthorized: 'API key missing or wrong, set it in Settings.',
+    unauthorized: unauthorizedMessage,
   },
 });

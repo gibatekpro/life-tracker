@@ -13,11 +13,11 @@ import { Field } from '@/components/form/Field';
 import FormSection from '@/components/form/FormSection';
 import MoneyInput from '@/components/form/MoneyInput';
 import HeaderButton from '@/components/HeaderButton';
-import Alert from '@/components/ui/Alert';
 import Button from '@/components/ui/Button';
 import { useRefresh } from '@/data/refresh';
 import { useData } from '@/data/useData';
 import { useTokens } from '@/theme/tokens';
+import ErrorAlert from '@/components/ErrorAlert';
 
 type Params = {
   mode: 'edit' | 'add'; year: string; month: string; name?: string; currency?: string; current?: string;
@@ -74,7 +74,7 @@ function EditAmount({ p, year, month }: { p: Params; year: number; month: number
         headerRight: () => <HeaderButton primary title="Save" onPress={save} disabled={busy} />,
       }} />
       <Text style={[styles.subtitle, { color: t.muted }]}>For {monthName(year, month)}.</Text>
-      {error && <Alert tone="negative">{error}</Alert>}
+      {error && <ErrorAlert message={error} />}
       <FormSection>
         <Field label={`${p.name} budget this month`}>
           <MoneyInput large symbol={currencySymbol(currency)} value={value} onChangeText={setValue} autoFocus
@@ -123,7 +123,7 @@ function AddLineForm({ categories, year, month }: { categories: Category[]; year
         headerRight: () => <HeaderButton primary title="Add" onPress={save} disabled={busy || categoryId === undefined} />,
       }} />
       <Text style={[styles.subtitle, { color: t.muted }]}>For {name}.</Text>
-      {error && <Alert tone="negative">{error}</Alert>}
+      {error && <ErrorAlert message={error} />}
       <FormSection>
         {categoryPickerRows({
           categories, kind: 'Expense', value: categoryId,

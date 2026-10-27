@@ -19,6 +19,7 @@ import Segmented from '@/components/ui/Segmented';
 import { useRefresh } from '@/data/refresh';
 import { useData } from '@/data/useData';
 import { useTokens } from '@/theme/tokens';
+import ErrorAlert from '@/components/ErrorAlert';
 
 const types: { value: AccountType; label: string }[] = [
   { value: 'Current', label: 'Current' },
@@ -91,7 +92,7 @@ function AccountForm({ account }: { account?: Account }) {
         headerRight: () => <HeaderButton primary title={saving ? 'Saving…' : account ? 'Save' : 'Add'} onPress={save} disabled={saving} />,
       }} />
       {!account && <Text style={[styles.subtitle, { color: t.muted }]}>A bank account, a credit card, or a loan.</Text>}
-      {error && <Alert tone="negative">{error}</Alert>}
+      {error && <ErrorAlert message={error} />}
 
       <Segmented label="Account type" options={types} value={values.type} onChange={(type) => set({ type })} />
 

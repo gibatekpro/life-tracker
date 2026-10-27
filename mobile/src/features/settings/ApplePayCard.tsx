@@ -5,11 +5,11 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { setDefaultAccount } from '@/api';
 import PickerButton from '@/components/PickerButton';
-import Alert from '@/components/ui/Alert';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
 import { useRefresh } from '@/data/refresh';
 import { useTokens } from '@/theme/tokens';
+import ErrorAlert from '@/components/ErrorAlert';
 
 const noDefault = 'No default (reject unmatched payments)';
 
@@ -47,7 +47,7 @@ export default function ApplePayCard({ settings: s, accounts }: { settings: Sett
           onChange={changeDefault} />
       ) : <ActivityIndicator color={t.muted} />}
       <Text style={[styles.small, { color: t.muted }]}>Where a payment goes when no card name matches.</Text>
-      {error && <Alert tone="negative">{error}</Alert>}
+      {error && <ErrorAlert message={error} />}
 
       <Text style={[styles.label, { color: t.ink }]}>Card names set up</Text>
       {!accounts ? <ActivityIndicator color={t.muted} /> : (

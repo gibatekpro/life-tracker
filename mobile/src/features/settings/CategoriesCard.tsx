@@ -9,7 +9,6 @@ import { ActivityIndicator, Alert as NativeAlert, Pressable, StyleSheet, Switch,
 import { archiveCategory, deleteCategory, getCategories, unarchiveCategory } from '@/api';
 import { useChooser } from '@/components/form/useChooser';
 import CollapsibleTree from '@/components/tree/CollapsibleTree';
-import Alert from '@/components/ui/Alert';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
 import EmptyState from '@/components/ui/EmptyState';
@@ -17,6 +16,7 @@ import Segmented from '@/components/ui/Segmented';
 import { useRefresh } from '@/data/refresh';
 import { useData } from '@/data/useData';
 import { useTokens } from '@/theme/tokens';
+import ErrorAlert from '@/components/ErrorAlert';
 
 const kinds: { value: CategoryKind; label: string }[] = [
   { value: 'Expense', label: 'Spending' },
@@ -83,7 +83,7 @@ export default function CategoriesCard() {
           <Switch value={showArchived} onValueChange={setShowArchived} trackColor={{ true: t.accent }} accessibilityLabel={`Show archived (${archived})`} />
         </View>
       )}
-      {error && <Alert tone="negative">{error}</Alert>}
+      {error && <ErrorAlert message={error} />}
 
       {!categories.data ? <ActivityIndicator color={t.muted} /> : shown.length === 0 ? (
         <EmptyState icon="tag" title="No categories yet" />

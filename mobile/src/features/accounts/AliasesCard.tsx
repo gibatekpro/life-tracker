@@ -4,11 +4,11 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { addAlias, removeAlias } from '@/api';
-import Alert from '@/components/ui/Alert';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import { useRefresh } from '@/data/refresh';
 import { useTokens } from '@/theme/tokens';
+import ErrorAlert from '@/components/ErrorAlert';
 
 // The names Apple Pay might send for this card, e.g. "Lloyd's" for "Lloyds Current" (web: AliasesCard).
 // Capture matches them ignoring case and punctuation; anything unmatched goes to the default account.
@@ -60,7 +60,7 @@ export default function AliasesCard({ account }: { account: Account }) {
           style={[styles.input, { color: t.ink, backgroundColor: t.surfaceMuted, borderColor: t.line }]} />
         <Button title="Add" variant="secondary" onPress={add} disabled={alias.trim() === ''} />
       </View>
-      {error && <Alert tone="negative">{error}</Alert>}
+      {error && <ErrorAlert message={error} />}
     </Card>
   );
 }

@@ -23,6 +23,7 @@ import BudgetLineRow from '@/features/budget/BudgetLineRow';
 import DebtLineRow from '@/features/budget/DebtLineRow';
 import { openAddLine, openAmountEditor } from '@/features/budget/open';
 import { useTokens } from '@/theme/tokens';
+import ErrorAlert from '@/components/ErrorAlert';
 
 // My budget for a month (web: BudgetPage): what I plan to spend in each category and pay on each debt,
 // against what's gone so far, what's unallocated, and what's safe to spend per day. Amounts are changed
@@ -87,7 +88,7 @@ export default function BudgetScreen() {
       </View>
 
       {view.error && <ErrorCard message={view.error} status={view.errorStatus} />}
-      {notice && <Alert tone={notice.ok ? 'info' : 'negative'}>{notice.text}</Alert>}
+      {notice && (notice.ok ? <Alert tone="info">{notice.text}</Alert> : <ErrorAlert message={notice.text} />)}
 
       {!b || !v || !stats || !planNote ? <ActivityIndicator color={t.muted} /> : (
         <>

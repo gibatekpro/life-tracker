@@ -4,13 +4,13 @@ import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, TextInput, View
 
 import { clearExchangeRate, getExchangeRates, getSettings, setExchangeRate, updateSettings } from '@/api';
 import KeyboardSaveBar from '@/components/form/KeyboardSaveBar';
-import Alert from '@/components/ui/Alert';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
 import EmptyState from '@/components/ui/EmptyState';
 import { useRefresh } from '@/data/refresh';
 import { useData } from '@/data/useData';
 import { useTokens } from '@/theme/tokens';
+import ErrorAlert from '@/components/ErrorAlert';
 
 // One direction: "£1 = ₦1,811.5", where it comes from, and changing my own rate in place (web: RateRow).
 function RateRow({ r }: { r: ExchangeRate }) {
@@ -58,7 +58,7 @@ function RateRow({ r }: { r: ExchangeRate }) {
           {r.manualRate !== null && link('Clear', () => run(() => clearExchangeRate(r.from, r.to)))}
         </View>
       )}
-      {error && <Text style={[styles.small, { color: t.negative }]}>{error}</Text>}
+      {error && <ErrorAlert message={error} />}
     </View>
   );
 }
@@ -111,7 +111,7 @@ export default function CurrenciesCard() {
             accessibilityLabel="Always use my latest transfer's rate" />
         </View>
       )}
-      {error && <Alert tone="negative">{error}</Alert>}
+      {error && <ErrorAlert message={error} />}
       <Text style={[styles.small, { color: t.muted }]}>Changing a rate never changes the £ value already stored on past transactions.</Text>
     </Card>
   );

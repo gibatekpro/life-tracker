@@ -14,10 +14,10 @@ import FormSection from '@/components/form/FormSection';
 import MoneyInput from '@/components/form/MoneyInput';
 import SelectRow from '@/components/form/SelectRow';
 import HeaderButton from '@/components/HeaderButton';
-import Alert from '@/components/ui/Alert';
 import { useRefresh } from '@/data/refresh';
 import { useData } from '@/data/useData';
 import { useTokens } from '@/theme/tokens';
+import ErrorAlert from '@/components/ErrorAlert';
 
 // Adding or editing a category, as a modal (web: CategoryForm in a Modal): its name, where it sits in
 // the tree, and (for spending) the default monthly budget every month starts from.
@@ -85,7 +85,7 @@ function CategoryForm({ kind, categories, category, parentId }: {
         headerRight: () => <HeaderButton primary title={saving ? 'Saving…' : category ? 'Save' : 'Add'} onPress={save} disabled={saving} />,
       }} />
       {!category && parentOf && <Text style={[styles.subtitle, { color: t.muted }]}>Inside {parentOf.path}</Text>}
-      {error && <Alert tone="negative">{error}</Alert>}
+      {error && <ErrorAlert message={error} />}
 
       <FormSection footer="Put it under another category to make it a subcategory.">
         <Field label="Name">

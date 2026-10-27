@@ -7,9 +7,9 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert as NativeAlert, StyleSheet, Text, View } from 'react-native';
 
 import { deleteAccount, getAccount, getAccountPayments, getAccounts, getDebts, getExchangeRates, getTransactions } from '@/api';
+import ErrorCard from '@/components/ErrorCard';
 import HeaderButton from '@/components/HeaderButton';
 import Screen from '@/components/Screen';
-import Alert from '@/components/ui/Alert';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
@@ -24,6 +24,7 @@ import WhatIfCard from '@/features/accounts/WhatIfCard';
 import { openNewTransaction } from '@/features/transactions/open';
 import TransactionRow from '@/features/transactions/TransactionRow';
 import { useTokens } from '@/theme/tokens';
+import ErrorAlert from '@/components/ErrorAlert';
 
 // One account in full (web: AccountDetailPage): its balance, and for a card or loan the payoff
 // picture, a what-if and payment history. Also its Apple Pay names, recent transactions, edit and delete.
@@ -43,6 +44,7 @@ export default function AccountScreen() {
 
   const a = account.data?.id === id ? account.data : undefined;
   if (account.error && !a) {
+    if (account.errorStatus === 401) return <Screen><ErrorCard message={account.error} status={401} /></Screen>;
     return (
       <Screen>
         <EmptyState icon="wallet.bifold" title="Account not found"
@@ -156,7 +158,7 @@ export default function AccountScreen() {
 
       <Card title="Delete account">
         <Text style={[styles.text, { color: t.muted }]}>Only possible while it has no transactions.</Text>
-        {deleteError && <Alert tone="negative">{deleteError}</Alert>}
+        {deleteError && <ErrorAlert message={deleteError} />}
         <Button title={`Delete ${a.name}`} variant="danger" onPress={confirmDelete} />
       </Card>
     </Screen>

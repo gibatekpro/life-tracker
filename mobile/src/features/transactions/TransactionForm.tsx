@@ -19,6 +19,7 @@ import Button from '@/components/ui/Button';
 import Segmented from '@/components/ui/Segmented';
 import { useRefresh } from '@/data/refresh';
 import { useTokens } from '@/theme/tokens';
+import ErrorAlert from '@/components/ErrorAlert';
 
 const types: { value: TransactionType; label: string }[] = [
   { value: 'Expense', label: 'Expense' },
@@ -139,7 +140,7 @@ export default function TransactionForm({ data, draft, transaction, onDone }: {
         <Text style={[styles.subtitle, { color: t.muted }]}>
           {editing ? 'Balances are corrected to match.' : 'Spending, money in, or a transfer between your accounts.'}
         </Text>
-        {error && <Text style={[styles.banner, { color: t.negative, backgroundColor: t.negativeSoft }]}>{error}</Text>}
+        {error && <ErrorAlert message={error} />}
         {noAccounts && <Text style={[styles.banner, { color: t.warning, backgroundColor: t.surfaceMuted }]}>
           Add an account on the web first.
         </Text>}

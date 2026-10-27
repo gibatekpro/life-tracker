@@ -17,6 +17,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import { useRefresh } from '@/data/refresh';
 import { useData } from '@/data/useData';
 import { useTokens } from '@/theme/tokens';
+import ErrorAlert from '@/components/ErrorAlert';
 
 // AI insights for a budget month (web: InsightsPage). Generate asks my API, which sends OpenAI a summary
 // of the month (categories, merchants, budgets and debts; no account numbers, ids or aliases) and saves
@@ -102,7 +103,7 @@ export default function InsightsScreen() {
             and restart the API. The key stays in the API; this app never sees it.
           </Text>
         </Alert>
-      ) : <Alert tone="negative">{error}</Alert>)}
+      ) : <ErrorAlert message={error} />)}
       {generating && <Alert>{generatingNote(b?.year, b?.month)}</Alert>}
 
       {!b || !insights.data ? <ActivityIndicator color={t.muted} /> : (
