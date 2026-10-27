@@ -4,7 +4,7 @@ import { deleteInsight, generateInsight, getBudgetMonth, getInsights } from '../
 import type { Insight } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
-import { formatDate, formatMoney, monthName, periodLabel } from '../../lib/format';
+import { formatDate, formatMoney, monthName, periodLabel } from '@lifetracker/core';
 import { cn } from '../../lib/cn';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';

@@ -9,7 +9,7 @@ import Card from '../../components/ui/Card';
 import Icon from '../../components/ui/Icon';
 import { Field, MoneyInput, Select } from '../../components/ui/Field';
 import { Alert, Badge, PageHeader, SegmentedControl, Skeleton } from '../../components/ui/Bits';
-import { ordinal } from '../../lib/format';
+import { ordinal } from '@lifetracker/core';
 import AccountSelect from '../accounts/AccountSelect';
 import CategoriesCard from '../categories/CategoriesCard';
 import CurrenciesCard from './CurrenciesCard';

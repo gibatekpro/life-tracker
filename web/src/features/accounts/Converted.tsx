@@ -1,6 +1,5 @@
 import type { ExchangeRate } from '@lifetracker/core';
-import { currencySymbol, formatMoney } from '../../lib/format';
-import { describeSource, formatRate, quoteFor, rateFor } from '../../lib/rates';
+import { currencySymbol, formatMoney, describeSource, formatRate, quoteFor, rateFor } from '@lifetracker/core';
 
 // "≈ £243" beside an amount in another currency, at its rate to pounds. For display only:
 // anything stored is converted by the API.

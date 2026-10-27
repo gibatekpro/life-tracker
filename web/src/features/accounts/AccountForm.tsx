@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { createAccount, updateAccount } from '../../api';
 import type { Account, AccountType } from '@lifetracker/core';
 import { useRefresh } from '../../data/refresh';
-import { currencySymbol } from '../../lib/format';
+import { currencySymbol } from '@lifetracker/core';
 import Button from '../../components/ui/Button';
 import { Field, Input, MoneyInput, Select } from '../../components/ui/Field';
 import { Alert, SegmentedControl } from '../../components/ui/Bits';

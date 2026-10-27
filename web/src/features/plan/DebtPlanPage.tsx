@@ -4,7 +4,7 @@ import { getAvalanchePlan, getDebts, getExchangeRates } from '../../api';
 import type { Account, ExchangeRate } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useDebounce } from '../../hooks/useDebounce';
-import { formatMoney, formatMonthYear } from '../../lib/format';
+import { formatMoney, formatMonthYear } from '@lifetracker/core';
 import Card from '../../components/ui/Card';
 import { Alert, EmptyState, PageHeader, Skeleton } from '../../components/ui/Bits';
 import ExtraSimulator from './ExtraSimulator';

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { deleteAccount, getAccount, getAccountPayments, getAccounts, getDebts, getExchangeRates, getTransactions } from '../../api';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
-import { formatDate, formatMoney, formatMonthYear } from '../../lib/format';
+import { formatDate, formatMoney, formatMonthYear } from '@lifetracker/core';
 import { cn } from '../../lib/cn';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';

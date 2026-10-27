@@ -1,5 +1,5 @@
 import type { DebtLine } from '@lifetracker/core';
-import { formatMoney } from '../../lib/format';
+import { formatMoney } from '@lifetracker/core';
 import Button from '../../components/ui/Button';
 import { Badge, ProgressBar } from '../../components/ui/Bits';
 import AmountEditor from './AmountEditor';

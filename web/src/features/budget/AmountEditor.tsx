@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { currencySymbol, formatMoney } from '../../lib/format';
+import { currencySymbol, formatMoney } from '@lifetracker/core';
 import Button from '../../components/ui/Button';
 import { MoneyInput } from '../../components/ui/Field';
 

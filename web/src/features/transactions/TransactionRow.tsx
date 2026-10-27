@@ -1,5 +1,5 @@
 import type { Transaction } from '@lifetracker/core';
-import { formatDayMonth, formatMoney } from '../../lib/format';
+import { formatDayMonth, formatMoney } from '@lifetracker/core';
 import { cn } from '../../lib/cn';
 import Icon, { type IconName } from '../../components/ui/Icon';
 import { useEditTransaction } from './quickAdd';

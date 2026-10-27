@@ -3,8 +3,7 @@ import { clearExchangeRate, getExchangeRates, getSettings, setExchangeRate, upda
 import type { ExchangeRate } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
-import { currencySymbol } from '../../lib/format';
-import { describeSource, formatRate } from '../../lib/rates';
+import { currencySymbol, describeSource, formatRate } from '@lifetracker/core';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import { Input } from '../../components/ui/Field';

@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router';
 import { getAccounts, getMonthlySummary, getTransactions } from '../../api';
 import type { Transaction, TransactionType } from '@lifetracker/core';
 import { useData } from '../../data/useData';
-import { formatDayHeading, formatMoney, periodLabel } from '../../lib/format';
+import { formatDayHeading, formatMoney, periodLabel } from '@lifetracker/core';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Icon from '../../components/ui/Icon';

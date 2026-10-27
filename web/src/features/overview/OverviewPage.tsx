@@ -1,7 +1,7 @@
 import { Link } from 'react-router';
 import { getAccounts, getDebts, getMonthlySummary, getTransactions } from '../../api';
 import { useData } from '../../data/useData';
-import { formatMoney, formatMonthYear, periodLabel } from '../../lib/format';
+import { formatMoney, formatMonthYear, periodLabel } from '@lifetracker/core';
 import { cn } from '../../lib/cn';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';

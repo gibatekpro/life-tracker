@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/cn';
-import { formatMoney } from '../../lib/format';
+import { formatMoney } from '@lifetracker/core';
 import Icon, { type IconName } from './Icon';
 
 type Tone = 'neutral' | 'accent' | 'positive' | 'negative' | 'warning';

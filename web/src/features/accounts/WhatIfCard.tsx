@@ -3,7 +3,7 @@ import { getWhatIf } from '../../api';
 import type { Account } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useDebounce } from '../../hooks/useDebounce';
-import { currencySymbol, formatMoney, formatMonthYear } from '../../lib/format';
+import { currencySymbol, formatMoney, formatMonthYear } from '@lifetracker/core';
 import Card from '../../components/ui/Card';
 import { Field, MoneyInput } from '../../components/ui/Field';
 import { Skeleton } from '../../components/ui/Bits';

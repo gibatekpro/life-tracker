@@ -4,7 +4,7 @@ import { copyPreviousBudget, getBudgetMonth, getCategories, resetBudgetAmount, s
 import type { BudgetLine, BudgetLineKey } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
-import { formatMoney, monthName, periodLabel } from '../../lib/format';
+import { formatMoney, monthName, periodLabel } from '@lifetracker/core';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Modal from '../../components/ui/Modal';

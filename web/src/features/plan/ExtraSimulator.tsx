@@ -1,5 +1,5 @@
 import type { AvalanchePlan } from '@lifetracker/core';
-import { formatMoney } from '../../lib/format';
+import { formatMoney } from '@lifetracker/core';
 import Card from '../../components/ui/Card';
 import { Field, MoneyInput } from '../../components/ui/Field';
 

@@ -1,7 +1,7 @@
 import { Bar, BarChart, CartesianGrid, Legend, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { MonthlySummary } from '@lifetracker/core';
 import { useTokens } from '../../hooks/useTokens';
-import { formatMoney, formatMoneyShort } from '../../lib/format';
+import { formatMoney, formatMoneyShort } from '@lifetracker/core';
 
 const shortMonth = (s: MonthlySummary) => new Date(s.year, s.month - 1).toLocaleDateString('en-GB', { month: 'short' });
 

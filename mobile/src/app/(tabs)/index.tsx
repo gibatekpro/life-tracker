@@ -8,7 +8,7 @@ import Card from '@/components/ui/Card';
 import Stat from '@/components/ui/Stat';
 import { useRefresh } from '@/data/refresh';
 import { useData } from '@/data/useData';
-import { formatDate, formatDayMonth, formatMoney } from '@/lib/format';
+import { formatDate, formatDayMonth, formatMoney } from '@lifetracker/core';
 import { useTokens } from '@/theme/tokens';
 
 // The budget month I'm in now (the API works out the dates from payday), at a glance.

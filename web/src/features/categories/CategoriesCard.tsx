@@ -3,7 +3,7 @@ import { archiveCategory, deleteCategory, getCategories, unarchiveCategory } fro
 import type { Category, CategoryKind } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
-import { formatMoney } from '../../lib/format';
+import { formatMoney } from '@lifetracker/core';
 import { cn } from '../../lib/cn';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
