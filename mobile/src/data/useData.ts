@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { ApiError } from '@/api';
+import { ApiError } from '@lifetracker/core';
 import { useRefresh } from './refresh';
 
 interface Loaded<T> {
