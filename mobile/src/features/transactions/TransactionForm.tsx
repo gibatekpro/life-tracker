@@ -1,5 +1,5 @@
 import {
-  buildTransactionRequest, categoryLevels, currencySymbol, describeForm, formatMoney, initialFormValues,
+  accountGroups, accountLabel, buildTransactionRequest, categoryLevels, currencySymbol, describeForm, formatMoney, initialFormValues,
   ukTodayIso, withAccount, withType,
   type Account, type FormData, type Transaction, type TransactionDraft, type TransactionFormValues, type TransactionType,
 } from '@lifetracker/core';
@@ -25,11 +25,9 @@ const types: { value: TransactionType; label: string }[] = [
   { value: 'Transfer', label: 'Transfer' },
 ];
 
-// Accounts in the order I think about them: money I have, then cards, then loans.
-const groupOrder: Account['type'][] = ['Current', 'CreditCard', 'Loan'];
+// Accounts in the order I think about them (money, cards, loans), as the web's AccountSelect.
 const accountOptions = (accounts: Account[]): SelectOption<number>[] =>
-  groupOrder.flatMap((type) => accounts.filter((a) => a.type === type))
-    .map((a) => ({ label: `${a.name}${a.currency !== 'GBP' ? ` (${a.currency})` : ''}`, value: a.id }));
+  accountGroups(accounts).flatMap((g) => g.accounts).map((a) => ({ label: accountLabel(a), value: a.id }));
 
 // The phone's transaction form, the native counterpart of the web's TransactionForm: the rules
 // (what it starts with, the received amount from the rate, the request) are core's transactionForm.ts.
@@ -168,11 +166,11 @@ export default function TransactionForm({ data, draft, transaction, onDone }: {
 
         <FormSection>
           <SelectRow label={isTransfer ? 'From' : 'Account'} options={accountOptions(data.accounts)}
-            valueLabel={from && accountOptions([from])[0].label}
+            valueLabel={from && accountLabel(from)}
             onChange={(id) => change(withAccount(values, id))} />
           {isTransfer && (
             <SelectRow label="To" options={accountOptions(data.accounts.filter((a) => a.id !== values.accountId))}
-              valueLabel={to && accountOptions([to])[0].label} placeholder="Choose an account"
+              valueLabel={to && accountLabel(to)} placeholder="Choose an account"
               onChange={(toAccountId) => change({ ...values, toAccountId })} />
           )}
           {levels.map(({ parent, options, selected }, depth) => (

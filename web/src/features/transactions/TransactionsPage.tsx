@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { getAccounts, getMonthlySummary, getTransactions } from '../../api';
-import type { Transaction, TransactionType } from '@lifetracker/core';
+import type { TypeFilter } from '@lifetracker/core';
 import { useData } from '../../data/useData';
-import { formatDayHeading, formatMoney, periodLabel } from '@lifetracker/core';
+import {
+  filterTransactions, formatDayHeading, formatMoney, groupByDay, inPeriod, periodLabel, shiftMonth, toYm, transactionTotals,
+} from '@lifetracker/core';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Icon from '../../components/ui/Icon';
@@ -13,21 +15,12 @@ import AccountSelect from '../accounts/AccountSelect';
 import TransactionRow from './TransactionRow';
 import { useQuickAdd } from './quickAdd';
 
-type TypeFilter = 'All' | TransactionType;
 const typeOptions: { value: TypeFilter; label: string }[] = [
   { value: 'All', label: 'All' },
   { value: 'Expense', label: 'Spending' },
   { value: 'Income', label: 'Income' },
   { value: 'Transfer', label: 'Transfers' },
 ];
-
-const toYm = (year: number, month: number) => `${year}-${String(month).padStart(2, '0')}`;   // "2026-10"
-
-function shiftMonth(ym: string, by: number) {
-  const [y, m] = ym.split('-').map(Number);
-  const d = new Date(y, m - 1 + by);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
 
 // Every transaction, a budget month at a time, with filters. Tapping one opens it to edit or delete.
 // The month, account and type live in the URL, so back/forward and refresh keep the view.
@@ -58,30 +51,11 @@ export default function TransactionsPage() {
     setParams(next, { replace: true });
   }
 
-  // ISO dates compare correctly as strings.
-  const inMonth = useMemo(
-    () => (p ? (transactions.data ?? []).filter((t) => t.date >= p.periodStart && t.date <= p.periodEnd) : []),
-    [transactions.data, p],
-  );
-
-  const shown = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return inMonth.filter((t) =>
-      (accountId === null || t.accountId === accountId || t.toAccountId === accountId) &&
-      (type === 'All' || t.type === type) &&
-      (q === '' || t.description.toLowerCase().includes(q) || (t.category ?? '').toLowerCase().includes(q)));
-  }, [inMonth, accountId, type, search]);
-
-  // The list grouped by day, newest first (the API already sends them in that order).
-  const byDay = useMemo(() => {
-    const groups = new Map<string, Transaction[]>();
-    for (const t of shown) groups.set(t.date, [...(groups.get(t.date) ?? []), t]);
-    return [...groups];
-  }, [shown]);
-
-  const spent = inMonth.filter((t) => t.type === 'Expense').reduce((sum, t) => sum + t.gbpAmount, 0);
-  const received = inMonth.filter((t) => t.type === 'Income').reduce((sum, t) => sum + t.gbpAmount, 0);
-  const transfers = inMonth.filter((t) => t.type === 'Transfer').length;
+  const inMonth = useMemo(() => (p ? inPeriod(transactions.data ?? [], p) : []), [transactions.data, p]);
+  const shown = useMemo(() => filterTransactions(inMonth, { accountId, type, search }), [inMonth, accountId, type, search]);
+  // The list grouped by day, newest first.
+  const byDay = useMemo(() => groupByDay(shown), [shown]);
+  const { spent, received, transfers } = transactionTotals(inMonth);
 
   return (
     <>
@@ -129,7 +103,7 @@ export default function TransactionsPage() {
           </EmptyState>
         ) : (
           <div className="px-4 pb-2">
-            {byDay.map(([day, items]) => (
+            {byDay.map(({ date: day, data: items }) => (
               <section key={day}>
                 <h3 className="sticky top-14 z-[1] -mx-4 bg-surface/95 px-4 pt-4 pb-1 text-xs font-semibold tracking-wide text-muted uppercase backdrop-blur lg:top-0">
                   {formatDayHeading(day)}
