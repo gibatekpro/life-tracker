@@ -2,6 +2,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'react-native';
 
+import RefreshProvider from '@/data/RefreshProvider';
 import { tokens } from '@/theme/tokens';
 
 // The app's outer navigator: a stack holding the tabs and the screens pushed over them
@@ -17,11 +18,13 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={theme}>
-      <StatusBar style="auto" />
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="settings" options={{ title: 'Settings', headerBackTitle: 'Back' }} />
-      </Stack>
+      <RefreshProvider>
+        <StatusBar style="auto" />
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="settings" options={{ title: 'Settings', headerBackTitle: 'Back' }} />
+        </Stack>
+      </RefreshProvider>
     </ThemeProvider>
   );
 }

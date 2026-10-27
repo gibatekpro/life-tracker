@@ -3,6 +3,7 @@ import { Alert, ScrollView, StyleSheet, Text, TextInput } from 'react-native';
 
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import { useRefresh } from '@/data/refresh';
 import { clearApiKey, getApiKey, saveApiKey } from '@/lib/apiKey';
 import { useTokens } from '@/theme/tokens';
 
@@ -11,6 +12,7 @@ import { useTokens } from '@/theme/tokens';
 // only ever shows whether a key is saved, never the key itself.
 export default function SettingsScreen() {
   const t = useTokens();
+  const { refresh } = useRefresh(); // so screens behind this one reload with the new key
   const [hasKey, setHasKey] = useState<boolean | null>(null); // null while checking
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +30,7 @@ export default function SettingsScreen() {
       await saveApiKey(draft);
       setDraft('');
       setHasKey(true);
+      refresh();
     } catch {
       setError("Couldn't save the key.");
     }
@@ -44,6 +47,7 @@ export default function SettingsScreen() {
           try {
             await clearApiKey();
             setHasKey(false);
+            refresh();
           } catch {
             setError("Couldn't clear the key.");
           }
