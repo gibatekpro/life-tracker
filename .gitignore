@@ -433,3 +433,4 @@ api/appsettings.Development.json
 
 # Database backups (personal financial data)
 backup-*.sql
+mobile/.env.example
