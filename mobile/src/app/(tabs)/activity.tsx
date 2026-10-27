@@ -8,6 +8,7 @@ import ScreenHeader from '@/components/ScreenHeader';
 import { useRefresh } from '@/data/refresh';
 import { useData } from '@/data/useData';
 import TransactionRow from '@/features/transactions/TransactionRow';
+import { openNewTransaction } from '@/features/transactions/open';
 import { useTokens } from '@/theme/tokens';
 
 // Every transaction, newest first, grouped by day under headers that stick while scrolling.
@@ -31,13 +32,13 @@ export default function ActivityScreen() {
       ItemSeparatorComponent={() => <View style={[styles.separator, { backgroundColor: t.line }]} />}
       ListHeaderComponent={
         <View style={styles.header}>
-          <ScreenHeader title="Activity" />
+          <ScreenHeader title="Activity" onAdd={() => openNewTransaction()} />
           {error && <ErrorCard message={error} status={errorStatus} />}
         </View>
       }
       ListEmptyComponent={
         !data ? (error ? undefined : <ActivityIndicator style={styles.spinner} color={t.muted} />)
-          : <Text style={[styles.empty, { color: t.muted }]}>Nothing recorded yet. Add one on the Add tab.</Text>
+          : <Text style={[styles.empty, { color: t.muted }]}>Nothing recorded yet. Use + to add one.</Text>
       }
       stickySectionHeadersEnabled
       contentInsetAdjustmentBehavior="automatic"

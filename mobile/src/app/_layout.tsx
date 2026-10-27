@@ -5,8 +5,9 @@ import { useColorScheme } from 'react-native';
 import RefreshProvider from '@/data/RefreshProvider';
 import { tokens } from '@/theme/tokens';
 
-// The app's outer navigator: a stack holding the tabs and the screens over them (Settings, and the
-// transaction form as a modal). ThemeProvider gives the native headers and backgrounds our colours.
+// The app's outer navigator: a stack holding the tabs, the sections pushed over them (from More,
+// or from links on other screens) and the forms as modals. ThemeProvider gives the native headers
+// and backgrounds our colours.
 export default function RootLayout() {
   const isDark = useColorScheme() === 'dark';
   const t = isDark ? tokens.dark : tokens.light;
@@ -20,9 +21,12 @@ export default function RootLayout() {
     <ThemeProvider value={theme}>
       <RefreshProvider>
         <StatusBar style="auto" />
-        <Stack>
+        <Stack screenOptions={{ headerBackTitle: 'Back' }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="settings" options={{ title: 'Settings', headerBackTitle: 'Back' }} />
+          <Stack.Screen name="accounts/index" options={{ title: 'Accounts' }} />
+          <Stack.Screen name="accounts/[id]" options={{ title: 'Account' }} />
+          <Stack.Screen name="insights" options={{ title: 'Insights' }} />
+          <Stack.Screen name="settings" options={{ title: 'Settings' }} />
           <Stack.Screen name="transaction" options={{ presentation: 'modal' }} />
         </Stack>
       </RefreshProvider>

@@ -1,7 +1,7 @@
 import {
   buildTransactionRequest, categoryLevels, currencySymbol, describeForm, formatMoney, initialFormValues, nextEntry,
   ukTodayIso, withAccount, withType,
-  type Account, type FormData, type Transaction, type TransactionDraft, type TransactionFormValues,
+  type Account, type FormData, type Transaction, type TransactionDraft, type TransactionFormValues, type TransactionType,
 } from '@lifetracker/core';
 import * as Haptics from 'expo-haptics';
 import { Stack, useFocusEffect } from 'expo-router';
@@ -13,11 +13,17 @@ import DateRow from '@/components/form/DateRow';
 import FormSection from '@/components/form/FormSection';
 import MoneyInput from '@/components/form/MoneyInput';
 import SelectRow, { type SelectOption } from '@/components/form/SelectRow';
-import TypeControl from '@/components/form/TypeControl';
 import HeaderButton from '@/components/HeaderButton';
 import Button from '@/components/ui/Button';
+import Segmented from '@/components/ui/Segmented';
 import { useRefresh } from '@/data/refresh';
 import { useTokens } from '@/theme/tokens';
+
+const types: { value: TransactionType; label: string }[] = [
+  { value: 'Expense', label: 'Expense' },
+  { value: 'Income', label: 'Income' },
+  { value: 'Transfer', label: 'Transfer' },
+];
 
 // Accounts in the order I think about them: money I have, then cards, then loans.
 const groupOrder: Account['type'][] = ['Current', 'CreditCard', 'Loan'];
@@ -147,7 +153,8 @@ export default function TransactionForm({ data, draft, transaction, onDone }: {
           Add an account on the web first.
         </Text>}
 
-        <TypeControl value={values.type} onChange={(type) => change(withType(values, type, data.categories))} />
+        <Segmented label="Type" options={types} value={values.type}
+          onChange={(type) => change(withType(values, type, data.categories))} />
 
         <FormSection footer={crossesCurrencies ? view.receivedHint : undefined}>
           <View>

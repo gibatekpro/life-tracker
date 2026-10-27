@@ -6,7 +6,7 @@ interface Props {
   label: string;
   value: string;
   caption?: string;
-  tone?: 'ink' | 'positive' | 'negative';
+  tone?: 'ink' | 'positive' | 'negative' | 'warning' | 'accent';
   large?: boolean;
 }
 
@@ -16,7 +16,7 @@ export default function Stat({ label, value, caption, tone = 'ink', large = fals
   return (
     <View style={styles.stat}>
       <Text style={[styles.label, { color: t.muted }]}>{label}</Text>
-      <Text style={[large ? styles.large : styles.value, { color: t[tone] }]}>{value}</Text>
+      <Text style={[large ? styles.large : styles.value, { color: t[tone] }]} numberOfLines={1} adjustsFontSizeToFit>{value}</Text>
       {caption && <Text style={[styles.caption, { color: t.muted }]}>{caption}</Text>}
     </View>
   );

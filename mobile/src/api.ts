@@ -10,9 +10,15 @@ const baseUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, '');
 // aren't from the Mac's loopback, so NetworkApiKeyMiddleware wants X-Api-Key (from the Keychain).
 // A sleeping Mac doesn't refuse the connection, it just never answers, hence the timeout.
 export const {
-  getBudgetMonth,
   getTransactions, getTransaction, createTransaction, updateTransaction, deleteTransaction,
-  getAccounts, getCategories, getExchangeRates,
+  getAccounts, getAccount, createAccount, updateAccount, deleteAccount, addAlias, removeAlias, getAccountPayments,
+  getCategories, createCategory, updateCategory, archiveCategory, unarchiveCategory, deleteCategory,
+  getBudgetMonth, setBudgetAmount, resetBudgetAmount, copyPreviousBudget,
+  getInsights, generateInsight, deleteInsight,
+  getDebts, getAvalanchePlan, getWhatIf,
+  getMonthlySummary,
+  getSettings, updateSettings, setDefaultAccount,
+  getExchangeRates, setExchangeRate, clearExchangeRate,
 } = createApi({
   baseUrl: baseUrl ?? '',
   getHeaders: async (): Promise<Record<string, string>> => {

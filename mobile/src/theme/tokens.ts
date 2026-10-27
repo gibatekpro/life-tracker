@@ -18,9 +18,20 @@ const light = {
   onAccent: '#ffffff',
 
   positive: '#157a3f', // money held, savings
+  positiveSoft: '#e5f4ea',
   negative: '#b42318', // money owed, errors
   negativeSoft: '#fdecea',
+  onNegative: '#ffffff', // text on a solid red button
   warning: '#a15c07', // needs attention
+  warningSoft: '#fdf1df',
+
+  // Categorical chart colours (web: chart-1..6), distinguishable from each other in both themes.
+  chart1: '#0f766e',
+  chart2: '#3b6fd8',
+  chart3: '#c2410c',
+  chart4: '#8b5cf6',
+  chart5: '#ca8a04',
+  chart6: '#64748b',
 };
 
 export type Tokens = typeof light;
@@ -39,9 +50,19 @@ const dark: Tokens = {
   onAccent: '#04211d',
 
   positive: '#4ccf7f',
+  positiveSoft: '#10291b',
   negative: '#f2776c',
   negativeSoft: '#331614',
+  onNegative: '#2a0b08',
   warning: '#f0b44c',
+  warningSoft: '#33250c',
+
+  chart1: '#2cc4b0',
+  chart2: '#6f9bf0',
+  chart3: '#f08a5d',
+  chart4: '#a98bfa',
+  chart5: '#e3b341',
+  chart6: '#94a3b8',
 };
 
 export const tokens = { light, dark };
