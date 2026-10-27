@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { copyPreviousBudget, getBudgetMonth, getCategories, resetBudgetAmount, setBudgetAmount } from '../../api';
-import type { BudgetLine, BudgetLineKey, TreeNode } from '@lifetracker/core';
+import type { BudgetLineKey } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
-import { formatMoney, monthName, periodLabel } from '@lifetracker/core';
+import {
+  avalancheExtraNote, budgetDaysNote, budgetStats, budgetTree, copyNotice, debtBudgetNote, formatMoney, monthName, periodLabel,
+  shiftMonth, unallocatedNote,
+} from '@lifetracker/core';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import Modal from '../../components/ui/Modal';
@@ -14,16 +17,6 @@ import CollapsibleTree from '../../components/tree/CollapsibleTree';
 import { useIsSmallScreen } from '../../hooks/useIsSmallScreen';
 import BudgetLineRow from './BudgetLineRow';
 import DebtLineRow from './DebtLineRow';
-
-// The budget's lines (already a tree) as CollapsibleTree nodes.
-const toNodes = (lines: BudgetLine[]): TreeNode<BudgetLine>[] =>
-  lines.map((l) => ({ id: l.categoryId, item: l, children: toNodes(l.children) }));
-
-function shiftMonth(ym: string, by: number) {
-  const [y, m] = ym.split('-').map(Number);
-  const d = new Date(y, m - 1 + by);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
 
 // My budget for a month: what I plan to spend in each category and pay on each debt, against
 // what's gone so far, what's unallocated, and what's safe to spend per day. Amounts can be changed
@@ -60,7 +53,7 @@ export default function BudgetPage() {
     setNotice(null);
     try {
       const { copied } = await copyPreviousBudget(b!.year, b!.month);
-      setNotice({ ok: true, text: copied === 0 ? 'Last month had no figures of its own to copy.' : `Copied ${copied} figure${copied === 1 ? '' : 's'} from last month.` });
+      setNotice({ ok: true, text: copyNotice(copied) });
       refresh();
     } catch (err) {
       setNotice({ ok: false, text: (err as Error).message });
@@ -82,9 +75,7 @@ export default function BudgetPage() {
           onClick={() => ym && setParams({ month: shiftMonth(ym, -1) }, { replace: true })} />
         <div className="text-center">
           <h2 className="text-lg font-semibold">{b ? periodLabel(b) : '…'}</h2>
-          {b && <p className="text-xs text-muted">
-            {b.daysLeft === 0 ? 'Finished' : b.daysElapsed === 0 ? 'Not started yet' : `${b.daysLeft} day${b.daysLeft === 1 ? '' : 's'} left`}
-          </p>}
+          {b && <p className="text-xs text-muted">{budgetDaysNote(b)}</p>}
         </div>
         <Button variant="ghost" size="sm" icon="chevronRight" aria-label="Next month" disabled={!ym}
           onClick={() => ym && setParams({ month: shiftMonth(ym, 1) }, { replace: true })} />
@@ -93,19 +84,19 @@ export default function BudgetPage() {
       {view.error && <Alert tone="negative" className="mb-6">{view.error}</Alert>}
       {notice && <Alert tone={notice.ok ? 'info' : 'negative'} className="mb-6">{notice.text}</Alert>}
 
-      {!b || !v ? <Skeleton className="h-96" /> : (
+      {!b || !v ? <Skeleton className="h-96" /> : (() => {
+        const stats = budgetStats(v);
+        const planNote = debtBudgetNote(v);
+        const nudge = unallocatedNote(b);
+        return (
         <>
           <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-            <Card><Stat label="Income" value={formatMoney(b.income)}
-              sub={v.incomeMode === 'Fixed' ? 'Take-home pay' : 'Recorded this month'} /></Card>
-            <Card><Stat label="Planned" value={formatMoney(b.totalPlanned)}
-              sub={`${formatMoney(b.plannedSpending)} spending · ${formatMoney(b.plannedDebts)} debts`} /></Card>
-            <Card><Stat label="Unallocated" value={formatMoney(b.unallocated)}
-              valueClassName={b.unallocated < 0 ? 'text-negative' : 'text-positive'}
-              sub={b.unallocated < 0 ? 'Planned more than income' : 'Income not yet budgeted'} /></Card>
-            <Card><Stat label="Safe to spend" value={b.daysLeft > 0 ? `${formatMoney(b.safeToSpendPerDay)}/day` : '—'}
-              valueClassName={b.safeToSpend < 0 ? 'text-negative' : undefined}
-              sub={b.safeToSpend < 0 ? `${formatMoney(-b.safeToSpend)} over-committed` : `${formatMoney(b.safeToSpend)} not spent or set aside`} /></Card>
+            <Card><Stat label="Income" value={stats.income.value} sub={stats.income.sub} /></Card>
+            <Card><Stat label="Planned" value={stats.planned.value} sub={stats.planned.sub} /></Card>
+            <Card><Stat label="Unallocated" value={stats.unallocated.value}
+              valueClassName={stats.unallocated.negative ? 'text-negative' : 'text-positive'} sub={stats.unallocated.sub} /></Card>
+            <Card><Stat label="Safe to spend" value={stats.safe.value}
+              valueClassName={stats.safe.negative ? 'text-negative' : undefined} sub={stats.safe.sub} /></Card>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-5">
@@ -117,7 +108,7 @@ export default function BudgetPage() {
                   Give categories a default in Settings to have them every month, or add a line for just this month.
                 </EmptyState>
               ) : (
-                <CollapsibleTree className="-my-3" page="budget" collapsible={small} nodes={toNodes(b.lines)}
+                <CollapsibleTree className="-my-3" page="budget" collapsible={small} nodes={budgetTree(b.lines)}
                   renderRow={(node, context) => (
                     <BudgetLineRow line={node.item} context={context} daysLeft={b.daysLeft}
                       onSave={(categoryId, amount) => save({ categoryId }, amount)}
@@ -144,32 +135,26 @@ export default function BudgetPage() {
                           <p className="tabular-nums">{formatMoney(b.avalancheExtraPaid)} <span className="text-muted">paid of</span> {formatMoney(b.avalancheExtra)}</p>
                         </div>
                         <div className="mt-2"><ProgressBar label="Avalanche extra paid" value={b.avalancheExtraPaid / b.avalancheExtra} /></div>
-                        <p className="mt-1.5 text-xs text-muted">
-                          The plan pays {formatMoney(b.plannedDebts)} a month; your debt lines add up to {formatMoney(b.plannedDebts - b.avalancheExtra)}.
-                          Paying more than a line's figure counts here.
-                        </p>
+                        <p className="mt-1.5 text-xs text-muted">{avalancheExtraNote(b)}</p>
                       </li>
                     )}
                   </ul>
                 )}
                 <p className="mt-4 rounded-xl bg-surface-muted p-3 text-xs text-muted">
-                  {b.hasMonthDebtAmounts
-                    ? <>This month's debt lines ({formatMoney(b.plannedDebts)}) are the <Link to="/plan" className="text-accent hover:underline">avalanche plan</Link>'s budget.</>
-                    : <>The <Link to="/plan" className="text-accent hover:underline">avalanche plan</Link> uses your debt budget from Settings
-                      {v.settingsDebtBudget !== null ? ` (${formatMoney(v.settingsDebtBudget)})` : ''} until you set a debt amount for this month.</>}
+                  {planNote.before}<Link to="/plan" className="text-accent hover:underline">{planNote.link}</Link>{planNote.after}
                 </p>
               </Card>
 
-              {b.unallocated > 0 && b.debts.length > 0 && (
+              {nudge && (
                 <Alert tone="info">
-                  {formatMoney(b.unallocated)} of income isn't budgeted. Raising a debt payment here moves the avalanche plan's
-                  debt-free date; see the effect on the <Link to="/plan" className="font-medium text-accent hover:underline">Debt plan</Link>.
+                  {nudge.before}<Link to="/plan" className="font-medium text-accent hover:underline">{nudge.link}</Link>{nudge.after}
                 </Alert>
               )}
             </div>
           </div>
         </>
-      )}
+        );
+      })()}
 
       <Modal open={adding} onClose={() => setAdding(false)} title="Add a budget line"
         description={b ? `For ${monthName(b.year, b.month)}.` : undefined}>

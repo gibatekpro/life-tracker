@@ -1,8 +1,9 @@
 import type { DebtLine } from '@lifetracker/core';
-import { formatMoney } from '@lifetracker/core';
+import { debtLineNote, formatMoney } from '@lifetracker/core';
 import Button from '../../components/ui/Button';
 import { Badge, ProgressBar } from '../../components/ui/Bits';
 import AmountEditor from './AmountEditor';
+import NoteParts from './NoteParts';
 
 // A card or loan's line: what I plan to pay this month, what's been paid in, and what the
 // avalanche plan suggests (with a button to use it). Everything is in the account's own currency
@@ -14,7 +15,7 @@ export default function DebtLineRow({ debt: d, onSave, onReset }: {
 }) {
   const c = d.currency;
   const foreign = c !== 'GBP';
-  const suggestionDiffers = d.nativeSuggested !== null && Math.abs(d.nativeSuggested - d.nativePlanned) >= 0.01;
+  const { parts, progressTone, suggestion } = debtLineNote(d);
 
   return (
     <li className="py-3">
@@ -35,23 +36,16 @@ export default function DebtLineRow({ debt: d, onSave, onReset }: {
 
       {d.nativePlanned > 0 && (
         <div className="mt-2">
-          <ProgressBar label={`${d.name} paid`} value={d.nativePaid / d.nativePlanned} tone={d.nativeRemaining <= 0 ? 'positive' : 'accent'} />
+          <ProgressBar label={`${d.name} paid`} value={d.nativePaid / d.nativePlanned} tone={progressTone} />
         </div>
       )}
 
       <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
-        <span>
-          {d.nativePlanned === 0 ? 'Nothing planned this month'
-            : d.nativeRemaining <= 0 ? <span className="text-positive">Paid for this month</span>
-            : `${formatMoney(d.nativeRemaining, c)} still to pay`}
-          {foreign && (d.rate !== null
-            ? <> · ≈ {formatMoney(d.planned)} of this month's budget</>
-            : <> · <span className="text-warning">no £ rate yet, so it isn't in the totals</span></>)}
-        </span>
-        {d.nativeSuggested !== null && (
+        <span><NoteParts parts={parts} /></span>
+        {suggestion && (
           <span className="flex items-center gap-2">
-            Avalanche suggests <strong className="font-medium text-ink tabular-nums">{formatMoney(d.nativeSuggested, c)}</strong>
-            {suggestionDiffers && <Button size="sm" variant="ghost" onClick={() => onSave(d.accountId, d.nativeSuggested!)}>Use</Button>}
+            Avalanche suggests <strong className="font-medium text-ink tabular-nums">{suggestion.text}</strong>
+            {suggestion.differs && <Button size="sm" variant="ghost" onClick={() => onSave(d.accountId, suggestion.amount)}>Use</Button>}
           </span>
         )}
       </div>

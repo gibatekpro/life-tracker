@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import type { Category } from '@lifetracker/core';
+import { addLineDefaults, addLineHint } from '@lifetracker/core';
 import Button from '../../components/ui/Button';
 import { Field, MoneyInput } from '../../components/ui/Field';
 import { Alert } from '../../components/ui/Bits';
@@ -13,9 +14,9 @@ export default function AddLineForm({ categories, monthName, onSave, onDone }: {
   onSave: (categoryId: number, amount: number) => Promise<void>;
   onDone: () => void;
 }) {
-  const first = categories.find((c) => c.kind === 'Expense' && !c.isArchived);
-  const [categoryId, setCategoryId] = useState<number | undefined>(first?.id);
-  const [amount, setAmount] = useState(first?.defaultMonthlyAmount?.toString() ?? '');
+  const [initial] = useState(() => addLineDefaults(categories));
+  const [categoryId, setCategoryId] = useState<number | undefined>(initial.categoryId);
+  const [amount, setAmount] = useState(initial.amount);
   const [error, setError] = useState<string | null>(null);
   const chosen = categories.find((c) => c.id === categoryId);
 
@@ -44,9 +45,7 @@ export default function AddLineForm({ categories, monthName, onSave, onDone }: {
         )}
       </Field>
       <Field label={`Budget for ${monthName}`}
-        hint={chosen?.defaultMonthlyAmount != null
-          ? `Its default is £${chosen.defaultMonthlyAmount}; this changes ${monthName} only.`
-          : 'For this month only. Set a default in Settings → Categories to have it every month.'}>
+        hint={addLineHint(chosen, monthName)}>
         {(id) => <MoneyInput id={id} symbol="£" required value={amount} onChange={(e) => setAmount(e.target.value)} />}
       </Field>
       {error && <Alert tone="negative">{error}</Alert>}

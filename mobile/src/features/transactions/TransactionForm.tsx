@@ -1,5 +1,5 @@
 import {
-  accountGroups, accountLabel, buildTransactionRequest, categoryLevels, currencySymbol, describeForm, formatMoney, initialFormValues,
+  accountGroups, accountLabel, buildTransactionRequest, currencySymbol, describeForm, formatMoney, initialFormValues,
   ukTodayIso, withAccount, withType,
   type Account, type FormData, type Transaction, type TransactionDraft, type TransactionFormValues, type TransactionType,
 } from '@lifetracker/core';
@@ -9,6 +9,7 @@ import { useCallback, useRef, useState, type ComponentRef } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { createTransaction, deleteTransaction, updateTransaction } from '@/api';
+import { categoryPickerRows } from '@/components/form/CategoryPicker';
 import DateRow from '@/components/form/DateRow';
 import FormSection from '@/components/form/FormSection';
 import MoneyInput from '@/components/form/MoneyInput';
@@ -60,7 +61,6 @@ export default function TransactionForm({ data, draft, transaction, onDone }: {
 
   const view = describeForm(values, data);
   const { isTransfer, from, to, fromCurrency, crossesCurrencies, asksForPounds } = view;
-  const levels = isTransfer ? [] : categoryLevels(data.categories, view.categoryKind, view.chosenCategoryId);
 
   const change = (next: TransactionFormValues) => {
     setValues(next);
@@ -173,17 +173,10 @@ export default function TransactionForm({ data, draft, transaction, onDone }: {
               valueLabel={to && accountLabel(to)} placeholder="Choose an account"
               onChange={(toAccountId) => change({ ...values, toAccountId })} />
           )}
-          {levels.map(({ parent, options, selected }, depth) => (
-            <SelectRow key={parent?.id ?? 'top'} label={parent ? `Within ${parent.name}` : 'Category'}
-              valueLabel={selected?.name ?? (parent ? `${parent.name} itself` : undefined)}
-              options={[
-                // Spending can be filed on a parent too.
-                ...(parent ? [{ label: `${parent.name} itself`, value: parent.id }] : []),
-                ...options.map((c) => ({ label: `${c.name}${c.isArchived ? ' (archived)' : ''}`, value: c.id })),
-              ]}
-              onChange={(categoryId) => change({ ...values, categoryId })}
-              placeholder={depth === 0 ? 'Choose' : undefined} />
-          ))}
+          {!isTransfer && categoryPickerRows({
+            categories: data.categories, kind: view.categoryKind, value: view.chosenCategoryId,
+            onChange: (categoryId) => change({ ...values, categoryId }),
+          })}
           <DateRow label="Date" value={values.date} onChange={(date) => change({ ...values, date })} />
         </FormSection>
 

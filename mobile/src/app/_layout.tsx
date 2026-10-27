@@ -29,6 +29,7 @@ export default function RootLayout() {
           <Stack.Screen name="settings" options={{ title: 'Settings' }} />
           <Stack.Screen name="transaction" options={{ presentation: 'modal' }} />
           <Stack.Screen name="account-form" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="budget-line" options={{ presentation: 'modal' }} />
         </Stack>
       </RefreshProvider>
     </ThemeProvider>

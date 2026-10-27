@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { currencySymbol, formatMoney } from '@lifetracker/core';
+import { currencySymbol, plannedLabel, resetLabel } from '@lifetracker/core';
 import Button from '../../components/ui/Button';
 import { MoneyInput } from '../../components/ui/Field';
 
@@ -40,7 +40,7 @@ export default function AmountEditor({ label, shown, current, defaultAmount, mon
       <button type="button" onClick={() => { setValue(String(current)); setEditing(true); }}
         aria-label={`Change the ${label} budget`}
         className="rounded-md px-1 font-medium tabular-nums underline decoration-subtle decoration-dotted underline-offset-4 hover:bg-surface-muted hover:decoration-accent">
-        {shown > 0 ? formatMoney(shown, currency) : 'Set budget'}
+        {plannedLabel(shown, currency)}
       </button>
     );
   }
@@ -53,7 +53,7 @@ export default function AmountEditor({ label, shown, current, defaultAmount, mon
       <Button size="sm" onClick={() => setEditing(false)}>Cancel</Button>
       {monthAmount !== null && (
         <Button size="sm" variant="ghost" icon="undo" onClick={() => run(onReset)}>
-          {defaultAmount !== null ? `Reset to ${formatMoney(defaultAmount, currency)}` : 'Remove from this month'}
+          {resetLabel(defaultAmount, currency)}
         </Button>
       )}
       {error && <p className="w-full text-right text-xs text-negative">{error}</p>}

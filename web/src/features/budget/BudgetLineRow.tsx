@@ -1,10 +1,11 @@
 import type { BudgetLine } from '@lifetracker/core';
-import { formatMoney, lineTone } from '@lifetracker/core';
+import { budgetLineNote, formatMoney, lineTone } from '@lifetracker/core';
 import { cn } from '../../lib/cn';
 import { Badge, ProgressBar } from '../../components/ui/Bits';
 import ExpandButton from '../../components/tree/ExpandButton';
 import type { RowContext } from '../../components/tree/CollapsibleTree';
 import AmountEditor from './AmountEditor';
+import NoteParts from './NoteParts';
 
 // One category's line: spent of planned (planned can be changed in place), a progress bar, and
 // what's left. Its subcategories are drawn by CollapsibleTree, under the row; on a small screen
@@ -17,7 +18,6 @@ export default function BudgetLineRow({ line, context: { depth, expandable, expa
   onReset: (categoryId: number) => Promise<void>;
 }) {
   const tone = lineTone(line.planned, line.spent, line.projected, daysLeft);
-  const childPlanned = line.planned - line.ownPlanned;
   const name = <span className={cn(depth === 0 ? 'font-semibold' : 'font-medium')}>{line.name}</span>;
 
   return (
@@ -47,13 +47,7 @@ export default function BudgetLineRow({ line, context: { depth, expandable, expa
       )}
 
       <p className="mt-1.5 text-xs text-muted">
-        {line.planned === 0 ? 'No budget this month'
-          : line.remaining < 0 ? <span className="text-negative">{formatMoney(-line.remaining)} over</span>
-          : line.remaining === 0 ? 'Fully used'
-          : <>{formatMoney(line.remaining)} left{daysLeft > 0 && <> · {formatMoney(line.dailyAllowance)}/day</>}</>}
-        {tone === 'warning' && <span className="text-warning"> · on pace for {formatMoney(line.projected)}</span>}
-        {childPlanned > 0 && line.ownPlanned > 0 && <> · own {formatMoney(line.ownPlanned)} + subcategories {formatMoney(childPlanned)}</>}
-        {expandable && !expanded && <> · {line.children.length} subcategor{line.children.length === 1 ? 'y' : 'ies'}</>}
+        <NoteParts parts={budgetLineNote(line, daysLeft, expandable && !expanded)} />
       </p>
     </div>
   );
