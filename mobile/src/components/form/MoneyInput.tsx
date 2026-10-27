@@ -3,10 +3,15 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useTokens } from '@/theme/tokens';
 
-// An amount with its currency symbol in front, typed on the decimal keypad.
-// large: the main amount at the top of the form.
-export default function MoneyInput({ symbol, value, onChangeText, placeholder = '0.00', large = false, ref, accessibilityLabel }: {
+// An amount with its currency symbol in front (or a suffix such as "%"), typed on the decimal keypad.
+// large: the main amount at the top of the form. allowNegative: the decimal keypad has no minus key,
+// so an amount that can go below zero (an overdrawn balance) uses the keyboard with punctuation.
+export default function MoneyInput({
+  symbol, suffix, value, onChangeText, placeholder = '0.00', large = false, allowNegative = false, ref, accessibilityLabel,
+}: {
   symbol: string;
+  suffix?: string;
+  allowNegative?: boolean;
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
@@ -18,7 +23,7 @@ export default function MoneyInput({ symbol, value, onChangeText, placeholder = 
   const size = large ? styles.large : styles.normal;
   return (
     <View style={styles.row}>
-      <Text style={[size, { color: t.muted }]}>{symbol}</Text>
+      {symbol ? <Text style={[size, { color: t.muted }]}>{symbol}</Text> : null}
       <TextInput
         ref={ref}
         value={value}
@@ -26,10 +31,11 @@ export default function MoneyInput({ symbol, value, onChangeText, placeholder = 
         onChangeText={(s) => onChangeText(s.replace(',', '.'))}
         placeholder={placeholder}
         placeholderTextColor={t.subtle}
-        keyboardType="decimal-pad"
+        keyboardType={allowNegative ? 'numbers-and-punctuation' : 'decimal-pad'}
         accessibilityLabel={accessibilityLabel}
         style={[size, styles.input, { color: t.ink }]}
       />
+      {suffix ? <Text style={[size, { color: t.subtle }]}>{suffix}</Text> : null}
     </View>
   );
 }

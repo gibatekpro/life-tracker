@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { getAccounts, getDebts, getExchangeRates } from '../../api';
 import type { Account, DebtWithProjection, ExchangeRate } from '@lifetracker/core';
 import { useData } from '../../data/useData';
-import { formatMoney, formatMonthYear } from '@lifetracker/core';
+import { creditUsage, foreignCurrencies, formatMoney, formatMonthYear, payDraft, payoffStat, typeLabel } from '@lifetracker/core';
 import { cn } from '../../lib/cn';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -12,7 +12,7 @@ import Modal from '../../components/ui/Modal';
 import { Alert, Badge, EmptyState, PageHeader, ProgressBar, Skeleton, Stat } from '../../components/ui/Bits';
 import { useQuickAdd } from '../transactions/quickAdd';
 import AccountForm from './AccountForm';
-import { payDraft, typeIcon, typeLabel } from './accountLabels';
+import { typeIcon } from './accountLabels';
 import { ApproxPounds, RateNote } from './Converted';
 
 function CurrentTile({ a, rates }: { a: Account; rates: ExchangeRate[] | undefined }) {
@@ -34,7 +34,8 @@ function CurrentTile({ a, rates }: { a: Account; rates: ExchangeRate[] | undefin
 
 function DebtTile({ item, rates, onPay }: { item: DebtWithProjection; rates: ExchangeRate[] | undefined; onPay: () => void }) {
   const { debt: d, projection: p } = item;
-  const used = d.creditLimit ? d.balance / d.creditLimit : null;
+  const credit = creditUsage(d);
+  const paidOff = payoffStat(p, d.currency);
   return (
     <div className="flex flex-col rounded-2xl border border-line bg-surface p-5 shadow-card">
       <div className="flex items-start justify-between gap-3">
@@ -52,12 +53,10 @@ function DebtTile({ item, rates, onPay }: { item: DebtWithProjection; rates: Exc
       <p className="text-2xl font-semibold tracking-tight text-negative tabular-nums">{formatMoney(d.balance, d.currency)}</p>
       <ApproxPounds amount={d.balance} currency={d.currency} rates={rates} />
 
-      {used !== null && (
+      {credit && (
         <div className="mt-3">
-          <ProgressBar label="Credit used" value={used} tone={used > 0.9 ? 'negative' : used > 0.75 ? 'warning' : 'accent'} />
-          <p className="mt-1.5 text-xs text-muted">
-            {formatMoney(d.availableCredit ?? 0, d.currency)} available of {formatMoney(d.creditLimit!, d.currency)}
-          </p>
+          <ProgressBar label="Credit used" value={credit.used} tone={credit.tone} />
+          <p className="mt-1.5 text-xs text-muted">{credit.note}</p>
         </div>
       )}
 
@@ -66,7 +65,7 @@ function DebtTile({ item, rates, onPay }: { item: DebtWithProjection; rates: Exc
         <div><dt className="text-xs text-muted">Paying</dt><dd className="tabular-nums">{formatMoney(d.monthlyPayment, d.currency)}</dd></div>
         <div>
           <dt className="text-xs text-muted">Paid off</dt>
-          <dd className={cn(!p.canBePaidOff && 'text-negative')}>{p.canBePaidOff ? formatMonthYear(p.payoffDate) : 'Never'}</dd>
+          <dd className={cn(!paidOff.clears && 'text-negative')}>{paidOff.value}</dd>
         </div>
       </dl>
       {!p.canBePaidOff && (
@@ -94,7 +93,7 @@ export default function AccountsPage() {
 
   const current = (accounts.data ?? []).filter((a) => a.type === 'Current');
   const o = debts.data;
-  const foreign = [...new Set((accounts.data ?? []).map((a) => a.currency).filter((c) => c !== 'GBP'))];
+  const foreign = foreignCurrencies(accounts.data ?? []);
 
   return (
     <>

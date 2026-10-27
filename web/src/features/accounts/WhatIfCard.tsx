@@ -3,7 +3,7 @@ import { getWhatIf } from '../../api';
 import type { Account } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useDebounce } from '../../hooks/useDebounce';
-import { currencySymbol, formatMoney, formatMonthYear } from '@lifetracker/core';
+import { currencySymbol, defaultWhatIfPayment, formatMoney, whatIfSummary } from '@lifetracker/core';
 import Card from '../../components/ui/Card';
 import { Field, MoneyInput } from '../../components/ui/Field';
 import { Skeleton } from '../../components/ui/Bits';
@@ -11,11 +11,11 @@ import { Skeleton } from '../../components/ui/Bits';
 // "What if I paid more on this one?" Try a monthly payment and see the payoff date and
 // interest change, compared with the payment I've planned.
 export default function WhatIfCard({ debt }: { debt: Account }) {
-  const [input, setInput] = useState(String(Math.round(debt.monthlyPayment * 1.5)));
+  const [input, setInput] = useState(String(defaultWhatIfPayment(debt)));
   const payment = useDebounce(Math.max(0, Number(input) || 0));
   const result = useData(`whatif-${debt.id}-${payment}`, () => getWhatIf(debt.id, payment));
-  const r = result.data;
   const c = debt.currency;
+  const r = result.data && whatIfSummary(result.data, payment, c);
 
   return (
     <Card title="What if I paid more?" description={`Currently paying ${formatMoney(debt.monthlyPayment, c)} a month.`}>
@@ -24,27 +24,23 @@ export default function WhatIfCard({ debt }: { debt: Account }) {
       </Field>
 
       <div className="mt-5">
-        {!r ? <Skeleton className="h-16" /> : !r.whatIf.canBePaidOff ? (
-          <p className="text-sm text-negative">At {formatMoney(payment, c)} a month the interest outpaces the payment, so it never clears.</p>
+        {!r ? <Skeleton className="h-16" /> : !r.clears ? (
+          <p className="text-sm text-negative">{r.message}</p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
               <p className="text-xs text-muted">Cleared</p>
-              <p className="text-lg font-semibold">{formatMonthYear(r.whatIf.payoffDate)}</p>
-              <p className="text-xs text-muted">{r.whatIf.months} months</p>
+              <p className="text-lg font-semibold">{r.cleared}</p>
+              <p className="text-xs text-muted">{r.months}</p>
             </div>
             <div>
               <p className="text-xs text-muted">Interest</p>
-              <p className="text-lg font-semibold tabular-nums">{formatMoney(r.whatIf.totalInterest, c)}</p>
+              <p className="text-lg font-semibold tabular-nums">{r.interest}</p>
             </div>
             <div>
               <p className="text-xs text-muted">Compared with now</p>
-              {r.current.canBePaidOff ? (
-                <p className={r.monthsSaved > 0 ? 'text-lg font-semibold text-positive' : 'text-lg font-semibold'}>
-                  {r.monthsSaved > 0 ? `${r.monthsSaved} months sooner` : r.monthsSaved < 0 ? `${-r.monthsSaved} months later` : 'Same time'}
-                </p>
-              ) : <p className="text-lg font-semibold text-positive">Clears it at all</p>}
-              {r.interestSaved > 0 && <p className="text-xs text-positive">{formatMoney(r.interestSaved, c)} less interest</p>}
+              <p className={r.better ? 'text-lg font-semibold text-positive' : 'text-lg font-semibold'}>{r.compared}</p>
+              {r.interestSaved && <p className="text-xs text-positive">{r.interestSaved}</p>}
             </div>
           </div>
         )}

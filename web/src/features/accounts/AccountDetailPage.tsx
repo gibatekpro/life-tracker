@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { deleteAccount, getAccount, getAccountPayments, getAccounts, getDebts, getExchangeRates, getTransactions } from '../../api';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
-import { formatDate, formatMoney, formatMonthYear } from '@lifetracker/core';
+import { creditUsage, formatDate, formatMoney, isDebt, payDraft, payoffStat, typeLabel } from '@lifetracker/core';
 import { cn } from '../../lib/cn';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -15,7 +15,7 @@ import { useQuickAdd } from '../transactions/quickAdd';
 import AccountForm from './AccountForm';
 import AliasesCard from './AliasesCard';
 import WhatIfCard from './WhatIfCard';
-import { isDebt, payDraft, typeIcon, typeLabel } from './accountLabels';
+import { typeIcon } from './accountLabels';
 import { ApproxPounds, RateNote } from './Converted';
 
 // One account in full: its balance, and for a card or loan the payoff picture, a what-if,
@@ -47,7 +47,8 @@ export default function AccountDetailPage() {
   const debt = isDebt(a);
   const projection = debts.data?.debts.find((d) => d.debt.id === id)?.projection;
   const mine = (transactions.data ?? []).filter((t) => t.accountId === id || t.toAccountId === id);
-  const used = a.creditLimit ? a.balance / a.creditLimit : null;
+  const credit = creditUsage(a);
+  const paidOff = projection && payoffStat(projection, a.currency);
 
   async function remove() {
     setDeleteError(null);
@@ -93,20 +94,18 @@ export default function AccountDetailPage() {
           {debt && <Stat label="APR" value={`${a.apr}%`} sub={a.apr === 0 ? 'Interest included in the total' : undefined} />}
           {debt && <Stat label="Monthly payment" value={formatMoney(a.monthlyPayment, a.currency)}
             sub={a.minimumPayment > 0 ? `Minimum ${formatMoney(a.minimumPayment, a.currency)}` : undefined} />}
-          {debt && projection && (
-            <Stat label="Paid off" value={projection.canBePaidOff ? formatMonthYear(projection.payoffDate) : 'Never'}
-              valueClassName={projection.canBePaidOff ? 'text-positive' : 'text-negative'}
-              sub={projection.canBePaidOff ? `${projection.months} months · ${formatMoney(projection.totalInterest, a.currency)} interest` : 'Payment is below the interest'} />
+          {debt && paidOff && (
+            <Stat label="Paid off" value={paidOff.value} valueClassName={paidOff.clears ? 'text-positive' : 'text-negative'} sub={paidOff.sub} />
           )}
         </div>
         {a.currency !== 'GBP' && <div className="mt-4"><RateNote currency={a.currency} rates={rates.data} /></div>}
-        {used !== null && (
+        {credit && (
           <div className="mt-6">
             <div className="mb-1.5 flex justify-between text-sm">
               <span className="text-muted">Credit used</span>
-              <span className="tabular-nums">{formatMoney(a.availableCredit ?? 0, a.currency)} available of {formatMoney(a.creditLimit!, a.currency)}</span>
+              <span className="tabular-nums">{credit.note}</span>
             </div>
-            <ProgressBar label="Credit used" value={used} tone={used > 0.9 ? 'negative' : used > 0.75 ? 'warning' : 'accent'} />
+            <ProgressBar label="Credit used" value={credit.used} tone={credit.tone} />
           </div>
         )}
       </Card>

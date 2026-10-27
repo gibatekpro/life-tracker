@@ -2,6 +2,7 @@ import {
   accountGroups, accountLabel, filterTransactions, formatDayHeading, formatMoney, groupByDay, inPeriod, parseYm, periodLabel,
   shiftMonth, toYm, transactionTotals, type TypeFilter,
 } from '@lifetracker/core';
+import { useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, RefreshControl, SectionList, StyleSheet, Text, View } from 'react-native';
 
@@ -38,7 +39,15 @@ export default function ActivityScreen() {
   const transactions = useData('transactions', getTransactions);
   const accounts = useData('accounts', getAccounts);
   const [search, setSearch] = useState('');
-  const [accountId, setAccountId] = useState<number | null>(null);
+  // "View all" on an account opens this tab filtered to it (the web's ?account=). When the param
+  // changes, the filter follows it, adjusted during render rather than in an effect.
+  const { account: accountParam } = useLocalSearchParams<{ account?: string }>();
+  const [accountId, setAccountId] = useState<number | null>(accountParam ? Number(accountParam) : null);
+  const [seenParam, setSeenParam] = useState(accountParam);
+  if (accountParam !== seenParam) {
+    setSeenParam(accountParam);
+    if (accountParam) setAccountId(Number(accountParam));
+  }
   const [type, setType] = useState<TypeFilter>('All');
 
   // The month I'm in now (it may still be last month's, if payday hasn't come yet).
