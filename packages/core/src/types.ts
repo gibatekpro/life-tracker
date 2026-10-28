@@ -293,10 +293,12 @@ export interface Insight {
   inputTokens: number;
   outputTokens: number;
   promptSent: string;
+  question: string | null; // what I asked with it (long numbers masked)
   result: {
     summary: string;
     wasteItems: WasteItem[];
     savingTips: SavingTip[];
     debtAdvice: string;
+    answer: string | null; // the reply to the question
   };
 }

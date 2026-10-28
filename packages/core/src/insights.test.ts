@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  generateLabel, generatingNote, insightFooter, insightsForMonth, isKeyNotConfigured, savingsNote, shownInsight,
+  generateLabel, generatingNote, hasQuestion, insightFooter, insightsForMonth, isKeyNotConfigured, questionCounter, savingsNote,
+  shortQuestion, shownInsight,
 } from './insights';
 import type { Insight } from './types';
 
 const insight = (i: Partial<Insight> & Pick<Insight, 'id'>): Insight => ({
   year: 2026, month: 10, periodStart: '2026-09-28', createdAt: '2026-10-27T17:40:00Z', model: 'gpt-5.4-mini',
-  inputTokens: 1834, outputTokens: 612, promptSent: '…',
-  result: { summary: '', wasteItems: [], savingTips: [], debtAdvice: '' }, ...i,
+  inputTokens: 1834, outputTokens: 612, promptSent: '…', question: null,
+  result: { summary: '', wasteItems: [], savingTips: [], debtAdvice: '', answer: null }, ...i,
 });
 
 describe('insights', () => {
@@ -31,9 +32,24 @@ describe('insights', () => {
     expect(generatingNote(undefined, undefined)).toBe('Asking OpenAI about this month. This can take up to a minute.');
   });
 
+  it('never offers "Regenerate" with a question, and mentions it while waiting', () => {
+    expect(generateLabel(false, true, true)).toBe('Generate');
+    expect(generatingNote(2026, 10, true)).toBe('Asking OpenAI about October 2026 and your question. This can take up to a minute.');
+  });
+
+  it('counts and shortens questions', () => {
+    expect(questionCounter('Can I?')).toBe('6/500');
+    expect(hasQuestion('   ')).toBe(false);
+    expect(hasQuestion(' Can I? ')).toBe(true);
+    expect(shortQuestion('Can I afford a £50 train ticket this month?')).toBe('Can I afford a £50 train ticket this month?');
+    expect(shortQuestion('Can I afford a £50 train ticket this month, and should I pay the Aqua card first?', 40))
+      .toBe('Can I afford a £50 train ticket this…');
+    expect(shortQuestion('  Two\n lines  ')).toBe('Two lines');
+  });
+
   it('adds up the saving tips', () => {
     const tips = [{ tip: 'a', estimatedMonthlySaving: 12.5 }, { tip: 'b', estimatedMonthlySaving: 30 }];
-    expect(savingsNote(insight({ id: 1, result: { summary: '', wasteItems: [], savingTips: tips, debtAdvice: '' } })))
+    expect(savingsNote(insight({ id: 1, result: { summary: '', wasteItems: [], savingTips: tips, debtAdvice: '', answer: null } })))
       .toBe('Up to about £42.50 a month, if you did them all.');
     expect(savingsNote(insight({ id: 1 }))).toBeNull();
   });

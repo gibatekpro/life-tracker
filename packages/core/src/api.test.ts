@@ -58,6 +58,21 @@ describe('createApi', () => {
     await expect(createApi({ baseUrl: '/api' }).getSettings()).rejects.toThrow('Network request failed');
   });
 
+  it('sends a question with an insight, trimmed, and none when blank', async () => {
+    const bodies: unknown[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (_: string, init: RequestInit) => {
+      bodies.push(JSON.parse(init.body as string));
+      return new Response('{}', { status: 201, headers: { 'Content-Type': 'application/json' } });
+    }));
+    const api = createApi({ baseUrl: '' });
+    await api.generateInsight(2026, 10, false, '  Can I afford it?  ');
+    await api.generateInsight(2026, 10, true, '   ');
+    expect(bodies).toEqual([
+      { year: 2026, month: 10, regenerate: false, question: 'Can I afford it?' },
+      { year: 2026, month: 10, regenerate: true },
+    ]);
+  });
+
   it('gives up after timeoutMs, but waits slowTimeoutMs for an insight', async () => {
     vi.useFakeTimers();
     const aborted: string[] = [];

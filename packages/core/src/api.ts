@@ -115,10 +115,11 @@ export function createApi({ baseUrl, getHeaders, timeoutMs, slowTimeoutMs = time
       request<{ copied: number }>('POST', '/budgets/month/copy-previous', { year, month }),
 
     // Insights: the API asks OpenAI (the apps never do). Generating returns the month's existing
-    // insight unless regenerate is set; with no key configured the API answers 503.
+    // insight unless regenerate is set or there's a question (always answered afresh; over 500
+    // characters is a 400); with no key configured the API answers 503.
     getInsights: () => request<Insight[]>('GET', '/insights'),
-    generateInsight: (year: number, month: number, regenerate = false) =>
-      request<Insight>('POST', '/insights', { year, month, regenerate }, { slow: true }),
+    generateInsight: (year: number, month: number, regenerate = false, question?: string) =>
+      request<Insight>('POST', '/insights', { year, month, regenerate, question: question?.trim() || undefined }, { slow: true }),
     deleteInsight: (id: number) => request<void>('DELETE', `/insights/${id}`),
 
     // Debts (read-only views over card and loan accounts)

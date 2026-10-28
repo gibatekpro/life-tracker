@@ -13,11 +13,29 @@ export const insightsForMonth = (insights: Insight[], year: number, month: numbe
 // The one picked from the list, if it's this month's; otherwise the month's newest (the list is newest first).
 export const shownInsight = (forMonth: Insight[], selectedId: number | null) => forMonth.find((i) => i.id === selectedId) ?? forMonth[0];
 
-export const generateLabel = (generating: boolean, hasInsight: boolean) =>
-  generating ? 'Generating…' : hasInsight ? 'Regenerate' : 'Generate';
+// With a question it's always a new insight, so never "Regenerate".
+export const generateLabel = (generating: boolean, hasInsight: boolean, hasQuestion = false) =>
+  generating ? 'Generating…' : hasInsight && !hasQuestion ? 'Regenerate' : 'Generate';
 
-export const generatingNote = (year: number | undefined, month: number | undefined) =>
-  `Asking OpenAI about ${year && month ? monthName(year, month) : 'this month'}. This can take up to a minute.`;
+export const generatingNote = (year: number | undefined, month: number | undefined, hasQuestion = false) =>
+  `Asking OpenAI about ${year && month ? monthName(year, month) : 'this month'}${hasQuestion ? ' and your question' : ''}. This can take up to a minute.`;
+
+// The optional question box above Generate.
+export const maxQuestionLength = 500;
+export const questionLabel = 'Ask a question (optional)';
+export const questionPlaceholder = 'e.g. Can I afford a £50 train ticket this month?';
+export const questionNote = "Sent to OpenAI with your budget summary. Don't include card numbers or passwords.";
+export const questionCounter = (question: string) => `${question.length}/${maxQuestionLength}`;
+export const hasQuestion = (question: string) => question.trim() !== '';
+
+// A question in the list of past insights: its start, cut at a word.
+export function shortQuestion(question: string, max = 60) {
+  const q = question.trim().replace(/\s+/g, ' ');
+  if (q.length <= max) return q;
+  const cut = q.slice(0, max);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > max / 2 ? cut.slice(0, space) : cut).replace(/[\s.,;:!?]+$/, '')}…`;
+}
 
 // "Up to about £45.00 a month, if you did them all." (null with no tips).
 export function savingsNote(insight: Insight) {
