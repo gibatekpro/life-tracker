@@ -17,7 +17,7 @@ public class InsightResponseValidatorTests
     [Fact]
     public void AGoodAnswer_IsAccepted_AndAmountsRounded()
     {
-        var (result, error) = InsightResponseValidator.Validate(Good);
+        var (result, error, _) = InsightResponseValidator.Validate(Good);
 
         Assert.Null(error);
         Assert.Equal("You spent most on food.", result!.Summary);
@@ -53,16 +53,98 @@ public class InsightResponseValidatorTests
         var tips = string.Join(",", Enumerable.Range(1, 15).Select(i => $$"""{ "tip": "Tip {{i}}", "estimatedMonthlySaving": {{i}} }"""));
         var json = $$"""{ "summary": "{{new string('a', 3000)}}", "wasteItems": [], "savingTips": [{{tips}}], "debtAdvice": "a" }""";
 
-        var (result, _) = InsightResponseValidator.Validate(json);
+        var (result, _, _) = InsightResponseValidator.Validate(json);
 
         Assert.Equal(InsightResponseValidator.MaxItems, result!.SavingTips.Count);
         Assert.True(result.Summary.Length <= InsightResponseValidator.MaxText + 1);
     }
 
+    // Advice the prompt rules out is dropped, and only the rule is reported
+
+    private static readonly HashSet<string> Essentials = InsightResponseValidator.EssentialLines(
+    [
+        new("Housing", 530m, 530m, [new("Rent", 530m, 530m, [], IsEssential: true)], IsEssential: true),
+        new("Transport", 48m, 0m, [new("Bus", 48m, 0m, [], IsEssential: true)], IsEssential: true),
+        new("Entertainment", 30m, 0m, [new("Cinema", 15m, 0m, [])]),
+    ]);
+
+    private static string Answer(string waste, string tips) =>
+        $$"""{ "summary": "a", "wasteItems": [{{waste}}], "savingTips": [{{tips}}], "debtAdvice": "a" }""";
+
+    // Today's case: day 1, rent paid, the bus not used yet, and the model suggests keeping transport at £0.
+    [Theory]
+    [InlineData("Transport")]
+    [InlineData("transport")]
+    [InlineData("Transport › Bus")]
+    [InlineData("Bus")]
+    public void ASavingThatCutsAnEssentialLine_IsDropped(string line)
+    {
+        var json = Answer("", $$"""
+            { "tip": "Keep transport at £0 this month.", "estimatedMonthlySaving": 48, "line": "{{line}}" },
+            { "tip": "Skip one cinema trip.", "estimatedMonthlySaving": 15, "line": "Cinema" }
+            """);
+
+        var (result, error, dropped) = InsightResponseValidator.Validate(json, Essentials);
+
+        Assert.Null(error);
+        var tip = Assert.Single(result!.SavingTips);
+        Assert.Equal(("Skip one cinema trip.", "Cinema"), (tip.Tip, tip.Line));
+        Assert.Equal([InsightResponseValidator.CutsEssentialLine], dropped);
+        Assert.DoesNotContain(dropped, d => d.Contains("transport", StringComparison.OrdinalIgnoreCase));   // the rule, not the content
+    }
+
+    [Fact]
+    public void ASavingOnNoLine_OrAFlexibleOne_IsKept()
+    {
+        var json = Answer("", """
+            { "tip": "Switch to a cheaper SIM.", "estimatedMonthlySaving": 6, "line": "" },
+            { "tip": "Pause the cinema.", "estimatedMonthlySaving": 15, "line": "Entertainment › Cinema" }
+            """);
+
+        var (result, _, dropped) = InsightResponseValidator.Validate(json, Essentials);
+
+        Assert.Equal(2, result!.SavingTips.Count);
+        Assert.Null(result.SavingTips[0].Line);
+        Assert.Empty(dropped);
+    }
+
+    // A £1.80 vending purchase isn't "waste".
+    [Fact]
+    public void AnythingUnderFivePoundsAMonth_IsDropped()
+    {
+        var json = Answer(
+            """{ "name": "Vending machine", "monthlyAmount": 1.80, "reason": "A snack." }, { "name": "Takeaways", "monthlyAmount": 45, "reason": "Often." }""",
+            """{ "tip": "Bring a snack.", "estimatedMonthlySaving": 4.99, "line": "" }""");
+
+        var (result, error, dropped) = InsightResponseValidator.Validate(json, Essentials);
+
+        Assert.Null(error);
+        Assert.Equal("Takeaways", Assert.Single(result!.WasteItems).Name);
+        Assert.Empty(result.SavingTips);
+        Assert.Equal([InsightResponseValidator.UnderMinimum, InsightResponseValidator.UnderMinimum], dropped);
+    }
+
+    [Fact]
+    public void EmptyLists_AreAGoodAnswer()
+    {
+        var (result, error, dropped) = InsightResponseValidator.Validate(Answer("", ""), Essentials);
+
+        Assert.Null(error);
+        Assert.Empty(result!.WasteItems);
+        Assert.Empty(result.SavingTips);
+        Assert.Empty(dropped);
+    }
+
+    [Fact]
+    public void EssentialLines_IncludeInheritedOnes_ButNotFlexible()
+    {
+        Assert.Equal(["housing", "rent", "transport", "bus"], Essentials);
+    }
+
     [Fact]
     public void ValidatedResult_SurvivesStorage()
     {
-        var (result, _) = InsightResponseValidator.Validate(Good);
+        var (result, _, _) = InsightResponseValidator.Validate(Good);
 
         var back = InsightResponseValidator.Deserialize(InsightResponseValidator.Serialize(result!));
 
@@ -78,5 +160,8 @@ public class InsightResponseValidatorTests
 
         Assert.Equal(["summary", "wasteItems", "savingTips", "debtAdvice"], required);
         Assert.False(schema.RootElement.GetProperty("additionalProperties").GetBoolean());
+
+        var tip = schema.RootElement.GetProperty("properties").GetProperty("savingTips").GetProperty("items");
+        Assert.Equal(["tip", "estimatedMonthlySaving", "line"], tip.GetProperty("required").EnumerateArray().Select(e => e.GetString()));
     }
 }

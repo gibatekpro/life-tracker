@@ -29,7 +29,8 @@ public class InsightService(
         if (!options.Value.IsConfigured)
             return new InsightOutcome(null, false, InsightProblem.NotConfigured, "OpenAI key not configured");
 
-        var (periodStart, prompt) = await SummariseAsync(year, month);
+        var (periodStart, input) = await SummariseAsync(year, month);
+        var prompt = InsightPromptBuilder.Build(input);
 
         InsightModelReply reply;
         try
@@ -48,12 +49,15 @@ public class InsightService(
             return new InsightOutcome(null, false, problem, e.Message);
         }
 
-        var (result, error) = InsightResponseValidator.Validate(reply.Json);
+        var (result, error, dropped) = InsightResponseValidator.Validate(reply.Json, InsightResponseValidator.EssentialLines(input.BudgetLines));
         if (result is null)
         {
             logger.LogWarning("Insight for {Year}-{Month:00} discarded: {Reason}", year, month, error);
             return new InsightOutcome(null, false, InsightProblem.Invalid, $"OpenAI's answer couldn't be used: {error} Try again.");
         }
+        // Only the rule and how often it was hit: never what the item said.
+        foreach (var rule in dropped.GroupBy(r => r))
+            logger.LogWarning("Insight for {Year}-{Month:00}: dropped {Count} item(s), {Rule}", year, month, rule.Count(), rule.Key);
 
         var insight = new Insight
         {
@@ -83,8 +87,8 @@ public class InsightService(
             .FirstOrDefaultAsync();
     }
 
-    // The month as the summary sent to OpenAI: names and amounts only, no IDs or aliases.
-    private async Task<(DateOnly PeriodStart, string Prompt)> SummariseAsync(int year, int month)
+    // The month as InsightPromptBuilder takes it: names and amounts only, no IDs or aliases.
+    private async Task<(DateOnly PeriodStart, InsightInput Input)> SummariseAsync(int year, int month)
     {
         var view = await budgets.GetMonthAsync(year, month);
         var b = view.Budget;
@@ -150,6 +154,6 @@ public class InsightService(
             interestAndFees,
             historySince);
 
-        return (b.PeriodStart, InsightPromptBuilder.Build(input));
+        return (b.PeriodStart, input);
     }
 }

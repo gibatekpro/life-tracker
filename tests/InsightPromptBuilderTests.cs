@@ -72,6 +72,7 @@ public class InsightPromptBuilderTests
     {
         Assert.Contains("Budget lines are plans the user has chosen, not savings", InsightPromptBuilder.SystemPrompt);
         Assert.Contains("Never suggest spending less than planned on an [essential] line", InsightPromptBuilder.SystemPrompt);
+        Assert.Contains("""set "line" to the budget line it would reduce""", InsightPromptBuilder.SystemPrompt);   // so the validator can check it
         Assert.Contains("never suggest cutting any\nbudgeted line to 0 unless its earlier spending shows it is unused",
             InsightPromptBuilder.SystemPrompt.ReplaceLineEndings("\n"));
     }

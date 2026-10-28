@@ -175,6 +175,29 @@ public class InsightEndpointTests(PostgresFixture pg) : IClassFixture<PostgresFi
     }
 
     [Fact]
+    public async Task ASavingThatCutsAnEssentialLine_IsDropped_TheRestIsSaved()
+    {
+        using var s = await SetupAsync();
+        s.Model.Answer = """
+            {
+              "summary": "a",
+              "wasteItems": [],
+              "savingTips": [
+                { "tip": "Spend nothing on groceries this month.", "estimatedMonthlySaving": 150, "line": "Groceries" },
+                { "tip": "Cancel an unused subscription.", "estimatedMonthlySaving": 10, "line": "" }
+              ],
+              "debtAdvice": "a"
+            }
+            """;
+
+        var response = await Generate(s.Client);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var tips = (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("result").GetProperty("savingTips");
+        Assert.Equal("Cancel an unused subscription.", Assert.Single(tips.EnumerateArray()).GetProperty("tip").GetString());
+    }
+
+    [Fact]
     public async Task AnUnusableAnswer_IsA502_AndNothingIsSaved()
     {
         using var s = await SetupAsync();

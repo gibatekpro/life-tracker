@@ -98,6 +98,8 @@ public static class InsightPromptBuilder
         Prioritise paying down high-interest debt: say how savings could speed up the avalanche plan
         (highest APR first) and reduce the interest they pay.
         Estimated savings must be realistic monthly amounts in GBP, based on the figures given.
+        For each saving tip, set "line" to the budget line it would reduce, exactly as named in the data,
+        or "" if it reduces none.
         Only use the data provided; if something isn't clear from it, say so rather than guess.
         This is general information, not financial advice; say so briefly in the debt advice.
         """;

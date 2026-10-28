@@ -280,6 +280,7 @@ export interface WasteItem {
 export interface SavingTip {
   tip: string;
   estimatedMonthlySaving: number;
+  line?: string | null; // the budget line it would reduce (insights saved before it was asked for have none)
 }
 
 export interface Insight {
