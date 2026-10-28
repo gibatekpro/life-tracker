@@ -212,6 +212,22 @@ public class InsightPromptBuilderTests
     }
 
     [Fact]
+    public void FixedTotalLoans_AreNeverToBeMissed_NotInterestFree()
+    {
+        var text = InsightPromptBuilder.Build(Input(debts:
+        [
+            new InsightDebt("Aqua", "credit card", 1433.47m, 29.65m, 278.30m, 0m, 278.30m),
+            new InsightDebt("Carbon", "loan", 120m, 0m, 40m, 0m, null, FixedTotal: true),
+        ]));
+
+        Assert.Contains("- Carbon (loan): balance 120.00, APR 0%, planned 40.00 this month, paid 0.00. " +
+                        "Fixed total repayable (interest and fees included, not interest-free): never miss an instalment", text);
+        Assert.DoesNotContain("Aqua (credit card): balance 1433.47, APR 29.65%, planned 278.30 this month, paid 0.00, avalanche plan suggests 278.30 this month.", text);
+        Assert.Contains("they are not interest-free", InsightPromptBuilder.SystemPrompt);
+        Assert.Contains("never\ntreat them as 0% balances that can wait", InsightPromptBuilder.SystemPrompt.ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
     public void AmountsAreRoundedToTwoPlaces()
     {
         var text = InsightPromptBuilder.Build(Input(month: [E(1, "Cafe", "Food", 2.345m), E(2, "Cafe", "Food", 1.0049m)]));

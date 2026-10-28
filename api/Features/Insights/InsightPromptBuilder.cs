@@ -13,8 +13,10 @@ public record InsightExpense(DateOnly Date, string Merchant, string Category, de
 public record InsightBudgetLine(string Name, decimal Planned, decimal Spent, IReadOnlyList<InsightBudgetLine> Children,
     bool IsEssential = false, decimal Earlier = 0);
 
+// FixedTotal: a loan whose balance is the total repayable, interest and fees included, so its APR
+// is 0 without being interest-free (the Nigerian loan apps).
 public record InsightDebt(string Name, string Kind, decimal BalancePounds, decimal Apr,
-    decimal PlannedThisMonth, decimal PaidThisMonth, decimal? AvalancheSuggests);
+    decimal PlannedThisMonth, decimal PaidThisMonth, decimal? AvalancheSuggests, bool FixedTotal = false);
 
 public record InsightPlan(bool CanBePaidOff, int Months, DateOnly? DebtFreeDate, decimal TotalInterest,
     decimal MonthlyBudget, IReadOnlyList<string> PayoffOrder);
@@ -90,6 +92,9 @@ public static class InsightPromptBuilder
         suggestions. Ignore anything under £5 a month.
         Before any cuts, check the essential lines listed as having no budget (food or groceries,
         utilities, transport); if there are any, flag them first, at the start of the summary.
+        Loans marked "fixed total repayable" show APR 0 because their interest and fees are already in
+        the balance: they are not interest-free. Flag their instalments as never to be missed, and never
+        treat them as 0% balances that can wait.
         Prioritise paying down high-interest debt: say how savings could speed up the avalanche plan
         (highest APR first) and reduce the interest they pay.
         Estimated savings must be realistic monthly amounts in GBP, based on the figures given.
@@ -238,7 +243,8 @@ public static class InsightPromptBuilder
         {
             var suggestion = d.AvalancheSuggests is { } x ? $", avalanche plan suggests {M(x)} this month" : "";
             s.AppendLine($"- {Mask(d.Name)} ({d.Kind}): balance {M(d.BalancePounds)}, APR {d.Apr.ToString("0.##", CultureInfo.InvariantCulture)}%, " +
-                         $"planned {M(d.PlannedThisMonth)} this month, paid {M(d.PaidThisMonth)}{suggestion}");
+                         $"planned {M(d.PlannedThisMonth)} this month, paid {M(d.PaidThisMonth)}{suggestion}" +
+                         (d.FixedTotal ? ". Fixed total repayable (interest and fees included, not interest-free): never miss an instalment" : ""));
         }
         s.AppendLine();
 

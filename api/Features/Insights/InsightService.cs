@@ -133,7 +133,8 @@ public class InsightService(
             var pounds = await rates.ToPoundsAsync(a.Balance, a.Currency);
             var kind = (a.Type == AccountType.CreditCard ? "credit card" : "loan") + (pounds is null ? ", no £ rate yet" : "");
             var line = lines.GetValueOrDefault(a.Id);
-            debts.Add(new InsightDebt(a.Name, kind, pounds ?? 0, a.Apr, line?.Planned ?? 0, line?.Paid ?? 0, line?.Suggested));
+            debts.Add(new InsightDebt(a.Name, kind, pounds ?? 0, a.Apr, line?.Planned ?? 0, line?.Paid ?? 0, line?.Suggested,
+                FixedTotal: a.Type == AccountType.Loan && a.Apr == 0));
         }
 
         var plan = await budgets.AvalancheAsync(0);
