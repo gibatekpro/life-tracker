@@ -137,15 +137,17 @@ public class InsightService(
         }
 
         var plan = await budgets.AvalancheAsync(0);
+        var historySince = await db.Transactions.MinAsync(t => (DateOnly?)t.Date);
         var input = new InsightInput(
-            b.PeriodStart, b.PeriodEnd, b.DaysElapsed, b.DaysInPeriod,
+            b.PeriodStart, b.PeriodEnd, b.DaysElapsed, b.DaysInPeriod, b.DaysLeft,
             b.Income, view.IncomeMode == IncomeMode.Recorded,
             thisMonth, recent, b.Lines.Select(ToLine).ToList(),
             b.PlannedSpending, b.PlannedDebts, b.Unallocated, b.SafeToSpendPerDay,
             debts,
             new InsightPlan(plan.CanBePaidOff, plan.Months, plan.DebtFreeDate, plan.TotalInterest, plan.MonthlyBudget,
                 plan.Payoffs.Select(p => p.Name).ToList()),
-            interestAndFees);
+            interestAndFees,
+            historySince);
 
         return (b.PeriodStart, InsightPromptBuilder.Build(input));
     }

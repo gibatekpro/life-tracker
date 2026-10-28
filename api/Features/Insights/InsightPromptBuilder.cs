@@ -19,8 +19,10 @@ public record InsightDebt(string Name, string Kind, decimal BalancePounds, decim
 public record InsightPlan(bool CanBePaidOff, int Months, DateOnly? DebtFreeDate, decimal TotalInterest,
     decimal MonthlyBudget, IReadOnlyList<string> PayoffOrder);
 
+// DaysElapsed and DaysLeft both count today. HistorySince: the first transaction ever recorded
+// (null for none), since a short history makes "no spending" mean "no data".
 public record InsightInput(
-    DateOnly PeriodStart, DateOnly PeriodEnd, int DaysElapsed, int DaysInPeriod,
+    DateOnly PeriodStart, DateOnly PeriodEnd, int DaysElapsed, int DaysInPeriod, int DaysLeft,
     decimal Income, bool IncomeIsRecorded,
     IReadOnlyList<InsightExpense> MonthExpenses,
     IReadOnlyList<InsightExpense> RecentExpenses,      // the last 3 months, for spotting recurring payments
@@ -28,7 +30,8 @@ public record InsightInput(
     decimal PlannedSpending, decimal PlannedDebts, decimal Unallocated, decimal SafeToSpendPerDay,
     IReadOnlyList<InsightDebt> Debts,
     InsightPlan? Plan,
-    decimal InterestAndFees);
+    decimal InterestAndFees,
+    DateOnly? HistorySince);
 
 public record RecurringPayment(string Merchant, decimal TypicalAmount, int Count, DateOnly LastDate);
 
@@ -79,6 +82,12 @@ public static class InsightPromptBuilder
         Budget lines are plans the user has chosen, not savings or targets to beat.
         Never suggest spending less than planned on an [essential] line, and never suggest cutting any
         budgeted line to 0 unless its earlier spending shows it is unused.
+        Judge each line against how far through the month it is: unspent budget early in the month is
+        expected (bills and essentials may not have gone out yet), not an underspend or a saving.
+        Missing transactions mean missing data, not lack of use: the history may be short, so never
+        conclude that something is unused from days with no transactions.
+        Possible waste and ways to save may be empty lists: an empty list is better than weak
+        suggestions. Ignore anything under £5 a month.
         Before any cuts, check the essential lines listed as having no budget (food or groceries,
         utilities, transport); if there are any, flag them first, at the start of the summary.
         Prioritise paying down high-interest debt: say how savings could speed up the avalanche plan
@@ -143,10 +152,32 @@ public static class InsightPromptBuilder
         return Essentials.Where(e => !words.Any(w => e.Words.Any(k => Matches(w, k)))).Select(e => e.Name).ToList();
     }
 
+    // How much history there is up to the month's last day so far, and what that means for "earlier".
+    private static string History(InsightInput input)
+    {
+        if (input.HistorySince is not { } since)
+            return "History: no transactions recorded yet, so no spending anywhere means missing data.";
+
+        var asOf = input.PeriodStart.AddDays(input.DaysElapsed - 1);
+        var days = Math.Max(0, asOf.DayNumber - since.DayNumber + 1);
+        var text = $"History: transactions recorded since {D(since)} ({days} day{(days == 1 ? "" : "s")}). " +
+                   "Before that there is no data, so no spending on a line may only mean it wasn't recorded.";
+        if (since > input.PeriodStart.AddMonths(-2))
+        {
+            var before = Math.Max(0, input.PeriodStart.DayNumber - since.DayNumber);
+            text += $" Earlier figures cover only {before} day{(before == 1 ? "" : "s")} before this month.";
+        }
+        return text;
+    }
+
     public static string Build(InsightInput input)
     {
         var s = new StringBuilder();
-        s.AppendLine($"Budget month: {D(input.PeriodStart)} to {D(input.PeriodEnd)} (day {input.DaysElapsed} of {input.DaysInPeriod}).");
+        s.AppendLine($"Budget month: {D(input.PeriodStart)} to {D(input.PeriodEnd)} " +
+                     $"(day {input.DaysElapsed} of {input.DaysInPeriod}, {input.DaysLeft} day{(input.DaysLeft == 1 ? "" : "s")} left including today).");
+        var share = input.DaysInPeriod > 0 ? (int)Math.Round(100m * input.DaysElapsed / input.DaysInPeriod) : 0;
+        s.AppendLine($"{share}% of the month has gone: judge each line against that, not against its whole budget.");
+        s.AppendLine(History(input));
         s.AppendLine("All amounts are in GBP.");
         s.AppendLine();
 

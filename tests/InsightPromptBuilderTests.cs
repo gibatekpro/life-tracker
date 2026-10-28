@@ -9,20 +9,23 @@ public class InsightPromptBuilderTests
     private static InsightExpense E(int day, string merchant, string category, decimal pounds) =>
         new(Start.AddDays(day), merchant, category, pounds);
 
+    // Day 10 of 31 by default, with a year of history.
     private static InsightInput Input(
         IReadOnlyList<InsightExpense>? month = null, IReadOnlyList<InsightExpense>? recent = null,
-        IReadOnlyList<InsightBudgetLine>? lines = null, IReadOnlyList<InsightDebt>? debts = null, InsightPlan? plan = null) =>
-        new(Start, Start.AddDays(30), 10, 31, 2586m, false,
+        IReadOnlyList<InsightBudgetLine>? lines = null, IReadOnlyList<InsightDebt>? debts = null, InsightPlan? plan = null,
+        int day = 10, DateOnly? since = null, bool noHistory = false) =>
+        new(Start, Start.AddDays(30), day, 31, 31 - day + 1, 2586m, false,
             month ?? [], recent ?? month ?? [], lines ?? [],
             871m, 999.13m, 715.87m, 23.5m,
-            debts ?? [], plan, 12.40m);
+            debts ?? [], plan, 12.40m,
+            noHistory ? null : since ?? Start.AddYears(-1));
 
     [Fact]
     public void Summary_HasIncomeBudgetAndInterest()
     {
         var text = InsightPromptBuilder.Build(Input());
 
-        Assert.Contains("Budget month: 28 Oct 2026 to 27 Nov 2026 (day 10 of 31).", text);
+        Assert.Contains("Budget month: 28 Oct 2026 to 27 Nov 2026 (day 10 of 31, 22 days left including today).", text);
         Assert.Contains("Income: 2586.00 (monthly take-home pay).", text);
         Assert.Contains("unallocated income 715.87", text);
         Assert.Contains("Interest and fees paid this month: 12.40.", text);
@@ -71,6 +74,81 @@ public class InsightPromptBuilderTests
         Assert.Contains("Never suggest spending less than planned on an [essential] line", InsightPromptBuilder.SystemPrompt);
         Assert.Contains("never suggest cutting any\nbudgeted line to 0 unless its earlier spending shows it is unused",
             InsightPromptBuilder.SystemPrompt.ReplaceLineEndings("\n"));
+    }
+
+    // Early in the month, unspent is expected; a short history is missing data
+
+    [Fact]
+    public void DayOfTheMonth_AndHowMuchHasGone_AreSent()
+    {
+        var text = InsightPromptBuilder.Build(Input(day: 1));
+
+        Assert.Contains("(day 1 of 31, 31 days left including today).", text);
+        Assert.Contains("3% of the month has gone: judge each line against that, not against its whole budget.", text);
+        Assert.Contains("unspent budget early in the month is\nexpected", InsightPromptBuilder.SystemPrompt.ReplaceLineEndings("\n"));
+        Assert.Contains("not an underspend or a saving", InsightPromptBuilder.SystemPrompt);
+    }
+
+    [Fact]
+    public void AShortHistory_IsSentAsDaysOfData()
+    {
+        var text = InsightPromptBuilder.Build(Input(day: 10, since: Start.AddDays(-12)));   // 16 Oct
+
+        Assert.Contains("History: transactions recorded since 16 Oct 2026 (22 days).", text);   // 16 Oct to 6 Nov
+        Assert.Contains("no spending on a line may only mean it wasn't recorded", text);
+        Assert.Contains("Earlier figures cover only 12 days before this month.", text);
+        Assert.Contains("Missing transactions mean missing data, not lack of use", InsightPromptBuilder.SystemPrompt);
+    }
+
+    [Fact]
+    public void ALongHistory_HasNoCaveatOnEarlierFigures()
+    {
+        var text = InsightPromptBuilder.Build(Input(since: Start.AddMonths(-5)));
+
+        Assert.Contains("History: transactions recorded since 28 May 2026", text);
+        Assert.DoesNotContain("Earlier figures cover only", text);
+    }
+
+    [Fact]
+    public void NoTransactionsAtAll_IsMissingData()
+    {
+        Assert.Contains("History: no transactions recorded yet, so no spending anywhere means missing data.",
+            InsightPromptBuilder.Build(Input(noHistory: true)));
+    }
+
+    [Fact]
+    public void EmptyListsAreFine_AndSmallAmountsAreIgnored()
+    {
+        Assert.Contains("Possible waste and ways to save may be empty lists: an empty list is better than weak\nsuggestions.",
+            InsightPromptBuilder.SystemPrompt.ReplaceLineEndings("\n"));
+        Assert.Contains("Ignore anything under £5 a month.", InsightPromptBuilder.SystemPrompt);
+    }
+
+    // The day-1 case that gave bad advice: rent paid, transport unspent, a short history. The prompt
+    // has to make clear that's on plan, essential, and not evidence the bus isn't used.
+    [Fact]
+    public void Day1_RentPaid_TransportUnspent_ReadsAsOnPlan()
+    {
+        var lines = new List<InsightBudgetLine>
+        {
+            new("Housing", 530m, 530m, [new("Rent", 530m, 530m, [], IsEssential: true)], IsEssential: true),
+            new("Transport", 48m, 0m, [new("Bus", 48m, 0m, [], IsEssential: true)], IsEssential: true),
+            new("Health", 53m, 0m, [], IsEssential: true),
+            new("Mobile", 14m, 0m, [], IsEssential: true),
+            new("Electricity", 75m, 0m, [], IsEssential: true),
+            new("Food", 200m, 1.80m, [], IsEssential: true),
+        };
+
+        var text = InsightPromptBuilder.Build(Input(lines: lines, day: 1, since: Start.AddDays(-12),
+            month: [E(0, "Vending machine", "Food", 1.80m)]));
+
+        Assert.Contains("(day 1 of 31, 31 days left including today).", text);
+        Assert.Contains("3% of the month has gone", text);
+        Assert.Contains("- Housing [essential]: 530.00 (budget 530.00, 0.00 left), earlier 0.00", text);
+        Assert.Contains("- Transport [essential]: 0.00 (budget 48.00, 48.00 left), earlier 0.00", text);
+        Assert.Contains("  - Bus [essential]: 0.00 (budget 48.00, 48.00 left)", text);
+        Assert.Contains("Earlier figures cover only 12 days before this month.", text);
+        Assert.Contains("Essential lines with no budget: none", text);
     }
 
     // Missing essential lines are flagged before any cuts
