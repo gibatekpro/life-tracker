@@ -80,8 +80,8 @@ public class InsightEndpointTests(PostgresFixture pg) : IClassFixture<PostgresFi
         {
             await db.Database.MigrateAsync();
             await db.Database.ExecuteSqlRawAsync($"""
-                INSERT INTO "Categories" ("Id", "Name", "Kind", "SortOrder", "IsArchived", "CreatedAt", "DefaultMonthlyAmount")
-                VALUES ({FoodId}, 'Groceries', 'Expense', 500, false, now(), 150);
+                INSERT INTO "Categories" ("Id", "Name", "Kind", "SortOrder", "IsArchived", "CreatedAt", "DefaultMonthlyAmount", "IsEssential")
+                VALUES ({FoodId}, 'Groceries', 'Expense', 500, false, now(), 150, true);
                 INSERT INTO "Accounts" ("Id", "Name", "Type", "Currency", "Balance", "Apr", "MinimumPayment", "MonthlyPayment", "CreatedAt")
                 VALUES ({CardId}, 'Test Card', 'CreditCard', 'GBP', 900, 29.9, 25, 60, now());
                 INSERT INTO "AccountAliases" ("AccountId", "Alias") VALUES ({CardId}, '{Alias}');

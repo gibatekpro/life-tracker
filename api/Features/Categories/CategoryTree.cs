@@ -32,6 +32,21 @@ public static class CategoryTree
         return current;
     }
 
+    // The categories that count as essential: the ones marked essential and everything under them.
+    // A plain bool can't say "not set", so a parent's true passes down and a subcategory's own true
+    // wins under a flexible parent (mark Groceries, not all of Food, if takeaways are a want).
+    public static HashSet<int> Essential(IReadOnlyDictionary<int, int?> parents, IReadOnlySet<int> marked)
+    {
+        var essential = new HashSet<int>();
+        foreach (var id in parents.Keys)
+        {
+            int? current = id;
+            for (var guard = 0; current is { } c && guard <= parents.Count; guard++, current = parents.GetValueOrDefault(c))
+                if (marked.Contains(c)) { essential.Add(id); break; }
+        }
+        return essential;
+    }
+
     // A category and everything under it, e.g. for "can't move a category under its own child".
     public static HashSet<int> WithDescendants(int id, IEnumerable<CategoryNode> categories)
     {

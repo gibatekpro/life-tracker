@@ -5,7 +5,9 @@ using Microsoft.EntityFrameworkCore;
 namespace LifeTracker.Api.Features.Categories;
 
 // What the caller wants a category to be. A subcategory always takes its parent's kind.
-public record SaveCategory(string Name, CategoryKind Kind, int? ParentId, decimal? DefaultMonthlyAmount, int? SortOrder = null);
+// IsEssential is its own setting; a subcategory of an essential one counts as essential anyway.
+public record SaveCategory(string Name, CategoryKind Kind, int? ParentId, decimal? DefaultMonthlyAmount, int? SortOrder = null,
+    bool IsEssential = false);
 
 public enum CategoryProblem { NotFound, Invalid, Conflict }
 
@@ -32,18 +34,19 @@ public class CategoryService(AppDbContext db, ILogger<CategoryService> logger)
             Kind = kind,
             ParentId = parent?.Id,
             DefaultMonthlyAmount = req.DefaultMonthlyAmount,
+            IsEssential = req.IsEssential,
             // New ones go at the end of their siblings unless told otherwise.
             SortOrder = req.SortOrder ?? ((await siblings.MaxAsync(c => (int?)c.SortOrder)) ?? -10) + 10,
         };
         db.Categories.Add(category);
         await db.SaveChangesAsync();
 
-        logger.LogInformation("Created {Kind} category {CategoryId} ({Name}) under {ParentId}, default {Default}",
-            category.Kind, category.Id, category.Name, category.ParentId, category.DefaultMonthlyAmount);
+        logger.LogInformation("Created {Kind} category {CategoryId} ({Name}) under {ParentId}, default {Default}, essential {Essential}",
+            category.Kind, category.Id, category.Name, category.ParentId, category.DefaultMonthlyAmount, category.IsEssential);
         return new CategoryResult(category);
     }
 
-    // Rename, move, change the default amount or order (and the kind, while nothing uses it).
+    // Rename, move, change the default amount, order or whether it's essential (and the kind, while nothing uses it).
     public async Task<CategoryResult> UpdateAsync(int id, SaveCategory req)
     {
         var category = await db.Categories.FindAsync(id);
@@ -62,11 +65,12 @@ public class CategoryService(AppDbContext db, ILogger<CategoryService> logger)
         category.Kind = kind;
         category.ParentId = parent?.Id;
         category.DefaultMonthlyAmount = req.DefaultMonthlyAmount;
+        category.IsEssential = req.IsEssential;
         category.SortOrder = req.SortOrder ?? category.SortOrder;
         await db.SaveChangesAsync();
 
-        logger.LogInformation("Updated category {CategoryId}: {Before} -> {Name} under {ParentId}, default {Default}",
-            id, before, category.Name, category.ParentId, category.DefaultMonthlyAmount);
+        logger.LogInformation("Updated category {CategoryId}: {Before} -> {Name} under {ParentId}, default {Default}, essential {Essential}",
+            id, before, category.Name, category.ParentId, category.DefaultMonthlyAmount, category.IsEssential);
         return new CategoryResult(category);
     }
 
@@ -134,6 +138,8 @@ public class CategoryService(AppDbContext db, ILogger<CategoryService> logger)
         var kind = parent?.Kind ?? req.Kind;
         if (kind == CategoryKind.Income && req.DefaultMonthlyAmount is not null)
             return (parent, kind, CategoryResult.Fail(CategoryProblem.Invalid, "Only spending categories have a budget."));
+        if (kind == CategoryKind.Income && req.IsEssential)
+            return (parent, kind, CategoryResult.Fail(CategoryProblem.Invalid, "Only spending categories can be essential."));
 
         // The database would refuse a duplicate too; checking first gives a clear message.
         var duplicate = await db.Categories.AnyAsync(c =>

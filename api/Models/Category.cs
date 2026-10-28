@@ -16,6 +16,7 @@ public class Category
     public int SortOrder { get; set; }
     public bool IsArchived { get; set; }                 // hidden from pickers, kept for history
     public decimal? DefaultMonthlyAmount { get; set; }   // budgeted every month (GBP), unless a month says otherwise
+    public bool IsEssential { get; set; }                // a need (rent, food, transport), not a want; subcategories inherit it
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public int? ParentId { get; set; }

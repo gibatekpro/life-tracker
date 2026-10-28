@@ -86,6 +86,22 @@ public class CategoryServiceTests(PostgresFixture pg) : IClassFixture<PostgresFi
     }
 
     [Fact]
+    public async Task Essential_IsSavedAndChanged_ButNotForIncome()
+    {
+        var s = await SetupAsync();
+        await using var _ = s.Db;
+
+        var bus = (await s.Categories.CreateAsync(Expense("Bus") with { IsEssential = true })).Category!.Id;
+        Assert.True((await s.Db.Categories.FindAsync(bus))!.IsEssential);
+
+        await s.Categories.UpdateAsync(bus, Expense("Bus"));
+        Assert.False((await s.Db.Categories.AsNoTracking().SingleAsync(c => c.Id == bus)).IsEssential);
+
+        var tips = await s.Categories.CreateAsync(new SaveCategory("Tips", CategoryKind.Income, null, null, IsEssential: true));
+        Assert.Equal(CategoryProblem.Invalid, tips.Problem);
+    }
+
+    [Fact]
     public async Task Move_CantGoUnderItselfOrItsOwnSubcategory()
     {
         var s = await SetupAsync();

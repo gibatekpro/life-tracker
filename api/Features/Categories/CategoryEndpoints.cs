@@ -6,9 +6,11 @@ namespace LifeTracker.Api.Features.Categories;
 
 // One category for the Settings page and the pickers. Path and Depth save the web from walking
 // the tree; TransactionCount and ChildCount tell it whether delete is possible or archive is needed.
+// IsEssential is its own setting; Essential also counts one inherited from a category above it.
 public record CategoryDto(
     int Id, string Name, CategoryKind Kind, int? ParentId, string Path, int Depth, int SortOrder,
-    bool IsArchived, decimal? DefaultMonthlyAmount, int TransactionCount, int ChildCount);
+    bool IsArchived, decimal? DefaultMonthlyAmount, int TransactionCount, int ChildCount,
+    bool IsEssential, bool Essential);
 
 // My categories: the tree that spending and income are filed under, and the default monthly
 // budget of each spending one. The rules live in CategoryService; these endpoints only translate.
@@ -25,13 +27,15 @@ public static class CategoryEndpoints
             var all = await db.Categories
                 .Select(c => new
                 {
-                    c.Id, c.Name, c.Kind, c.ParentId, c.SortOrder, c.IsArchived, c.DefaultMonthlyAmount,
+                    c.Id, c.Name, c.Kind, c.ParentId, c.SortOrder, c.IsArchived, c.DefaultMonthlyAmount, c.IsEssential,
                     Transactions = db.Transactions.Count(t => t.CategoryId == c.Id),
                     Children = db.Categories.Count(x => x.ParentId == c.Id),
                 })
                 .ToListAsync();
 
             var paths = CategoryTree.Paths(all.Select(c => new CategoryNode(c.Id, c.ParentId, c.Name)));
+            var essential = CategoryTree.Essential(all.ToDictionary(c => c.Id, c => c.ParentId),
+                all.Where(c => c.IsEssential).Select(c => c.Id).ToHashSet());
             var byParent = all.ToLookup(c => c.ParentId);
             var ordered = new List<CategoryDto>();
 
@@ -40,7 +44,7 @@ public static class CategoryEndpoints
                 foreach (var c in byParent[parentId].OrderBy(c => c.Kind).ThenBy(c => c.SortOrder).ThenBy(c => c.Name))
                 {
                     ordered.Add(new CategoryDto(c.Id, c.Name, c.Kind, c.ParentId, paths[c.Id], depth, c.SortOrder,
-                        c.IsArchived, c.DefaultMonthlyAmount, c.Transactions, c.Children));
+                        c.IsArchived, c.DefaultMonthlyAmount, c.Transactions, c.Children, c.IsEssential, essential.Contains(c.Id)));
                     if (depth < 20) Add(c.Id, depth + 1);
                 }
             }
@@ -82,5 +86,5 @@ public static class CategoryEndpoints
 
     // The saved category, without its navigation properties (which would loop parent <-> children).
     private static object Summary(Category c) =>
-        new { c.Id, c.Name, c.Kind, c.ParentId, c.SortOrder, c.IsArchived, c.DefaultMonthlyAmount };
+        new { c.Id, c.Name, c.Kind, c.ParentId, c.SortOrder, c.IsArchived, c.DefaultMonthlyAmount, c.IsEssential };
 }

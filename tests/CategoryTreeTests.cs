@@ -33,6 +33,16 @@ public class CategoryTreeTests
     }
 
     [Fact]
+    public void Essential_PassesDownTheTree()
+    {
+        var parents = Tree.ToDictionary(c => c.Id, c => c.ParentId);
+
+        Assert.Equal([2, 3, 4], CategoryTree.Essential(parents, new HashSet<int> { 2 }).Order());   // AI and both under it
+        Assert.Equal([3], CategoryTree.Essential(parents, new HashSet<int> { 3 }));                // its own true, under flexible parents
+        Assert.Empty(CategoryTree.Essential(parents, new HashSet<int>()));
+    }
+
+    [Fact]
     public void WithDescendants_IncludesEverythingUnderneath()
     {
         Assert.Equal([1, 2, 3, 4], CategoryTree.WithDescendants(1, Tree).Order());
