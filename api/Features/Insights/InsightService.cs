@@ -91,19 +91,33 @@ public class InsightService(
         var end = b.PeriodEnd.AddDays(1);
         var paths = await db.CategoryPathsAsync();
 
-        var categories = await db.Categories.Select(c => new { c.Id, c.ParentId, c.Name }).ToListAsync();
+        var categories = await db.Categories.Select(c => new { c.Id, c.ParentId, c.Name, c.IsEssential }).ToListAsync();
         var parents = categories.ToDictionary(c => c.Id, c => c.ParentId);
         var names = categories.ToDictionary(c => c.Id, c => c.Name);
+        var essential = CategoryTree.Essential(parents, categories.Where(c => c.IsEssential).Select(c => c.Id).ToHashSet());
 
         // Spending from three months before the month's end, for recurring payments; this month's within it.
+        var from = new[] { end.AddMonths(-3), b.PeriodStart.AddMonths(-2) }.Min();
         var recentRows = await db.Transactions
-            .Where(t => t.Type == TransactionType.Expense && t.Date >= end.AddMonths(-3) && t.Date < end)
+            .Where(t => t.Type == TransactionType.Expense && t.Date >= from && t.Date < end)
             .Select(t => new { t.Date, t.Description, t.CategoryId, t.GbpAmount })
             .ToListAsync();
         var recent = recentRows
             .Select(t => new InsightExpense(t.Date, t.Description, t.CategoryId is { } c ? paths.GetValueOrDefault(c, "") : "", t.GbpAmount))
             .ToList();
         var thisMonth = recent.Where(e => e.Date >= b.PeriodStart && e.Date < end).ToList();
+
+        // Each category's spending in the 2 months before this one (inside the 3 months above).
+        var earlier = recentRows
+            .Where(t => t.Date >= b.PeriodStart.AddMonths(-2) && t.Date < b.PeriodStart && t.CategoryId is not null)
+            .GroupBy(t => t.CategoryId!.Value)
+            .ToDictionary(g => g.Key, g => g.Sum(t => t.GbpAmount));
+        InsightBudgetLine ToLine(BudgetLine l)
+        {
+            var children = l.Children.Select(ToLine).ToList();
+            return new InsightBudgetLine(l.Name, l.Planned, l.Spent, children, essential.Contains(l.CategoryId),
+                earlier.GetValueOrDefault(l.CategoryId) + children.Sum(c => c.Earlier));
+        }
 
         // Interest and fees: spending under the "Interest & fees" category (and anything inside it).
         var interestAndFees = recentRows
@@ -135,6 +149,4 @@ public class InsightService(
 
         return (b.PeriodStart, InsightPromptBuilder.Build(input));
     }
-
-    private static InsightBudgetLine ToLine(BudgetLine l) => new(l.Name, l.Planned, l.Spent, l.Children.Select(ToLine).ToList());
 }

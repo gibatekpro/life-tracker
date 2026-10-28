@@ -8,7 +8,10 @@ namespace LifeTracker.Api.Features.Insights;
 // IDs, aliases or account numbers here at all, so they can't be sent by mistake.
 public record InsightExpense(DateOnly Date, string Merchant, string Category, decimal Pounds);
 
-public record InsightBudgetLine(string Name, decimal Planned, decimal Spent, IReadOnlyList<InsightBudgetLine> Children);
+// Earlier: the same line's spending in the 2 months before this one, so "unused" can be told
+// apart from "not spent yet this month".
+public record InsightBudgetLine(string Name, decimal Planned, decimal Spent, IReadOnlyList<InsightBudgetLine> Children,
+    bool IsEssential = false, decimal Earlier = 0);
 
 public record InsightDebt(string Name, string Kind, decimal BalancePounds, decimal Apr,
     decimal PlannedThisMonth, decimal PaidThisMonth, decimal? AvalancheSuggests);
@@ -73,6 +76,11 @@ public static class InsightPromptBuilder
         All amounts are in pounds sterling (GBP).
         Be practical and specific: refer to their actual categories, merchants and amounts.
         Be kind but honest, and never judgemental.
+        Budget lines are plans the user has chosen, not savings or targets to beat.
+        Never suggest spending less than planned on an [essential] line, and never suggest cutting any
+        budgeted line to 0 unless its earlier spending shows it is unused.
+        Before any cuts, check the essential lines listed as having no budget (food or groceries,
+        utilities, transport); if there are any, flag them first, at the start of the summary.
         Prioritise paying down high-interest debt: say how savings could speed up the avalanche plan
         (highest APR first) and reduce the interest they pay.
         Estimated savings must be realistic monthly amounts in GBP, based on the figures given.
@@ -104,6 +112,37 @@ public static class InsightPromptBuilder
 
     private static string D(DateOnly date) => date.ToString("d MMM yyyy", CultureInfo.InvariantCulture);
 
+    // The essentials every budget needs, recognised by the start of a word in a line's name
+    // ("Groceries", "Council Tax"), or a whole word for short ones ending in $ ("Bus", not "Business").
+    // Any line or subcategory with a budget counts.
+    private static readonly (string Name, string[] Words)[] Essentials =
+    [
+        ("food or groceries", ["food", "grocer", "supermarket"]),
+        ("utilities", ["utilit", "bills", "electric", "energy", "gas$", "water", "council"]),
+        ("transport", ["transport", "travel", "bus$", "buses$", "train", "rail", "tube", "oyster", "fuel", "petrol", "commut"]),
+    ];
+
+    private static readonly Regex Word = new(@"\p{L}+", RegexOptions.Compiled);
+
+    // Which of those essentials no budgeted line covers, in that order.
+    public static List<string> MissingEssentials(IReadOnlyList<InsightBudgetLine> lines)
+    {
+        var budgeted = new List<string>();
+        void Collect(IEnumerable<InsightBudgetLine> ls)
+        {
+            foreach (var l in ls)
+            {
+                if (l.Planned > 0) budgeted.Add(l.Name);
+                Collect(l.Children);
+            }
+        }
+        Collect(lines);
+
+        var words = budgeted.SelectMany(n => Word.Matches(n.ToLowerInvariant()).Select(m => m.Value)).ToList();
+        static bool Matches(string word, string key) => key.EndsWith('$') ? word == key[..^1] : word.StartsWith(key);
+        return Essentials.Where(e => !words.Any(w => e.Words.Any(k => Matches(w, k)))).Select(e => e.Name).ToList();
+    }
+
     public static string Build(InsightInput input)
     {
         var s = new StringBuilder();
@@ -116,7 +155,8 @@ public static class InsightPromptBuilder
         s.AppendLine($"Spending so far: {M(spent)} across {input.MonthExpenses.Count} payments.");
         s.AppendLine();
 
-        s.AppendLine("Spending by category (budget in brackets):");
+        s.AppendLine("Spending by category ([essential] is a need, [flexible] a want; budget in brackets; " +
+                     "earlier is the line's spending in the 2 months before this one):");
         if (input.BudgetLines.Count == 0) s.AppendLine("- none");
         void Lines(IEnumerable<InsightBudgetLine> lines, int depth)
         {
@@ -125,11 +165,16 @@ public static class InsightPromptBuilder
                 var budget = l.Planned > 0
                     ? $" (budget {M(l.Planned)}, {(l.Spent > l.Planned ? $"{M(l.Spent - l.Planned)} over" : $"{M(l.Planned - l.Spent)} left")})"
                     : " (no budget)";
-                s.AppendLine($"{new string(' ', depth * 2)}- {Mask(l.Name)}: {M(l.Spent)}{budget}");
+                var kind = l.IsEssential ? "essential" : "flexible";
+                s.AppendLine($"{new string(' ', depth * 2)}- {Mask(l.Name)} [{kind}]: {M(l.Spent)}{budget}, earlier {M(l.Earlier)}");
                 Lines(l.Children, depth + 1);
             }
         }
         Lines(input.BudgetLines, 0);
+        var missing = MissingEssentials(input.BudgetLines);
+        s.AppendLine(missing.Count == 0
+            ? "Essential lines with no budget: none (food or groceries, utilities and transport all have one)."
+            : $"Essential lines with no budget (flag these first): {string.Join(", ", missing)}.");
         s.AppendLine();
 
         s.AppendLine("Top merchants this month:");

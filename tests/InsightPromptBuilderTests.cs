@@ -40,10 +40,72 @@ public class InsightPromptBuilderTests
 
         var text = InsightPromptBuilder.Build(Input(lines: lines));
 
-        Assert.Contains("- Subscriptions: 38.00 (budget 35.00, 3.00 over)", text);
-        Assert.Contains("  - AI: 38.00", text);
-        Assert.Contains("    - Claude: 18.00 (budget 18.00, 0.00 left)", text);
-        Assert.Contains("- Gifts: 15.00 (no budget)", text);
+        Assert.Contains("- Subscriptions [flexible]: 38.00 (budget 35.00, 3.00 over), earlier 0.00", text);
+        Assert.Contains("  - AI [flexible]: 38.00", text);
+        Assert.Contains("    - Claude [flexible]: 18.00 (budget 18.00, 0.00 left)", text);
+        Assert.Contains("- Gifts [flexible]: 15.00 (no budget)", text);
+    }
+
+    // Budget lines are plans, and essentials are never cut
+
+    [Fact]
+    public void EssentialLines_AreMarked_WithEarlierSpending()
+    {
+        var lines = new List<InsightBudgetLine>
+        {
+            new("Transport", 48m, 0m, [new("Bus", 48m, 0m, [], IsEssential: true, Earlier: 96m)], Earlier: 96m),
+            new("Entertainment", 30m, 12m, []),
+        };
+
+        var text = InsightPromptBuilder.Build(Input(lines: lines));
+
+        Assert.Contains("- Transport [flexible]: 0.00 (budget 48.00, 48.00 left), earlier 96.00", text);
+        Assert.Contains("  - Bus [essential]: 0.00 (budget 48.00, 48.00 left), earlier 96.00", text);
+        Assert.Contains("- Entertainment [flexible]: 12.00 (budget 30.00, 18.00 left), earlier 0.00", text);
+    }
+
+    [Fact]
+    public void SystemPrompt_TreatsBudgetsAsPlans_AndNeverCutsEssentials()
+    {
+        Assert.Contains("Budget lines are plans the user has chosen, not savings", InsightPromptBuilder.SystemPrompt);
+        Assert.Contains("Never suggest spending less than planned on an [essential] line", InsightPromptBuilder.SystemPrompt);
+        Assert.Contains("never suggest cutting any\nbudgeted line to 0 unless its earlier spending shows it is unused",
+            InsightPromptBuilder.SystemPrompt.ReplaceLineEndings("\n"));
+    }
+
+    // Missing essential lines are flagged before any cuts
+
+    [Fact]
+    public void MissingEssentials_AreFound_ByWordsInBudgetedLines()
+    {
+        Assert.Equal(["food or groceries", "utilities", "transport"], InsightPromptBuilder.MissingEssentials([]));
+        Assert.Equal(["utilities"], InsightPromptBuilder.MissingEssentials(
+        [
+            new("Food", 0m, 0m, [new("Groceries", 200m, 0m, [])]),   // a budgeted subcategory counts
+            new("Transport", 48m, 0m, [new("Bus", 48m, 0m, [])]),
+            new("Electricity", 0m, 0m, []),                          // no budget, so it doesn't
+        ]));
+        Assert.Equal(["food or groceries", "utilities"], InsightPromptBuilder.MissingEssentials([new("Bus", 48m, 0m, [])]));
+        Assert.Contains("transport", InsightPromptBuilder.MissingEssentials([new("Business", 50m, 0m, [])]));   // not a bus
+    }
+
+    [Fact]
+    public void MissingEssentials_AreListedToFlagFirst()
+    {
+        var text = InsightPromptBuilder.Build(Input(lines: [new("Council Tax", 126m, 0m, []), new("Tesco", 200m, 0m, [])]));
+
+        Assert.Contains("Essential lines with no budget (flag these first): food or groceries, transport.", text);
+        Assert.Contains("check the essential lines listed as having no budget", InsightPromptBuilder.SystemPrompt);
+        Assert.Contains("flag them first, at the start of the summary", InsightPromptBuilder.SystemPrompt);
+    }
+
+    [Fact]
+    public void NoMissingEssentials_SaysSo()
+    {
+        var text = InsightPromptBuilder.Build(Input(lines:
+            [new("Groceries", 200m, 0m, []), new("Bills", 0m, 0m, [new("Water", 30m, 0m, [])]), new("Train", 60m, 0m, [])]));
+
+        Assert.Contains("Essential lines with no budget: none", text);
     }
 
     [Fact]

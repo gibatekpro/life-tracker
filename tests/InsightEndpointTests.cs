@@ -164,7 +164,7 @@ public class InsightEndpointTests(PostgresFixture pg) : IClassFixture<PostgresFi
         await Generate(s.Client);
         var prompt = s.Model.Prompts.Single();
 
-        Assert.Contains("Groceries", prompt);
+        Assert.Contains("- Groceries [essential]:", prompt);   // marked essential in the database
         Assert.Contains("Big Shop", prompt);
         Assert.Contains("Test Card (credit card): balance 900.00, APR 29.9%", prompt);
         Assert.DoesNotContain(CardId.ToString(), prompt);
