@@ -27,7 +27,8 @@ export interface Account {
 export type CategoryKind = 'Expense' | 'Income';
 
 // A category in the tree (Subscriptions › AI › Claude). Path and depth come from the API;
-// the counts say whether it can be deleted or must be archived.
+// the counts say whether it can be deleted or must be archived. isEssential is its own setting;
+// essential also counts one inherited from a category above it.
 export interface Category {
   id: number;
   name: string;
@@ -40,6 +41,8 @@ export interface Category {
   defaultMonthlyAmount: number | null; // spending categories only, in £
   transactionCount: number;
   childCount: number;
+  isEssential: boolean;
+  essential: boolean;
 }
 
 export interface SaveCategory {
@@ -47,6 +50,7 @@ export interface SaveCategory {
   kind: CategoryKind;
   parentId: number | null;
   defaultMonthlyAmount: number | null;
+  isEssential: boolean; // spending categories only
 }
 
 // What the API takes to create or replace an account.

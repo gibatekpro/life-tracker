@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   archivedCount, budgetSettingsValues, buildBudgetSettings, buildCategoryRequest, categoryFormValues, categoryNote, categoryRemoval,
+  essentialChoice,
   earlyIncomeChoices, incomeModeHint, rateCurrencies, rateEditLabel, rateEditStart, rateLabel, startDayChoices, startDayHint,
   visibleCategories, withDescendants,
 } from './settings';
@@ -58,6 +59,14 @@ describe('categories', () => {
     expect(categoryNote(subs, 2)).toBe('£30.00 a month · 0 transactions · 2 subcategories');
     expect(categoryNote(claude)).toBe('No default budget · 4 transactions');
     expect(categoryNote(gift)).toBe('0 transactions');
+    expect(categoryNote({ ...claude, essential: true })).toBe('Essential · No default budget · 4 transactions');
+  });
+
+  it('locks essential on inside an essential category, and says why', () => {
+    const essentialSubs = { ...subs, isEssential: true };
+    expect(essentialChoice(2, [essentialSubs, ai, claude])).toEqual({ locked: true, hint: 'Essential, like everything inside Subscriptions.' });
+    expect(essentialChoice(2, all).locked).toBe(false);
+    expect(essentialChoice(null, all).locked).toBe(false);
   });
 
   it('archives what has history, deletes what does not, unarchives the archived', () => {
@@ -73,12 +82,14 @@ describe('categories', () => {
   });
 
   it('builds the request, with a default budget only for spending', () => {
-    expect(categoryFormValues(undefined, 2)).toEqual({ name: '', parentId: 2, amount: '' });
-    expect(categoryFormValues(subs)).toEqual({ name: 'Subscriptions', parentId: null, amount: '30' });
-    expect(buildCategoryRequest({ name: ' Claude ', parentId: 2, amount: '18' }, 'Expense').request)
-      .toEqual({ name: 'Claude', kind: 'Expense', parentId: 2, defaultMonthlyAmount: 18 });
-    expect(buildCategoryRequest({ name: 'Tips', parentId: null, amount: '18' }, 'Income').request?.defaultMonthlyAmount).toBeNull();
-    expect(buildCategoryRequest({ name: ' ', parentId: null, amount: '' }, 'Expense').error).toBe('Enter a name.');
+    expect(categoryFormValues(undefined, 2)).toEqual({ name: '', parentId: 2, amount: '', essential: false });
+    expect(categoryFormValues({ ...subs, isEssential: true })).toEqual({ name: 'Subscriptions', parentId: null, amount: '30', essential: true });
+    expect(buildCategoryRequest({ name: ' Claude ', parentId: 2, amount: '18', essential: true }, 'Expense').request)
+      .toEqual({ name: 'Claude', kind: 'Expense', parentId: 2, defaultMonthlyAmount: 18, isEssential: true });
+    const tips = buildCategoryRequest({ name: 'Tips', parentId: null, amount: '18', essential: true }, 'Income').request;
+    expect(tips?.defaultMonthlyAmount).toBeNull();
+    expect(tips?.isEssential).toBe(false);
+    expect(buildCategoryRequest({ name: ' ', parentId: null, amount: '', essential: false }, 'Expense').error).toBe('Enter a name.');
   });
 });
 

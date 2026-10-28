@@ -62,10 +62,11 @@ export const visibleCategories = (all: Category[], kind: CategoryKind, showArchi
 
 export const archivedCount = (all: Category[], kind: CategoryKind) => all.filter((c) => c.kind === kind && c.isArchived).length;
 
-// The line under a category: its default budget (spending only), how many transactions, and how
-// many subcategories when they're hidden.
+// The line under a category: whether it's essential and its default budget (spending only), how
+// many transactions, and how many subcategories when they're hidden.
 export function categoryNote(c: Category, collapsedChildren?: number) {
   const parts = [
+    ...(c.essential ? ['Essential'] : []),
     ...(c.kind === 'Expense' ? [c.defaultMonthlyAmount !== null ? `${formatMoney(c.defaultMonthlyAmount)} a month` : 'No default budget'] : []),
     `${c.transactionCount} transaction${c.transactionCount === 1 ? '' : 's'}`,
   ];
@@ -93,13 +94,30 @@ export interface CategoryFormValues {
   name: string;
   parentId: number | null;
   amount: string;
+  essential: boolean;
 }
 
 export const categoryFormValues = (category?: Category, parentId?: number | null): CategoryFormValues => ({
   name: category?.name ?? '',
   parentId: category?.parentId ?? parentId ?? null,
   amount: category?.defaultMonthlyAmount?.toString() ?? '',
+  essential: category?.isEssential ?? false,
 });
+
+// The "Essential" switch: inside an essential category it's on and can't be turned off (a
+// subcategory inherits it), so the form says where it comes from.
+export function essentialChoice(parentId: number | null, categories: Category[]) {
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  let from: Category | undefined;
+  for (let id = parentId, guard = 0; id !== null && !from && guard <= categories.length; guard++) {
+    const c = byId.get(id);
+    if (c?.isEssential) from = c;
+    id = c?.parentId ?? null;
+  }
+  return from
+    ? { locked: true, hint: `Essential, like everything inside ${from.path}.` }
+    : { locked: false, hint: 'A need, like rent, food or getting to work. AI insights never suggest spending less on it.' };
+}
 
 export const categoryNamePlaceholder = (kind: CategoryKind) => (kind === 'Expense' ? 'e.g. Subscriptions' : 'e.g. Side job');
 
@@ -113,6 +131,7 @@ export function buildCategoryRequest(v: CategoryFormValues, kind: CategoryKind):
       kind,
       parentId: v.parentId,
       defaultMonthlyAmount: kind === 'Expense' && v.amount.trim() !== '' ? Number(v.amount) : null,
+      isEssential: kind === 'Expense' && v.essential,
     },
   };
 }

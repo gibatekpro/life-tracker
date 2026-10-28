@@ -6,7 +6,7 @@ import type {
 
 export const category = (c: Partial<Category> & Pick<Category, 'id' | 'name'>): Category => ({
   kind: 'Expense', parentId: null, path: c.name, depth: 0, sortOrder: 0, isArchived: false,
-  defaultMonthlyAmount: null, transactionCount: 0, childCount: 0, ...c,
+  defaultMonthlyAmount: null, transactionCount: 0, childCount: 0, isEssential: false, essential: false, ...c,
 });
 
 export const account = (a: Partial<Account> & Pick<Account, 'id' | 'name'>): Account => ({

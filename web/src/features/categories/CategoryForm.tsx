@@ -1,15 +1,15 @@
 import { useState, type FormEvent } from 'react';
 import { createCategory, updateCategory } from '../../api';
 import type { Category, CategoryKind } from '@lifetracker/core';
-import { buildCategoryRequest, categoryFormValues, categoryNamePlaceholder, withDescendants } from '@lifetracker/core';
+import { buildCategoryRequest, categoryFormValues, categoryNamePlaceholder, essentialChoice, withDescendants } from '@lifetracker/core';
 import { useRefresh } from '../../data/refresh';
 import Button from '../../components/ui/Button';
 import { Field, Input, MoneyInput } from '../../components/ui/Field';
 import { Alert } from '../../components/ui/Bits';
 import CategorySelect from './CategorySelect';
 
-// Adding or editing a category: its name, where it sits in the tree, and (for spending)
-// the default monthly budget that every month starts from.
+// Adding or editing a category: its name, where it sits in the tree, and (for spending) whether
+// it's essential and the default monthly budget that every month starts from.
 export default function CategoryForm({ kind, category, parentId, categories, onDone }: {
   kind: CategoryKind;
   category?: Category;          // editing this one
@@ -20,7 +20,8 @@ export default function CategoryForm({ kind, category, parentId, categories, onD
   const { refresh } = useRefresh();
   const [values, setValues] = useState(() => categoryFormValues(category, parentId));
   const set = (patch: Partial<typeof values>) => setValues((v) => ({ ...v, ...patch }));
-  const { name, parentId: parent, amount } = values;
+  const { name, parentId: parent, amount, essential } = values;
+  const essentialFrom = essentialChoice(parent, categories);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -56,6 +57,17 @@ export default function CategoryForm({ kind, category, parentId, categories, onD
             value={parent} onChange={(e) => set({ parentId: e.target.value === '' ? null : Number(e.target.value) })} />
         )}
       </Field>
+
+      {kind === 'Expense' && (
+        <label className="flex items-start gap-3 rounded-xl bg-surface-muted p-3 text-sm">
+          <input type="checkbox" className="mt-0.5 accent-accent" checked={essentialFrom.locked || essential}
+            disabled={essentialFrom.locked} onChange={(e) => set({ essential: e.target.checked })} />
+          <span>
+            <span className="font-medium">Essential</span>
+            <span className="block text-xs text-muted">{essentialFrom.hint}</span>
+          </span>
+        </label>
+      )}
 
       {kind === 'Expense' && (
         <Field label="Default monthly budget"

@@ -1,15 +1,16 @@
 import {
-  buildCategoryRequest, categoryFormValues, categoryNamePlaceholder, selectableCategories, withDescendants,
+  buildCategoryRequest, categoryFormValues, categoryNamePlaceholder, essentialChoice, selectableCategories, withDescendants,
   type Category, type CategoryFormValues, type CategoryKind,
 } from '@lifetracker/core';
 import * as Haptics from 'expo-haptics';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text } from 'react-native';
 
 import { createCategory, getCategories, updateCategory } from '@/api';
 import ErrorCard from '@/components/ErrorCard';
 import { Field, TextField } from '@/components/form/Field';
+import FormRow from '@/components/form/FormRow';
 import FormSection from '@/components/form/FormSection';
 import MoneyInput from '@/components/form/MoneyInput';
 import SelectRow from '@/components/form/SelectRow';
@@ -20,7 +21,7 @@ import { useTokens } from '@/theme/tokens';
 import ErrorAlert from '@/components/ErrorAlert';
 
 // Adding or editing a category, as a modal (web: CategoryForm in a Modal): its name, where it sits in
-// the tree, and (for spending) the default monthly budget every month starts from.
+// the tree, and (for spending) whether it's essential and the default monthly budget every month starts from.
 // /category-form?kind=Expense, &parentId=3 to add a subcategory, &id=5 to edit.
 export default function CategoryFormModal() {
   const t = useTokens();
@@ -54,6 +55,7 @@ function CategoryForm({ kind, categories, category, parentId }: {
 
   const parents = selectableCategories(categories, kind, values.parentId, category ? withDescendants(category.id, categories) : undefined);
   const parentOf = categories.find((c) => c.id === parentId);
+  const essentialFrom = essentialChoice(values.parentId, categories);
 
   async function save() {
     const built = buildCategoryRequest(values, kind);
@@ -98,6 +100,15 @@ function CategoryForm({ kind, categories, category, parentId }: {
             ...parents.map((c) => ({ label: `${c.path}${c.isArchived ? ' (archived)' : ''}`, value: c.id as number | null }))]}
           onChange={(parent) => set({ parentId: parent })} />
       </FormSection>
+
+      {kind === 'Expense' && (
+        <FormSection footer={essentialFrom.hint}>
+          <FormRow label="Essential">
+            <Switch value={essentialFrom.locked || values.essential} disabled={essentialFrom.locked}
+              onValueChange={(essential) => set({ essential })} trackColor={{ true: t.accent }} accessibilityLabel="Essential" />
+          </FormRow>
+        </FormSection>
+      )}
 
       {kind === 'Expense' && (
         <FormSection footer="Optional. Every month starts with this; you can change a single month on the Budget tab.">
