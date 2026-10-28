@@ -141,6 +141,44 @@ public class InsightResponseValidatorTests
         Assert.Equal(["housing", "rent", "transport", "bus"], Essentials);
     }
 
+    // The answer to my question
+
+    private static string WithAnswer(string answer) =>
+        $$"""{ "summary": "a", "wasteItems": [], "savingTips": [], "debtAdvice": "a", "answer": {{answer}} }""";
+
+    [Fact]
+    public void AQuestion_NeedsAnAnswer()
+    {
+        var (result, error, _) = InsightResponseValidator.Validate(WithAnswer("\"  Yes, with £120 to spare.  \""), hasQuestion: true);
+
+        Assert.Null(error);
+        Assert.Equal("Yes, with £120 to spare.", result!.Answer);
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("\" \"")]
+    public void AQuestion_WithNoAnswer_IsRejected(string answer)
+    {
+        Assert.Equal("It didn't answer your question.", InsightResponseValidator.Validate(WithAnswer(answer), hasQuestion: true).Error);
+    }
+
+    [Fact]
+    public void NoQuestion_MeansNoAnswer()
+    {
+        Assert.Null(InsightResponseValidator.Validate(WithAnswer("null")).Result!.Answer);
+        Assert.Null(InsightResponseValidator.Validate(Good).Result!.Answer);   // saved before answers existed
+        Assert.Equal("It answered a question that wasn't asked.", InsightResponseValidator.Validate(WithAnswer("\"Yes.\"")).Error);
+    }
+
+    [Fact]
+    public void ALongAnswer_IsCapped()
+    {
+        var (result, _, _) = InsightResponseValidator.Validate(WithAnswer($"\"{new string('a', 3000)}\""), hasQuestion: true);
+
+        Assert.True(result!.Answer!.Length <= InsightResponseValidator.MaxAnswer + 1);
+    }
+
     [Fact]
     public void ValidatedResult_SurvivesStorage()
     {
@@ -158,7 +196,7 @@ public class InsightResponseValidatorTests
         using var schema = JsonDocument.Parse(InsightResponseValidator.JsonSchema);
         var required = schema.RootElement.GetProperty("required").EnumerateArray().Select(e => e.GetString()).ToList();
 
-        Assert.Equal(["summary", "wasteItems", "savingTips", "debtAdvice"], required);
+        Assert.Equal(["summary", "wasteItems", "savingTips", "debtAdvice", "answer"], required);
         Assert.False(schema.RootElement.GetProperty("additionalProperties").GetBoolean());
 
         var tip = schema.RootElement.GetProperty("properties").GetProperty("savingTips").GetProperty("items");

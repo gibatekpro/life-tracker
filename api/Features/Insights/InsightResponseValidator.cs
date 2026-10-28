@@ -8,8 +8,9 @@ public record WasteItem(string Name, decimal MonthlyAmount, string Reason);
 public record SavingTip(string Tip, decimal EstimatedMonthlySaving, string? Line = null);
 
 // What an insight says, once checked: a summary, possible waste, ways to save (with £ a month)
-// and how it fits with paying off debt.
-public record InsightResult(string Summary, IReadOnlyList<WasteItem> WasteItems, IReadOnlyList<SavingTip> SavingTips, string DebtAdvice);
+// and how it fits with paying off debt; and Answer, the reply to my question (null with none).
+public record InsightResult(string Summary, IReadOnlyList<WasteItem> WasteItems, IReadOnlyList<SavingTip> SavingTips, string DebtAdvice,
+    string? Answer = null);
 
 // Checks OpenAI's answer before anything is saved or shown: it must be the JSON asked for, with
 // text where text is needed and sensible amounts. Amounts are rounded to the penny, text trimmed,
@@ -22,6 +23,7 @@ public static class InsightResponseValidator
     public const int MaxItemText = 300;
     public const decimal MaxMonthlyAmount = 100_000m;
     public const decimal MinMonthlyAmount = 5m;
+    public const int MaxAnswer = 1500;   // about 150 words asked for, with room to spare
 
     // The rules an item can be dropped by: what the logs say, never the item itself.
     public const string CutsEssentialLine = "saving tip cuts an essential line";
@@ -64,9 +66,13 @@ public static class InsightResponseValidator
                 "additionalProperties": false
               }
             },
-            "debtAdvice": { "type": "string" }
+            "debtAdvice": { "type": "string" },
+            "answer": {
+              "type": ["string", "null"],
+              "description": "The reply to the user's question, or null if there was no question."
+            }
           },
-          "required": ["summary", "wasteItems", "savingTips", "debtAdvice"],
+          "required": ["summary", "wasteItems", "savingTips", "debtAdvice", "answer"],
           "additionalProperties": false
         }
         """;
@@ -90,15 +96,17 @@ public static class InsightResponseValidator
     }
 
     // The answer, checked; or why it can't be used. Dropped lists the rule each dropped item hit.
+    // With a question there must be an answer to it; without one there mustn't.
     public static (InsightResult? Result, string? Error, IReadOnlyList<string> Dropped) Validate(
-        string? json, IReadOnlySet<string>? essentialLines = null)
+        string? json, IReadOnlySet<string>? essentialLines = null, bool hasQuestion = false)
     {
         var dropped = new List<string>();
-        var (result, error) = Check(json, essentialLines ?? new HashSet<string>(), dropped);
+        var (result, error) = Check(json, essentialLines ?? new HashSet<string>(), hasQuestion, dropped);
         return (result, error, dropped);
     }
 
-    private static (InsightResult? Result, string? Error) Check(string? json, IReadOnlySet<string> essentialLines, List<string> dropped)
+    private static (InsightResult? Result, string? Error) Check(
+        string? json, IReadOnlySet<string> essentialLines, bool hasQuestion, List<string> dropped)
     {
         if (string.IsNullOrWhiteSpace(json)) return (null, "The answer was empty.");
 
@@ -116,6 +124,9 @@ public static class InsightResponseValidator
         if (string.IsNullOrWhiteSpace(raw.Summary)) return (null, "The answer had no summary.");
         if (string.IsNullOrWhiteSpace(raw.DebtAdvice)) return (null, "The answer had no debt advice.");
         if (raw.WasteItems is null || raw.SavingTips is null) return (null, "The answer was missing a list.");
+        var reply = string.IsNullOrWhiteSpace(raw.Answer) ? null : Cut(raw.Answer, MaxAnswer);
+        if (hasQuestion && reply is null) return (null, "It didn't answer your question.");
+        if (!hasQuestion && reply is not null) return (null, "It answered a question that wasn't asked.");
 
         var waste = new List<WasteItem>();
         foreach (var w in raw.WasteItems.TakeWhile(_ => waste.Count < MaxItems))   // capped after dropping, so dropped ones take no place
@@ -137,7 +148,7 @@ public static class InsightResponseValidator
             tips.Add(new SavingTip(Cut(t.Tip, MaxItemText), amount, line));
         }
 
-        return (new InsightResult(Cut(raw.Summary, MaxText), waste, tips, Cut(raw.DebtAdvice, MaxText)), null);
+        return (new InsightResult(Cut(raw.Summary, MaxText), waste, tips, Cut(raw.DebtAdvice, MaxText), reply), null);
     }
 
     public static string Serialize(InsightResult result) => JsonSerializer.Serialize(result, Json);
@@ -162,7 +173,7 @@ public static class InsightResponseValidator
     }
 
     // The JSON as it arrives, before checking (everything nullable, since it can't be trusted yet).
-    private sealed record Raw(string? Summary, List<RawWaste>? WasteItems, List<RawTip>? SavingTips, string? DebtAdvice);
+    private sealed record Raw(string? Summary, List<RawWaste>? WasteItems, List<RawTip>? SavingTips, string? DebtAdvice, string? Answer);
     private sealed record RawWaste(string? Name, decimal? MonthlyAmount, string? Reason);
     private sealed record RawTip(string? Tip, decimal? EstimatedMonthlySaving, string? Line);
 }
