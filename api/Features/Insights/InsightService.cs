@@ -16,20 +16,23 @@ public record InsightOutcome(Insight? Insight, bool Created, InsightProblem? Pro
 // Makes an AI insight for a budget month: gathers the month from the budget, transactions, debts and
 // the avalanche plan, turns it into a summary (InsightPromptBuilder), asks the model, checks the answer
 // (InsightResponseValidator) and saves both what was sent and what came back.
-// The model is only asked when I press Generate; an existing insight is reused unless I regenerate.
+// The model is only asked when I press Generate; an existing insight is reused unless I regenerate
+// or ask a question (a question always gets a fresh answer, and is saved with it).
 public class InsightService(
     AppDbContext db, BudgetService budgets, ExchangeRateService rates, IInsightModel model,
     IOptions<OpenAIOptions> options, ILogger<InsightService> logger)
 {
-    public async Task<InsightOutcome> GenerateAsync(int year, int month, bool regenerate, CancellationToken cancellationToken)
+    // question: already checked and masked (InsightPromptBuilder.CleanQuestion), or null.
+    public async Task<InsightOutcome> GenerateAsync(int year, int month, bool regenerate, string? question, CancellationToken cancellationToken)
     {
-        if (!regenerate && await LatestForMonthAsync(year, month) is { } existing)
+        if (!regenerate && question is null && await LatestForMonthAsync(year, month) is { } existing)
             return new InsightOutcome(existing, Created: false);
 
         if (!options.Value.IsConfigured)
             return new InsightOutcome(null, false, InsightProblem.NotConfigured, "OpenAI key not configured");
 
-        var (periodStart, input) = await SummariseAsync(year, month);
+        var (periodStart, summary) = await SummariseAsync(year, month);
+        var input = summary with { Question = question };
         var prompt = InsightPromptBuilder.Build(input);
 
         InsightModelReply reply;
@@ -49,7 +52,8 @@ public class InsightService(
             return new InsightOutcome(null, false, problem, e.Message);
         }
 
-        var (result, error, dropped) = InsightResponseValidator.Validate(reply.Json, InsightResponseValidator.EssentialLines(input.BudgetLines));
+        var (result, error, dropped) = InsightResponseValidator.Validate(reply.Json, InsightResponseValidator.EssentialLines(input.BudgetLines),
+            hasQuestion: question is not null);
         if (result is null)
         {
             logger.LogWarning("Insight for {Year}-{Month:00} discarded: {Reason}", year, month, error);
@@ -66,23 +70,25 @@ public class InsightService(
             InputTokens = reply.InputTokens,
             OutputTokens = reply.OutputTokens,
             PromptSent = prompt,
+            Question = question,
             ResponseJson = InsightResponseValidator.Serialize(result),
         };
         db.Insights.Add(insight);
         await db.SaveChangesAsync(cancellationToken);
 
-        logger.LogInformation("Saved insight {InsightId} for {Year}-{Month:00}: {Model}, {InputTokens} + {OutputTokens} tokens",
-            insight.Id, year, month, insight.Model, insight.InputTokens, insight.OutputTokens);
+        logger.LogInformation("Saved insight {InsightId} for {Year}-{Month:00}: {Model}, {InputTokens} + {OutputTokens} tokens, question {HasQuestion}",
+            insight.Id, year, month, insight.Model, insight.InputTokens, insight.OutputTokens, question is not null);
         return new InsightOutcome(insight, Created: true);
     }
 
-    // The month's newest insight. Found by the month it's for, like budget figures, so changing payday
+    // The month's newest insight without a question (one with a question answers that, so it isn't
+    // the month's general read). Found by the month it's for, like budget figures, so changing payday
     // doesn't lose it.
     public Task<Insight?> LatestForMonthAsync(int year, int month)
     {
         var first = new DateOnly(year, month, 1);
         var next = first.AddMonths(1);
-        return db.Insights.Where(i => i.PeriodStart >= first && i.PeriodStart < next)
+        return db.Insights.Where(i => i.PeriodStart >= first && i.PeriodStart < next && i.Question == null)
             .OrderByDescending(i => i.CreatedAt).ThenByDescending(i => i.Id)
             .FirstOrDefaultAsync();
     }

@@ -1,3 +1,4 @@
+using LifeTracker.Api.Features.Insights;
 using LifeTracker.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -133,6 +134,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         modelBuilder.Entity<Insight>(e =>
         {
             e.Property(i => i.Model).HasMaxLength(100);
+            e.Property(i => i.Question).HasMaxLength(InsightPromptBuilder.MaxQuestion);
             e.HasIndex(i => i.PeriodStart);   // "the latest insight for this month"
         });
 

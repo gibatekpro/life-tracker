@@ -288,6 +288,10 @@ namespace LifeTracker.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Question")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("ResponseJson")
                         .IsRequired()
                         .HasColumnType("text");

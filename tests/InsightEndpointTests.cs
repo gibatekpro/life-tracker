@@ -24,6 +24,17 @@ public class FakeInsightModel : IInsightModel
         }
         """;
 
+    // The same, replying to a question.
+    public const string QuestionAnswer = """
+        {
+          "summary": "Most of your spending went on food.",
+          "wasteItems": [],
+          "savingTips": [],
+          "debtAdvice": "Put savings towards the highest-APR card. General information, not financial advice.",
+          "answer": "Yes: you have 150.00 left for food and nothing else planned for travel."
+        }
+        """;
+
     public string Answer { get; set; } = GoodAnswer;
     public InsightModelException? Failure { get; set; }
     public List<string> Prompts { get; } = [];
@@ -101,6 +112,11 @@ public class InsightEndpointTests(PostgresFixture pg) : IClassFixture<PostgresFi
     private static Task<HttpResponseMessage> Generate(HttpClient c, bool regenerate = false) =>
         c.PostAsJsonAsync("/insights", new { year = 2026, month = 10, regenerate });
 
+    private static Task<HttpResponseMessage> Ask(HttpClient c, string question) =>
+        c.PostAsJsonAsync("/insights", new { year = 2026, month = 10, question });
+
+    private static async Task<JsonElement> Body(HttpResponseMessage r) => await r.Content.ReadFromJsonAsync<JsonElement>();
+
     private static async Task<string> Error(HttpResponseMessage r) =>
         (await r.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("error").GetString()!;
 
@@ -154,6 +170,72 @@ public class InsightEndpointTests(PostgresFixture pg) : IClassFixture<PostgresFi
         Assert.Equal(HttpStatusCode.Created, regenerated.StatusCode);
         Assert.Equal(2, s.Model.Prompts.Count);   // OpenAI asked only twice
         Assert.Equal(2, (await s.Client.GetFromJsonAsync<JsonElement>("/insights")).GetArrayLength());
+    }
+
+    [Fact]
+    public async Task AQuestion_AlwaysAsksTheModel_AndTheMonthsInsightIsTheLatestWithout()
+    {
+        using var s = await SetupAsync();
+        var plainId = (await Body(await Generate(s.Client))).GetProperty("id").GetInt32();
+        s.Model.Answer = FakeInsightModel.QuestionAnswer;
+
+        var asked = await Ask(s.Client, "  Can I afford a £50 train ticket this month?  ");
+        var askedAgain = await Ask(s.Client, "Can I afford a £50 train ticket this month?");
+
+        Assert.Equal((HttpStatusCode.Created, HttpStatusCode.Created), (asked.StatusCode, askedAgain.StatusCode));
+        var insight = await Body(asked);
+        Assert.NotEqual(insight.GetProperty("id").GetInt32(), (await Body(askedAgain)).GetProperty("id").GetInt32());
+        Assert.Equal("Can I afford a £50 train ticket this month?", insight.GetProperty("question").GetString());
+        Assert.StartsWith("Yes:", insight.GetProperty("result").GetProperty("answer").GetString());
+
+        // Without a question (or with a blank one) the month's insight is the latest one without a question.
+        s.Model.Answer = FakeInsightModel.GoodAnswer;
+        var again = await Generate(s.Client);
+        var blank = await Ask(s.Client, "   ");
+        Assert.Equal((HttpStatusCode.OK, HttpStatusCode.OK), (again.StatusCode, blank.StatusCode));
+        var existing = await Body(again);
+        Assert.Equal(plainId, existing.GetProperty("id").GetInt32());
+        Assert.Equal(plainId, (await Body(blank)).GetProperty("id").GetInt32());
+        Assert.Equal(JsonValueKind.Null, existing.GetProperty("question").ValueKind);
+        Assert.Equal(3, s.Model.Prompts.Count);
+    }
+
+    [Fact]
+    public async Task AQuestionOver500Characters_IsA400_AndOpenAIIsNotAsked()
+    {
+        using var s = await SetupAsync();
+
+        var response = await Ask(s.Client, new string('a', 501));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("A question can be up to 500 characters; this one is 501.", await Error(response));
+        Assert.Empty(s.Model.Prompts);
+    }
+
+    [Fact]
+    public async Task AQuestionsLongNumbers_AreMasked_InWhatIsSentAndSaved()
+    {
+        using var s = await SetupAsync();
+        s.Model.Answer = FakeInsightModel.QuestionAnswer;
+
+        var insight = await Body(await Ask(s.Client, "Should I pay card 4929 1234 5678 9012 first?"));
+
+        var prompt = s.Model.Prompts.Single();
+        Assert.Contains("> Should I pay card ••• first?", prompt);
+        Assert.DoesNotContain("4929", prompt);
+        Assert.Equal("Should I pay card ••• first?", insight.GetProperty("question").GetString());
+        Assert.Equal(prompt, insight.GetProperty("promptSent").GetString());   // "What was sent" includes the question
+    }
+
+    [Fact]
+    public async Task AQuestionTheModelDoesntAnswer_IsA502()
+    {
+        using var s = await SetupAsync();   // the fake's usual answer has no "answer"
+
+        var response = await Ask(s.Client, "Can I afford a holiday?");
+
+        Assert.Equal(HttpStatusCode.BadGateway, response.StatusCode);
+        Assert.Contains("didn't answer your question", await Error(response));
     }
 
     [Fact]

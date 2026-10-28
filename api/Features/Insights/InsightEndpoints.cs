@@ -4,17 +4,18 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LifeTracker.Api.Features.Insights;
 
-public record GenerateInsightRequest(int Year, int Month, bool Regenerate = false);
+// Question: optional, up to 500 characters; with one, the model is always asked.
+public record GenerateInsightRequest(int Year, int Month, bool Regenerate = false, string? Question = null);
 
-// An insight as the page shows it: the month, the checked answer, what it cost, and exactly what
-// was sent to OpenAI.
+// An insight as the page shows it: the month, my question (if any), the checked answer (whose
+// Answer replies to the question), what it cost, and exactly what was sent to OpenAI.
 public record InsightDto(
     int Id, int Year, int Month, DateOnly PeriodStart, DateTime CreatedAt, string Model,
-    int InputTokens, int OutputTokens, string PromptSent, InsightResult Result)
+    int InputTokens, int OutputTokens, string PromptSent, string? Question, InsightResult Result)
 {
     public static InsightDto From(Insight i) => new(
         i.Id, i.PeriodStart.Year, i.PeriodStart.Month, i.PeriodStart, i.CreatedAt, i.Model,
-        i.InputTokens, i.OutputTokens, i.PromptSent, InsightResponseValidator.Deserialize(i.ResponseJson));
+        i.InputTokens, i.OutputTokens, i.PromptSent, i.Question, InsightResponseValidator.Deserialize(i.ResponseJson));
 }
 
 // AI insights for a budget month: what I'm spending on, possible waste, ways to save and how it all
@@ -26,13 +27,15 @@ public static class InsightEndpoints
         var group = app.MapGroup("/insights").WithTags("Insights");
 
         // Makes one (only when asked: this is the one place the app spends OpenAI tokens), or returns
-        // the month's existing one unless Regenerate is set.
+        // the month's existing one unless Regenerate is set or there's a question.
         group.MapPost("/", async (GenerateInsightRequest req, InsightService insights, CancellationToken cancellationToken) =>
         {
             if (req.Month is < 1 or > 12 || req.Year is < 2000 or > 2100)
                 return Results.BadRequest(new { error = "Give a year and a month (1-12)." });
+            var (question, questionError) = InsightPromptBuilder.CleanQuestion(req.Question);
+            if (questionError is not null) return Results.BadRequest(new { error = questionError });
 
-            var outcome = await insights.GenerateAsync(req.Year, req.Month, req.Regenerate, cancellationToken);
+            var outcome = await insights.GenerateAsync(req.Year, req.Month, req.Regenerate, question, cancellationToken);
             return outcome switch
             {
                 { Insight: { } i, Created: true } => Results.Created($"/insights/{i.Id}", InsightDto.From(i)),
