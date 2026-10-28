@@ -1,6 +1,7 @@
 import {
-  formatDateTime, formatMoney, generateLabel, generatingNote, insightFooter, insightsForMonth, isKeyNotConfigured, monthName,
-  parseYm, periodLabel, savingsNote, shiftMonth, shownInsight, toYm, type Insight,
+  formatDateTime, formatMoney, generateLabel, generatingNote, hasQuestion, insightFooter, insightsForMonth, isKeyNotConfigured,
+  maxQuestionLength, monthName, parseYm, periodLabel, questionCounter, questionLabel, questionNote, questionPlaceholder,
+  savingsNote, shiftMonth, shortQuestion, shownInsight, toYm, type Insight,
 } from '@lifetracker/core';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
@@ -8,6 +9,8 @@ import { ActivityIndicator, Alert as NativeAlert, Pressable, StyleSheet, Text, V
 
 import { deleteInsight, generateInsight, getBudgetMonth, getInsights } from '@/api';
 import ErrorCard from '@/components/ErrorCard';
+import { TextField } from '@/components/form/Field';
+import KeyboardSaveBar from '@/components/form/KeyboardSaveBar';
 import MonthNav from '@/components/MonthNav';
 import Screen from '@/components/Screen';
 import Alert from '@/components/ui/Alert';
@@ -22,7 +25,8 @@ import ErrorAlert from '@/components/ErrorAlert';
 // AI insights for a budget month (web: InsightsPage). Generate asks my API, which sends OpenAI a summary
 // of the month (categories, merchants, budgets and debts; no account numbers, ids or aliases) and saves
 // the answer. The phone never talks to OpenAI. A month's latest insight is shown until I regenerate it,
-// and "What was sent" shows exactly what OpenAI saw.
+// and "What was sent" shows exactly what OpenAI saw. An optional question is answered at the top of a
+// new insight (a question always asks afresh).
 export default function InsightsScreen() {
   const t = useTokens();
   const { refresh } = useRefresh();
@@ -37,6 +41,8 @@ export default function InsightsScreen() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [question, setQuestion] = useState('');
+  const asking = hasQuestion(question);
 
   const b = view.data?.budget;
   const shownYm = b ? toYm(b.year, b.month) : null;
@@ -56,9 +62,10 @@ export default function InsightsScreen() {
     setGenerating(true);
     setError(null);
     try {
-      const insight = await generateInsight(b.year, b.month, shown !== undefined);
+      const insight = await generateInsight(b.year, b.month, shown !== undefined, question);
       setSelectedId(insight.id);
       setShowPrompt(false);
+      setQuestion('');
       refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -87,8 +94,6 @@ export default function InsightsScreen() {
   return (
     <Screen description="An AI read of a budget month: possible waste, ways to save, and how it fits with paying off debt."
       refreshing={insights.loading && !!insights.data} onRefresh={refresh}>
-      {b && <Button title={generateLabel(generating, shown !== undefined)} onPress={generate} disabled={generating || (insights.loading && !insights.data)} />}
-
       <MonthNav label={b ? periodLabel(b) : '…'}
         onPrevious={() => shownYm && goTo(shiftMonth(shownYm, -1))} onNext={() => shownYm && goTo(shiftMonth(shownYm, 1))}
         previousDisabled={!shownYm || generating} nextDisabled={!shownYm || generating} />
@@ -104,15 +109,31 @@ export default function InsightsScreen() {
           </Text>
         </Alert>
       ) : <ErrorAlert message={error} />)}
-      {generating && <Alert>{generatingNote(b?.year, b?.month)}</Alert>}
+      {generating && <Alert>{generatingNote(b?.year, b?.month, asking)}</Alert>}
 
       {!b || !insights.data ? <ActivityIndicator color={t.muted} /> : (
         <>
+          <Card>
+            <View style={styles.ask}>
+              <Text style={[styles.caption, { color: t.muted }]}>{questionLabel}</Text>
+              <TextField value={question} onChangeText={setQuestion} placeholder={questionPlaceholder} multiline
+                maxLength={maxQuestionLength} editable={!generating} inputAccessoryViewID="insight-question"
+                accessibilityLabel={questionLabel} accessibilityHint={questionNote}
+                style={[styles.question, { borderColor: t.line, backgroundColor: t.surface }]} />
+              <View style={styles.askFoot}>
+                <Text style={[styles.small, styles.note, { color: t.muted }]}>{questionNote}</Text>
+                <Text style={[styles.small, styles.counter, { color: t.muted }]}>{questionCounter(question)}</Text>
+              </View>
+              <Button title={generateLabel(generating, shown !== undefined, asking)} onPress={generate} disabled={generating} />
+            </View>
+            <KeyboardSaveBar id="insight-question" label={generateLabel(generating, shown !== undefined, asking)} onSave={generate}
+              disabled={generating} />
+          </Card>
+
           <View style={generating && styles.dimmed}>
             {!shown ? (
               <Card>
-                <EmptyState icon="sparkles" title="No insight for this month yet"
-                  action={<Button title="Generate" onPress={generate} disabled={generating} />}>
+                <EmptyState icon="sparkles" title="No insight for this month yet">
                   Your API sends OpenAI a summary of this month&apos;s spending, budgets and debts, and saves what comes back. Account numbers, ids and aliases are left out.
                 </EmptyState>
               </Card>
@@ -128,6 +149,7 @@ export default function InsightsScreen() {
                 accessibilityState={{ selected: shown?.id === i.id }}
                 style={({ pressed }) => [styles.past, shown?.id === i.id && { backgroundColor: t.accentSoft }, pressed && { opacity: 0.6 }]}>
                 <Text style={[styles.pastMonth, { color: t.ink }]}>{monthName(i.year, i.month)}</Text>
+                {i.question ? <Text style={[styles.small, { color: t.ink }]} numberOfLines={1}>“{shortQuestion(i.question)}”</Text> : null}
                 <Text style={[styles.small, { color: t.muted }]}>{formatDateTime(i.createdAt)}</Text>
               </Pressable>
             ))}
@@ -150,6 +172,13 @@ function InsightView({ insight, showPrompt, onTogglePrompt, onDelete }: {
 
   return (
     <View style={styles.view}>
+      {insight.question ? (
+        <Card title="Your question">
+          <Text selectable style={[styles.text, styles.quote, { color: t.muted, borderLeftColor: t.accent }]}>{insight.question}</Text>
+          {r.answer ? <Text selectable style={[styles.text, { color: t.ink }]}>{r.answer}</Text> : null}
+        </Card>
+      ) : null}
+
       <Card title="Summary"><Text style={[styles.text, { color: t.ink }]}>{r.summary}</Text></Card>
 
       <Card title="Possible waste" description="Spending that might not be worth what it costs.">
@@ -207,6 +236,13 @@ const styles = StyleSheet.create({
   small: { fontSize: 12, lineHeight: 17 },
   strong: { fontSize: 14, fontWeight: '600' },
   mono: { fontFamily: 'Menlo', fontSize: 12 },
+  ask: { gap: 10 },
+  caption: { fontSize: 13, fontWeight: '500' },
+  question: { minHeight: 96, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, paddingHorizontal: 12, paddingTop: 10, fontSize: 16, textAlignVertical: 'top' },
+  askFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  note: { flex: 1 },
+  counter: { fontVariant: ['tabular-nums'] },
+  quote: { borderLeftWidth: 2, paddingLeft: 10, marginBottom: 10 },
   item: { paddingVertical: 10, gap: 4 },
   itemTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 },
   itemName: { flex: 1, fontSize: 14, fontWeight: '500' },
