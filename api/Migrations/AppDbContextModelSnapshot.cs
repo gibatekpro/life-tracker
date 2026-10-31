@@ -303,6 +303,62 @@ namespace LifeTracker.Api.Migrations
                     b.ToTable("Insights");
                 });
 
+            modelBuilder.Entity("LifeTracker.Api.Models.PlannedPurchase", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AccountId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsEssential")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("MonthlyAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateOnly>("StartMonth")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<decimal>("TargetAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateOnly>("TargetMonth")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId")
+                        .IsUnique();
+
+                    b.ToTable("PlannedPurchases", t =>
+                        {
+                            t.HasCheckConstraint("CK_PlannedPurchases_AmountsAndMonths", "\"TargetAmount\" > 0 AND \"MonthlyAmount\" > 0 AND \"TargetMonth\" >= \"StartMonth\" AND EXTRACT(DAY FROM \"StartMonth\") = 1 AND EXTRACT(DAY FROM \"TargetMonth\") = 1");
+                        });
+                });
+
             modelBuilder.Entity("LifeTracker.Api.Models.Transaction", b =>
                 {
                     b.Property<int>("Id")
@@ -408,6 +464,17 @@ namespace LifeTracker.Api.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("LifeTracker.Api.Models.PlannedPurchase", b =>
+                {
+                    b.HasOne("LifeTracker.Api.Models.Account", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Account");
                 });
 
             modelBuilder.Entity("LifeTracker.Api.Models.Transaction", b =>

@@ -13,6 +13,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<BudgetMonthAmount> BudgetMonthAmounts => Set<BudgetMonthAmount>();
     public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
     public DbSet<Insight> Insights => Set<Insight>();
+    public DbSet<PlannedPurchase> PlannedPurchases => Set<PlannedPurchase>();
 
 
     public DbSet<AppSettings> Settings => Set<AppSettings>();
@@ -136,6 +137,28 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(i => i.Model).HasMaxLength(100);
             e.Property(i => i.Question).HasMaxLength(InsightPromptBuilder.MaxQuestion);
             e.HasIndex(i => i.PeriodStart);   // "the latest insight for this month"
+        });
+
+        modelBuilder.Entity<PlannedPurchase>(e =>
+        {
+            e.Property(p => p.Name).HasMaxLength(100);
+            e.Property(p => p.Notes).HasMaxLength(1000);
+            e.Property(p => p.TargetAmount).HasPrecision(18, 2);
+            e.Property(p => p.MonthlyAmount).HasPrecision(18, 2);
+            e.Property(p => p.Status).HasConversion<string>().HasMaxLength(20);
+
+            e.HasOne(p => p.Account)
+            .WithMany()
+            .HasForeignKey(p => p.AccountId)
+            .OnDelete(DeleteBehavior.Restrict);   // its savings account can't be deleted from under it
+
+            e.HasIndex(p => p.AccountId).IsUnique();   // one planned purchase per savings account
+
+            // Positive amounts, months named by their 1st, and a target that isn't before the start.
+            e.ToTable(t => t.HasCheckConstraint(
+                "CK_PlannedPurchases_AmountsAndMonths",
+                "\"TargetAmount\" > 0 AND \"MonthlyAmount\" > 0 AND \"TargetMonth\" >= \"StartMonth\" " +
+                "AND EXTRACT(DAY FROM \"StartMonth\") = 1 AND EXTRACT(DAY FROM \"TargetMonth\") = 1"));
         });
 
         modelBuilder.Entity<AccountAlias>(e =>
