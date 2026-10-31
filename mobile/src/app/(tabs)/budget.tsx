@@ -1,6 +1,6 @@
 import {
   avalancheExtraNote, budgetDaysNote, budgetStats, budgetTree, copyNotice, debtBudgetNote, formatMoney, parseYm, periodLabel,
-  shiftMonth, toYm, unallocatedNote, type BudgetLineKey,
+  savingsCardDescription, shiftMonth, toYm, unallocatedNote, type BudgetLineKey,
 } from '@lifetracker/core';
 import { router } from 'expo-router';
 import { useState } from 'react';
@@ -21,11 +21,13 @@ import { useRefresh } from '@/data/refresh';
 import { useData } from '@/data/useData';
 import BudgetLineRow from '@/features/budget/BudgetLineRow';
 import DebtLineRow from '@/features/budget/DebtLineRow';
+import SavingsLineRow from '@/features/budget/SavingsLineRow';
 import { openAddLine, openAmountEditor } from '@/features/budget/open';
 import { useTokens } from '@/theme/tokens';
 import ErrorAlert from '@/components/ErrorAlert';
 
-// My budget for a month (web: BudgetPage): what I plan to spend in each category and pay on each debt,
+// My budget for a month (web: BudgetPage): what I plan to spend in each category, pay on each debt and
+// save for each planned purchase,
 // against what's gone so far, what's unallocated, and what's safe to spend per day. Amounts are changed
 // for one month in a small modal; months can be planned ahead. The spending tree opens and closes like
 // the web's on a phone. The web keeps the month in the URL; here it's the screen's state.
@@ -71,7 +73,7 @@ export default function BudgetScreen() {
   const linkStyle = { color: t.accent, fontWeight: '500' as const };
 
   return (
-    <Screen title="Budget" description="Plan each month's spending and debt payments, and see how it's going."
+    <Screen title="Budget" description="Plan each month's spending, debt payments and savings, and see how it's going."
       refreshing={view.loading && !!b} onRefresh={refresh}>
       {b && (
         <View style={styles.actions}>
@@ -149,6 +151,19 @@ export default function BudgetScreen() {
               {planNote.before}<Text style={linkStyle} onPress={() => router.navigate('/plan')}>{planNote.link}</Text>{planNote.after}
             </Text>
           </Card>
+
+          {b.savings.length > 0 && (
+            <Card title="Savings" description={savingsCardDescription(b)} action={{ label: 'All', onPress: () => router.push('/planned-purchases') }}>
+              {b.savings.map((s, i) => (
+                <View key={s.accountId} style={i > 0 && { borderTopColor: t.line, borderTopWidth: StyleSheet.hairlineWidth }}>
+                  <SavingsLineRow line={s} onEdit={() => openAmountEditor({
+                    year: b.year, month: b.month, accountId: s.accountId, name: s.name,
+                    current: s.planned, defaultAmount: s.defaultAmount, monthAmount: s.monthAmount,
+                  })} />
+                </View>
+              ))}
+            </Card>
+          )}
 
           {nudge && (
             <Alert tone="info">

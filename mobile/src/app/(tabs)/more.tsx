@@ -7,6 +7,7 @@ import { useTokens } from '@/theme/tokens';
 
 // The sections that don't fit on the tab bar, as on the web's phone layout (navItems' 'more').
 const items: { href: Href; label: string; icon: SFSymbol }[] = [
+  { href: '/planned-purchases', label: 'Planned purchases', icon: 'gift' },
   { href: '/accounts', label: 'Accounts', icon: 'wallet.bifold' },
   { href: '/insights', label: 'Insights', icon: 'sparkles' },
   { href: '/settings', label: 'Settings', icon: 'gearshape' },

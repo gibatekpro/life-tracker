@@ -35,12 +35,16 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="accounts/index" options={{ title: 'Accounts' }} />
           <Stack.Screen name="accounts/[id]" options={{ title: 'Account' }} />
+          <Stack.Screen name="planned-purchases/index" options={{ title: 'Planned purchases' }} />
+          <Stack.Screen name="planned-purchases/[id]" options={{ title: 'Planned purchase' }} />
           <Stack.Screen name="insights" options={{ title: 'Insights' }} />
           <Stack.Screen name="settings" options={{ title: 'Settings' }} />
           <Stack.Screen name="transaction" options={{ presentation: 'modal' }} />
           <Stack.Screen name="account-form" options={{ presentation: 'modal' }} />
           <Stack.Screen name="budget-line" options={{ presentation: 'modal' }} />
           <Stack.Screen name="category-form" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="planned-purchase-form" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="planned-purchase-bought" options={{ presentation: 'modal' }} />
         </Stack>
       </RefreshProvider>
     </ThemeProvider>

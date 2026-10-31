@@ -15,6 +15,7 @@ import ProgressBar from '@/components/ui/ProgressBar';
 import Stat from '@/components/ui/Stat';
 import { useRefresh } from '@/data/refresh';
 import { useData } from '@/data/useData';
+import PlannedPurchasesCard from '@/features/overview/PlannedPurchasesCard';
 import SafeToSpendCard from '@/features/overview/SafeToSpendCard';
 import SpendingTrendChart from '@/features/overview/SpendingTrendChart';
 import { openNewTransaction } from '@/features/transactions/open';
@@ -99,6 +100,7 @@ export default function HomeScreen() {
       </Card>
 
       <SafeToSpendCard />
+      <PlannedPurchasesCard />
 
       <Card title="Accounts" action={{ label: 'Manage', onPress: () => router.push('/accounts') }}>
         {!accounts.data ? spinner : accounts.data.map((a, i) => (

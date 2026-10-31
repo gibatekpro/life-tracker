@@ -18,6 +18,7 @@ export const {
   getCategories, createCategory, updateCategory, archiveCategory, unarchiveCategory, deleteCategory,
   getBudgetMonth, setBudgetAmount, resetBudgetAmount, copyPreviousBudget,
   getInsights, generateInsight, deleteInsight,
+  getPlannedPurchases, getPlannedPurchase, createPlannedPurchase, updatePlannedPurchase, cancelPlannedPurchase, markPlannedPurchaseBought,
   getDebts, getAvalanchePlan, getWhatIf,
   getMonthlySummary,
   getSettings, updateSettings, setDefaultAccount,
