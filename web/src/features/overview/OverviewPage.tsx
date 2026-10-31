@@ -12,6 +12,7 @@ import TransactionRow from '../transactions/TransactionRow';
 import { useQuickAdd } from '../transactions/quickAdd';
 import SpendingTrendChart from './SpendingTrendChart';
 import SafeToSpendCard from './SafeToSpendCard';
+import PlannedPurchasesCard from './PlannedPurchasesCard';
 
 // The last six budget months' summaries, oldest first, ending with the one I'm in now
 // (which, before payday, is still last month's).
@@ -109,6 +110,7 @@ export default function OverviewPage() {
 
         <div className="grid content-start gap-6">
           <SafeToSpendCard />
+          <PlannedPurchasesCard />
 
           <Card title="Accounts" action={<Link to="/accounts" className="text-sm font-medium text-accent hover:underline">Manage</Link>}>
             {!accounts.data ? <Skeleton className="h-48" /> : (

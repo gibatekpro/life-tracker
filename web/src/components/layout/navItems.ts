@@ -15,6 +15,7 @@ export const navItems: NavItem[] = [
   { to: '/transactions', label: 'Transactions', short: 'Activity', icon: 'list', phone: 'tab' },
   { to: '/budget', label: 'Budget', short: 'Budget', icon: 'budget', phone: 'tab' },
   { to: '/plan', label: 'Debt plan', short: 'Plan', icon: 'target', phone: 'tab' },
+  { to: '/planned-purchases', label: 'Planned purchases', short: 'Saving', icon: 'gift', phone: 'more' },
   { to: '/accounts', label: 'Accounts', short: 'Accounts', icon: 'wallet', phone: 'more' },
   { to: '/insights', label: 'Insights', short: 'Insights', icon: 'sparkles', phone: 'more' },
   { to: '/settings', label: 'Settings', short: 'Settings', icon: 'settings', phone: 'more' },

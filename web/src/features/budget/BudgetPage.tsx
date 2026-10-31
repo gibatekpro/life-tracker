@@ -6,7 +6,7 @@ import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
 import {
   avalancheExtraNote, budgetDaysNote, budgetStats, budgetTree, copyNotice, debtBudgetNote, formatMoney, monthName, periodLabel,
-  shiftMonth, unallocatedNote,
+  savingsCardDescription, shiftMonth, unallocatedNote,
 } from '@lifetracker/core';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -17,8 +17,10 @@ import CollapsibleTree from '../../components/tree/CollapsibleTree';
 import { useIsSmallScreen } from '../../hooks/useIsSmallScreen';
 import BudgetLineRow from './BudgetLineRow';
 import DebtLineRow from './DebtLineRow';
+import SavingsLineRow from './SavingsLineRow';
 
-// My budget for a month: what I plan to spend in each category and pay on each debt, against
+// My budget for a month: what I plan to spend in each category, pay on each debt and save for each
+// planned purchase, against
 // what's gone so far, what's unallocated, and what's safe to spend per day. Amounts can be changed
 // for one month in place; the month (?month=2026-11) is in the URL, and next month can be planned ahead.
 export default function BudgetPage() {
@@ -62,7 +64,7 @@ export default function BudgetPage() {
 
   return (
     <>
-      <PageHeader title="Budget" description="Plan each month's spending and debt payments, and see how it's going."
+      <PageHeader title="Budget" description="Plan each month's spending, debt payments and savings, and see how it's going."
         actions={b && (
           <>
             <Button icon="copy" onClick={copyPrevious}>Copy last month</Button>
@@ -144,6 +146,19 @@ export default function BudgetPage() {
                   {planNote.before}<Link to="/plan" className="text-accent hover:underline">{planNote.link}</Link>{planNote.after}
                 </p>
               </Card>
+
+              {b.savings.length > 0 && (
+                <Card title="Savings" description={savingsCardDescription(b)}
+                  action={<Link to="/planned-purchases" className="text-sm font-medium text-accent hover:underline">All</Link>}>
+                  <ul className="-my-3 divide-y divide-line">
+                    {b.savings.map((s) => (
+                      <SavingsLineRow key={s.accountId} line={s}
+                        onSave={(accountId, amount) => save({ accountId }, amount)}
+                        onReset={(accountId) => reset({ accountId })} />
+                    ))}
+                  </ul>
+                </Card>
+              )}
 
               {nudge && (
                 <Alert tone="info">
