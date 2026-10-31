@@ -116,15 +116,17 @@ export function purchaseProgress(p: PurchaseProgressInput): PurchaseProgress {
   const monthsLeft = Math.max(0, monthsBetween(p.currentMonth, p.targetMonth) + 1);
   const neededByNow = Math.max(0, target - monthly * monthsLeft);
 
-  // The pace: what came in per month since the start, counting this month once money has come in
-  // (until then, this month's payment may still be on its way). With nothing to go on yet, the plan.
-  const paidThisMonth = p.contributedThisMonth > 0;
+  // The pace: what came in per month since the start. This month counts once its monthly amount is in;
+  // until then a part payment is saved but doesn't drag the pace down, and the month is still open.
+  // With no whole month to go on yet, the plan.
+  const thisMonth = pennies(p.contributedThisMonth);
+  const paidThisMonth = thisMonth > 0 && thisMonth >= monthly;
   const counted = Math.max(0, monthsBetween(p.startMonth, p.currentMonth)) + (paidThisMonth ? 1 : 0);
-  const contributed = pennies(p.contributedBefore) + pennies(p.contributedThisMonth);
+  const contributed = pennies(p.contributedBefore) + (paidThisMonth ? thisMonth : 0);
   const more = counted === 0 ? (monthly > 0 ? ceilDiv(remaining, monthly) : Infinity)
     : contributed > 0 ? ceilDiv(remaining * counted, contributed) : Infinity;
 
-  // This month still counts as a saving month until money has come in.
+  // This month is still a saving month until its amount is in.
   const expectedFinish = remaining === 0 ? p.currentMonth
     : more <= maxPlanMonths ? shiftMonth(p.currentMonth, more - (paidThisMonth ? 0 : 1)) : null;
 

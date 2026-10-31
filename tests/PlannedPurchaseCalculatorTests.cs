@@ -117,8 +117,20 @@ public class PlannedPurchaseCalculatorTests
     [Fact]
     public void ExpectedFinish_FollowsThePaceSoFar()
     {
-        // £1,330 in November and £500 so far in December: £915 a month, £2,160 to go.
-        Assert.Equal(M(2027, 3), Progress(M(2026, 12), 1830m, 1330m, 500m).ExpectedFinish);
+        // £1,330 in November and £500 in December: £915 a month, £2,160 to go from January.
+        Assert.Equal(M(2027, 3), Progress(M(2027, 1), 1830m, 1830m, 0).ExpectedFinish);
+    }
+
+    [Fact]
+    public void APartPaymentThisMonth_IsSaved_ButDoesntDragThePaceDown()
+    {
+        // £300 of November's £1,330 in: still the plan's pace, with November still open.
+        var first = Progress(Nov, 300m, 0, 300m);
+        // £1,330 in November, £500 so far in December: November's pace, December still open.
+        var second = Progress(M(2026, 12), 1830m, 1330m, 500m);
+
+        Assert.Equal((M(2027, 1), 3690m), (first.ExpectedFinish!.Value, first.Remaining));
+        Assert.Equal(M(2027, 1), second.ExpectedFinish);
     }
 
     [Fact]

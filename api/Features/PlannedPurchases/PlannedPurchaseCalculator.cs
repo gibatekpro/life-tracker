@@ -79,18 +79,19 @@ public static class PlannedPurchaseCalculator
         var monthsLeft = Math.Max(0, MonthsBetween(p.CurrentMonth, p.TargetMonth) + 1);
         var neededByNow = Math.Max(0, p.Target - p.MonthlyAmount * monthsLeft);
 
-        // The pace: what came in per month since the start, counting this month once money has come in
-        // (until then, this month's payment may still be on its way). With nothing to go on yet, the plan.
-        // More months = remaining ÷ pace, written as remaining × months ÷ contributed so it stays exact.
-        var paidThisMonth = p.ContributedThisMonth > 0;
+        // The pace: what came in per month since the start. This month counts once its monthly amount is in;
+        // until then a part payment is saved but doesn't drag the pace down, and the month is still open.
+        // With no whole month to go on yet, the plan. More months = remaining ÷ pace, written as
+        // remaining × months ÷ contributed so it stays exact.
+        var paidThisMonth = p.ContributedThisMonth >= p.MonthlyAmount && p.ContributedThisMonth > 0;
         var counted = Math.Max(0, MonthsBetween(p.StartMonth, p.CurrentMonth)) + (paidThisMonth ? 1 : 0);
-        var contributed = p.ContributedBefore + p.ContributedThisMonth;
+        var contributed = p.ContributedBefore + (paidThisMonth ? p.ContributedThisMonth : 0);
         decimal? more = counted == 0 ? (p.MonthlyAmount > 0 ? Math.Ceiling(remaining / p.MonthlyAmount) : null)
             : contributed > 0 ? Math.Ceiling(remaining * counted / contributed) : null;
 
         DateOnly? finish = null;
         if (remaining == 0) finish = p.CurrentMonth;
-        // This month still counts as a saving month until money has come in.
+        // This month is still a saving month until its amount is in.
         else if (more <= MaxMonths) finish = p.CurrentMonth.AddMonths((int)more.Value - (paidThisMonth ? 0 : 1));
 
         return new PurchaseProgress(saved, remaining, percent, neededByNow, remaining == 0 || saved >= neededByNow,

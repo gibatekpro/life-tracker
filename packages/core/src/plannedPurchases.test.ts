@@ -98,8 +98,15 @@ describe('purchaseProgress', () => {
   });
 
   it('expects to finish at the pace so far', () => {
-    // £1,330 in November and £500 so far in December: £915 a month, £2,160 to go.
-    expect(progress('2026-12', 1830, 1330, 500).expectedFinish).toBe('2027-03');
+    // £1,330 in November and £500 in December: £915 a month, £2,160 to go from January.
+    expect(progress('2027-01', 1830, 1830, 0).expectedFinish).toBe('2027-03');
+  });
+
+  it("saves a part payment this month without dragging the pace down", () => {
+    // £300 of November's £1,330 in: still the plan's pace, with November still open.
+    expect(progress('2026-11', 300, 0, 300)).toMatchObject({ expectedFinish: '2027-01', remaining: 3690 });
+    // £1,330 in November, £500 so far in December: November's pace, December still open.
+    expect(progress('2026-12', 1830, 1330, 500).expectedFinish).toBe('2027-01');
   });
 
   it('is behind past the target month while short', () => {
