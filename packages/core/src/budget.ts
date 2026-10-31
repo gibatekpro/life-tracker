@@ -60,7 +60,11 @@ export const budgetDaysNote = (b: BudgetMonth) =>
 export function budgetStats({ budget: b, incomeMode }: BudgetMonthView) {
   return {
     income: { value: formatMoney(b.income), sub: incomeMode === 'Fixed' ? 'Take-home pay' : 'Recorded this month' },
-    planned: { value: formatMoney(b.totalPlanned), sub: `${formatMoney(b.plannedSpending)} spending · ${formatMoney(b.plannedDebts)} debts` },
+    planned: {
+      value: formatMoney(b.totalPlanned),
+      sub: `${formatMoney(b.plannedSpending)} spending · ${formatMoney(b.plannedDebts)} debts`
+        + (b.plannedSavings > 0 ? ` · ${formatMoney(b.plannedSavings)} savings` : ''),
+    },
     unallocated: {
       value: formatMoney(b.unallocated), negative: b.unallocated < 0,
       sub: b.unallocated < 0 ? 'Planned more than income' : 'Income not yet budgeted',

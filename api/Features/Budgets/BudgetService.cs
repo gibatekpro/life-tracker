@@ -13,12 +13,13 @@ namespace LifeTracker.Api.Features.Budgets;
 // debt budget from Settings (the avalanche plan's fallback).
 public record BudgetMonthView(BudgetMonth Budget, IncomeMode IncomeMode, decimal? SettingsDebtBudget);
 
-// Which line a month's figure is for: a spending category or a debt account (exactly one).
+// Which line a month's figure is for: a spending category, or a debt or planned purchase's account (exactly one).
 public record BudgetLineKey(int? CategoryId, int? AccountId);
 
 // Gathers a budget month from the database, all in pounds, and hands it to BudgetCalculator:
 // each category's default and this month's figure, spending per category, each debt's default
-// (its monthly payment) and what was paid into it, the income, and the avalanche plan's suggestions.
+// (its monthly payment) and what was paid into it, the income, the avalanche plan's suggestions,
+// and each planned purchase's monthly amount, what went into it and what it still needed.
 // Also sets, resets and copies a month's figures, and gives the avalanche plan its monthly budget.
 public class BudgetService(
     AppDbContext db, SettingsService settings, SummaryService summary, ExchangeRateService rates,
@@ -62,7 +63,8 @@ public class BudgetService(
             s.MonthlyDebtBudget,
             // What the plan pays: the debt budget, but never less than every debt's planned payment.
             // With nothing to plan (no debts with a balance and a rate), there's no extra to show.
-            plan.FirstMonth.Count > 0 ? plan.MonthlyBudget : null));
+            plan.FirstMonth.Count > 0 ? plan.MonthlyBudget : null,
+            await SavingsAsync(period, amounts)));
 
         logger.LogDebug("Budget {Start} to {End}: planned £{Planned} of £{Income}, spent £{Spent}, safe £{Safe}/day",
             result.PeriodStart, result.PeriodEnd, result.TotalPlanned, result.Income, result.Spent, result.SafeToSpendPerDay);
@@ -213,6 +215,46 @@ public class BudgetService(
             ? debts.Sum(d => d.MonthAmount ?? d.Default ?? 0)
             : s.MonthlyDebtBudget;
 
+    // One line per planned purchase: from its start month while it's active (or achieved), and in any
+    // month money went into it or a figure was set. All in pounds: a planned purchase's account is GBP.
+    // Paid is the transfers into its account in the month. What it still needed when the month began is
+    // the target less what was saved then: today's balance with every movement since undone, so it's
+    // right for past months too, and paying this month's amount doesn't shrink this month's line.
+    private async Task<List<SavingsInput>> SavingsAsync(BudgetPeriod period, Dictionary<BudgetLineKey, decimal> amounts)
+    {
+        var purchases = await db.PlannedPurchases.Include(p => p.Account)
+            .OrderBy(p => p.TargetMonth).ThenBy(p => p.Name)
+            .ToListAsync();
+        if (purchases.Count == 0) return [];
+
+        var ids = purchases.Select(p => p.AccountId).ToList();
+        var moves = await db.Transactions
+            .Where(t => t.Date >= period.Start && (ids.Contains(t.AccountId) || (t.ToAccountId != null && ids.Contains(t.ToAccountId.Value))))
+            .Select(t => new { t.Type, t.AccountId, t.ToAccountId, t.Amount, t.ToAmount, t.Date })
+            .ToListAsync();
+
+        var month = new DateOnly(period.Year, period.Month, 1);
+        var result = new List<SavingsInput>();
+        foreach (var p in purchases)
+        {
+            var arrived = moves.Where(t => t.ToAccountId == p.AccountId).ToList();
+            var paid = arrived.Where(t => t.Date < period.End).Sum(t => t.ToAmount ?? t.Amount);
+            var monthAmount = MonthAmount(amounts, new BudgetLineKey(null, p.AccountId));
+            var active = p.Status is PlannedPurchaseStatus.Active or PlannedPurchaseStatus.Achieved;
+            if (!(active && p.StartMonth <= month) && paid == 0 && monthAmount is null) continue;
+
+            var sinceStart = arrived.Sum(t => BalanceRules.MoneyIn(AccountType.Savings, t.ToAmount ?? t.Amount))
+                             + moves.Where(t => t.AccountId == p.AccountId).Sum(t => t.Type == TransactionType.Income
+                                 ? BalanceRules.MoneyIn(AccountType.Savings, t.Amount)
+                                 : BalanceRules.MoneyOut(AccountType.Savings, t.Amount));
+            var savedAtStart = p.Account.Balance - sinceStart;
+
+            result.Add(new SavingsInput(p.Id, p.AccountId, p.Name, p.IsEssential, active, p.MonthlyAmount, monthAmount,
+                paid, p.TargetAmount - savedAtStart));
+        }
+        return result;
+    }
+
     // The debts the avalanche plan works on, in pounds. A naira debt with no transfer rate yet is left out.
     private async Task<List<PlannerDebt>> PlannerDebtsAsync()
     {
@@ -249,11 +291,12 @@ public class BudgetService(
         {
             var account = await db.Accounts.FindAsync(a);
             if (account is null) return $"Account {a} doesn't exist.";
-            if (!account.Type.IsDebt()) return $"{account.Name} isn't a card or loan.";
+            var planned = account.Type == AccountType.Savings && await db.PlannedPurchases.AnyAsync(p => p.AccountId == a);
+            if (!account.Type.IsDebt() && !planned) return $"{account.Name} isn't a card, loan or planned purchase.";
         }
         return null;
     }
 
     private static string Describe(BudgetLineKey key) =>
-        key.CategoryId is { } c ? $"category {c}" : $"debt account {key.AccountId}";
+        key.CategoryId is { } c ? $"category {c}" : $"account {key.AccountId}";
 }

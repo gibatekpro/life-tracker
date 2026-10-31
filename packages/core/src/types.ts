@@ -222,6 +222,22 @@ export interface DebtLine {
   nativeSuggested: number | null;
 }
 
+// A planned purchase's line, in £: this month's figure or its monthly amount, never more than was still
+// needed when the month began (0 once reached). paid = transfers into its savings account this month.
+export interface SavingsLine {
+  plannedPurchaseId: number;
+  accountId: number;
+  name: string;
+  isEssential: boolean;
+  defaultAmount: number;
+  monthAmount: number | null;
+  stillNeeded: number;
+  planned: number;
+  paid: number;
+  remaining: number;
+  percentUsed: number | null;
+}
+
 export interface BudgetMonth {
   year: number;
   month: number;
@@ -233,10 +249,12 @@ export interface BudgetMonth {
   income: number;
   plannedSpending: number;
   plannedDebts: number;
+  plannedSavings: number; // planned purchases; never part of the debt budget
   totalPlanned: number;
   unallocated: number;
   spent: number;
   debtPaid: number;
+  savingsPaid: number;
   safeToSpend: number;
   safeToSpendPerDay: number;
   hasMonthDebtAmounts: boolean; // true once a debt figure is set: the debt lines are the avalanche budget
@@ -245,6 +263,7 @@ export interface BudgetMonth {
   avalancheExtraPaid: number;
   lines: BudgetLine[];
   debts: DebtLine[];
+  savings: SavingsLine[];
 }
 
 export interface BudgetMonthView {
@@ -253,7 +272,7 @@ export interface BudgetMonthView {
   settingsDebtBudget: number | null;
 }
 
-// A budget line is a spending category or a debt account.
+// A budget line is a spending category, or a debt or planned purchase's account.
 export type BudgetLineKey = { categoryId: number; accountId?: undefined } | { accountId: number; categoryId?: undefined };
 
 // Where an exchange rate comes from: my own rate, the inverse of my rate for the other direction,

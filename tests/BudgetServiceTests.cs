@@ -164,6 +164,51 @@ public class BudgetServiceTests(PostgresFixture pg) : IClassFixture<PostgresFixt
     }
 
     [Fact]
+    public async Task PlannedPurchase_HasASavingsLine_ThatNeverTouchesTheDebtBudget()
+    {
+        var s = await SetupAsync();
+        await using var _ = s.Db;
+        var p = Now();
+        var month = new DateOnly(p.Year, p.Month, 1);
+        var visa = new Account { Name = "Visa fees", Type = AccountType.Savings };
+        s.Db.Accounts.Add(visa);
+        s.Db.PlannedPurchases.Add(new PlannedPurchase
+        {
+            Name = "Visa fees", TargetAmount = 3990m, MonthlyAmount = 1330m, StartMonth = month.AddMonths(-1),
+            TargetMonth = month.AddMonths(1), IsEssential = true, Account = visa,
+        });
+        await s.Db.SaveChangesAsync();
+        // £1,000 saved last month, £1,330 this month, £30 taken back out this month.
+        await s.Ledger.RecordAsync(new LedgerEntry(1000m, "Saving", null, p.Start.AddDays(-1), TransactionType.Transfer, s.Lloyds.Id, visa.Id));
+        await s.Ledger.RecordAsync(new LedgerEntry(1330m, "Saving", null, p.Start, TransactionType.Transfer, s.Lloyds.Id, visa.Id));
+        await s.Ledger.RecordAsync(new LedgerEntry(30m, "Oops", null, p.Start, TransactionType.Transfer, visa.Id, s.Lloyds.Id));
+        Assert.Null(await s.Budgets.SetAmountAsync(p.Year, p.Month, new BudgetLineKey(null, visa.Id), 1500m));
+
+        var view = await s.Budgets.GetMonthAsync();
+        var plan = await s.Budgets.AvalancheAsync(0);
+        var line = view.Budget.Savings.Single();
+
+        Assert.Equal((1500m, 1330m, 2990m, true), (line.Planned, line.Paid, line.StillNeeded, line.IsEssential));
+        Assert.Equal(view.Budget.PlannedSpending + view.Budget.PlannedDebts + 1500m, view.Budget.TotalPlanned);
+        // The savings figure isn't a debt figure: the plan still uses the Settings debt budget.
+        Assert.False(view.Budget.HasMonthDebtAmounts);
+        Assert.Equal((300m, 300m, 300m), (plan.MonthlyBudget, view.Budget.DebtBudget!.Value, view.Budget.PlannedDebts));
+    }
+
+    [Fact]
+    public async Task OnlyCardsLoansAndPlannedPurchases_HaveAnAccountLine()
+    {
+        var s = await SetupAsync();
+        await using var _ = s.Db;
+        var unplanned = new Account { Name = "Rainy day", Type = AccountType.Savings };
+        s.Db.Accounts.Add(unplanned);
+        await s.Db.SaveChangesAsync();
+
+        Assert.Equal("Rainy day isn't a card, loan or planned purchase.",
+            await s.Budgets.SetAmountAsync(2026, 11, new BudgetLineKey(null, unplanned.Id), 10m));
+    }
+
+    [Fact]
     public async Task MonthFigures_StayWithTheirMonth_WhenPaydayChanges()
     {
         var s = await SetupAsync();

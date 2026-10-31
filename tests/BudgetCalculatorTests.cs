@@ -235,6 +235,69 @@ public class BudgetCalculatorTests
         Assert.Equal(0m, m.SafeToSpendPerDay);
     }
 
+    // Planned purchases (the Savings section)
+
+    private static SavingsInput Saving(decimal monthly, decimal? month = null, decimal paid = 0, decimal stillNeeded = 3990m,
+        bool active = true) =>
+        new(1, 20, "Visa fees", true, active, monthly, month, paid, stillNeeded);
+
+    private static BudgetMonth WithSavings(SavingsInput saving, IEnumerable<DebtInput>? debts = null, decimal? avalanche = null) =>
+        BudgetCalculator.Calculate(new BudgetInput(
+            October, new DateOnly(2026, 10, 10), 2000m, [Cat(1, "Rent", def: 800m)], new Dictionary<int, decimal>(),
+            (debts ?? []).ToList(), 300m, avalanche, [saving]));
+
+    [Fact]
+    public void SavingsLine_IsTheMonthlyAmount_OrTheMonthsOwnFigure()
+    {
+        Assert.Equal(400m, WithSavings(Saving(400m)).Savings.Single().Planned);
+        Assert.Equal(250m, WithSavings(Saving(400m, month: 250m)).Savings.Single().Planned);
+    }
+
+    [Fact]
+    public void SavingsLine_IsCappedAtWhatsStillNeeded_AndZeroOnceReached()
+    {
+        Assert.Equal(90m, WithSavings(Saving(400m, stillNeeded: 90m)).Savings.Single().Planned);
+        Assert.Equal(90m, WithSavings(Saving(400m, month: 500m, stillNeeded: 90m)).Savings.Single().Planned);
+        Assert.Equal(0m, WithSavings(Saving(400m, stillNeeded: 0m)).Savings.Single().Planned);
+    }
+
+    [Fact]
+    public void BoughtOrCancelled_LosesItsDefault_ButKeepsAMonthFigureAndWhatWasPaid()
+    {
+        var line = WithSavings(Saving(400m, paid: 50m, active: false)).Savings.Single();
+        var withFigure = WithSavings(Saving(400m, month: 100m, active: false)).Savings.Single();
+
+        Assert.Equal((0m, 50m, -50m), (line.Planned, line.Paid, line.Remaining));
+        Assert.Equal(100m, withFigure.Planned);
+    }
+
+    [Fact]
+    public void Savings_CountInThePlannedTotal_UnallocatedAndSafeToSpend()
+    {
+        var m = WithSavings(Saving(400m, paid: 150m));
+
+        Assert.Equal((400m, 150m, 37.5m), (m.PlannedSavings, m.SavingsPaid, m.Savings.Single().PercentUsed));
+        Assert.Equal(1200m, m.TotalPlanned);           // 800 rent + 400 savings
+        Assert.Equal(800m, m.Unallocated);             // 2000 - 1200
+        // 2000 - 150 saved - (800 rent + 250 savings still set aside)
+        Assert.Equal(800m, m.SafeToSpend);
+    }
+
+    [Fact]
+    public void Savings_NeverCountTowardsTheDebtBudgetOrTheAvalanche()
+    {
+        var card = new DebtInput(10, "Card", 100m, null, Paid: 0m, Suggested: 100m);
+        var without = BudgetCalculator.Calculate(new BudgetInput(
+            October, new DateOnly(2026, 10, 10), 2000m, [], new Dictionary<int, decimal>(), [card], 300m, 300m));
+
+        // A month figure on the savings line, and money paid into it, change nothing on the debt side.
+        var with = WithSavings(Saving(400m, month: 450m, paid: 600m), [card], avalanche: 300m);
+
+        Assert.Equal((without.PlannedDebts, without.DebtBudget, without.HasMonthDebtAmounts), (with.PlannedDebts, with.DebtBudget, with.HasMonthDebtAmounts));
+        Assert.Equal((200m, 0m, 0m), (with.AvalancheExtra, with.AvalancheExtraPaid, with.DebtPaid));
+        Assert.Equal(300m, with.DebtBudget);           // still the Settings fallback
+    }
+
     // Debts and the avalanche budget
 
     [Fact]

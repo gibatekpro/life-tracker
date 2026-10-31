@@ -75,6 +75,9 @@ describe('the budget page', () => {
     });
     expect(budgetStats({ incomeMode: 'Recorded', settingsDebtBudget: null, budget: budgetMonth({ daysLeft: 0, safeToSpend: 10 }) }).safe)
       .toEqual({ value: '—', negative: false, sub: '£10.00 not spent or set aside' });
+    expect(budgetStats({ incomeMode: 'Fixed', settingsDebtBudget: null, budget: budgetMonth({
+      totalPlanned: 4030, plannedSpending: 2000, plannedDebts: 700, plannedSavings: 1330,
+    }) }).planned.sub).toBe('£2,000.00 spending · £700.00 debts · £1,330.00 savings');
   });
 
   it('labels amounts and resets', () => {

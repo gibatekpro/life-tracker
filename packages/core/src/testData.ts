@@ -38,9 +38,9 @@ export const debtLine = (l: Partial<DebtLine> & Pick<DebtLine, 'accountId' | 'na
 
 export const budgetMonth = (b: Partial<BudgetMonth> = {}): BudgetMonth => ({
   year: 2026, month: 10, periodStart: '2026-09-28', periodEnd: '2026-10-27', daysInPeriod: 30, daysElapsed: 20, daysLeft: 10,
-  income: 2500, plannedSpending: 0, plannedDebts: 0, totalPlanned: 0, unallocated: 2500, spent: 0, debtPaid: 0,
-  safeToSpend: 0, safeToSpendPerDay: 0, hasMonthDebtAmounts: false, debtBudget: null, avalancheExtra: 0,
-  avalancheExtraPaid: 0, lines: [], debts: [], ...b,
+  income: 2500, plannedSpending: 0, plannedDebts: 0, plannedSavings: 0, totalPlanned: 0, unallocated: 2500, spent: 0,
+  debtPaid: 0, savingsPaid: 0, safeToSpend: 0, safeToSpendPerDay: 0, hasMonthDebtAmounts: false, debtBudget: null,
+  avalancheExtra: 0, avalancheExtraPaid: 0, lines: [], debts: [], savings: [], ...b,
 });
 
 export const summary = (s: Partial<MonthlySummary> = {}): MonthlySummary => ({
