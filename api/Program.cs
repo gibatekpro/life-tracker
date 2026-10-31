@@ -31,6 +31,7 @@ builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<BudgetService>();
 builder.Services.AddScoped<InsightService>();
 builder.Services.AddScoped<PlannedPurchaseService>();
+builder.Services.AddScoped<PurchaseAdviceService>();
 builder.Services.AddSingleton<IInsightModel, OpenAIInsightModel>();
 
 // Enums go over JSON as names ("CreditCard"), not numbers.

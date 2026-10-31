@@ -40,13 +40,7 @@ public static class InsightEndpoints
             {
                 { Insight: { } i, Created: true } => Results.Created($"/insights/{i.Id}", InsightDto.From(i)),
                 { Insight: { } i } => Results.Ok(InsightDto.From(i)),
-                _ => Results.Json(new { error = outcome.Error }, statusCode: outcome.Problem switch
-                {
-                    InsightProblem.NotConfigured => StatusCodes.Status503ServiceUnavailable,
-                    InsightProblem.RateLimited => StatusCodes.Status429TooManyRequests,
-                    InsightProblem.Timeout => StatusCodes.Status504GatewayTimeout,
-                    _ => StatusCodes.Status502BadGateway,
-                }),
+                _ => Results.Json(new { error = outcome.Error }, statusCode: StatusFor(outcome.Problem)),
             };
         });
 
@@ -66,4 +60,14 @@ public static class InsightEndpoints
 
         return group;
     }
+
+    // What a problem with the model answers (shared with purchase advice): 503 with no key, 429 when
+    // OpenAI is busy, 504 when it's too slow, 502 for anything else it got wrong.
+    internal static int StatusFor(InsightProblem? problem) => problem switch
+    {
+        InsightProblem.NotConfigured => StatusCodes.Status503ServiceUnavailable,
+        InsightProblem.RateLimited => StatusCodes.Status429TooManyRequests,
+        InsightProblem.Timeout => StatusCodes.Status504GatewayTimeout,
+        _ => StatusCodes.Status502BadGateway,
+    };
 }

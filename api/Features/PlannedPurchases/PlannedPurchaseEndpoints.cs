@@ -1,3 +1,5 @@
+using LifeTracker.Api.Features.Insights;
+
 namespace LifeTracker.Api.Features.PlannedPurchases;
 
 // Saving towards something each month: a visa fee, a laptop. Each one has its own savings account;
@@ -28,6 +30,26 @@ public static class PlannedPurchaseEndpoints
         // Records the expense from its savings account; anything left over stays there.
         group.MapPost("/{id:int}/bought", async (int id, BoughtRequest req, PlannedPurchaseService purchases) =>
             ToResult(await purchases.BoughtAsync(id, req)));
+
+        // AI advice: is it a good idea, and what's a reasonable monthly amount? About a saved planned
+        // purchase or a draft (before saving it). Only the API talks to OpenAI; with no key, 503.
+        group.MapPost("/advice", async (AskAdviceRequest req, PurchaseAdviceService advice, CancellationToken cancellationToken) =>
+        {
+            var outcome = await advice.AskAsync(req, cancellationToken);
+            return outcome switch
+            {
+                { Advice: { } a } => Results.Created(a.PlannedPurchaseId is { } id ? $"/planned-purchases/{id}/advice" : null,
+                    PurchaseAdviceDto.From(a)),
+                { RequestProblem: PlannedPurchaseProblem.NotFound } => Results.NotFound(new { error = outcome.Error }),
+                { RequestProblem: PlannedPurchaseProblem.Conflict } => Results.Conflict(new { error = outcome.Error }),
+                { RequestProblem: not null } => Results.BadRequest(new { error = outcome.Error }),
+                _ => Results.Json(new { error = outcome.Error }, statusCode: InsightEndpoints.StatusFor(outcome.ModelProblem)),
+            };
+        });
+
+        // A planned purchase's advice, newest first.
+        group.MapGet("/{id:int}/advice", async (int id, PurchaseAdviceService advice) =>
+            await advice.ForPurchaseAsync(id) is { } list ? Results.Ok(list) : Results.NotFound());
 
         return group;
     }

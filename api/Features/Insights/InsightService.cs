@@ -43,14 +43,7 @@ public class InsightService(
         }
         catch (InsightModelException e)
         {
-            var problem = e.Kind switch
-            {
-                InsightModelFailure.RateLimited => InsightProblem.RateLimited,
-                InsightModelFailure.Timeout => InsightProblem.Timeout,
-                InsightModelFailure.Invalid => InsightProblem.Invalid,
-                _ => InsightProblem.Failed,
-            };
-            return new InsightOutcome(null, false, problem, e.Message);
+            return new InsightOutcome(null, false, ProblemFor(e.Kind), e.Message);
         }
 
         var (result, error, dropped) = InsightResponseValidator.Validate(reply.Json, InsightResponseValidator.EssentialLines(input.BudgetLines),
@@ -82,6 +75,15 @@ public class InsightService(
         return new InsightOutcome(insight, Created: true);
     }
 
+    // How a failed call to the model is reported (shared with purchase advice).
+    internal static InsightProblem ProblemFor(InsightModelFailure failure) => failure switch
+    {
+        InsightModelFailure.RateLimited => InsightProblem.RateLimited,
+        InsightModelFailure.Timeout => InsightProblem.Timeout,
+        InsightModelFailure.Invalid => InsightProblem.Invalid,
+        _ => InsightProblem.Failed,
+    };
+
     // The month's newest insight without a question (one with a question answers that, so it isn't
     // the month's general read). Found by the month it's for, like budget figures, so changing payday
     // doesn't lose it.
@@ -94,18 +96,20 @@ public class InsightService(
             .FirstOrDefaultAsync();
     }
 
-    // What I'm saving for now (active or reached), as the prompt shows them.
-    internal async Task<List<InsightPurchase>> PurchasesAsync() =>
+    // What I'm saving for now (active or reached), as the prompt shows them; except: one to leave out
+    // (the one purchase advice is about).
+    internal async Task<List<InsightPurchase>> PurchasesAsync(int? except = null) =>
         (await plannedPurchases.ListAsync())
-            .Where(p => p.Status is PlannedPurchaseStatus.Active or PlannedPurchaseStatus.Achieved)
+            .Where(p => (p.Status is PlannedPurchaseStatus.Active or PlannedPurchaseStatus.Achieved) && p.Id != except)
             .Select(p => new InsightPurchase(p.Name, p.TargetAmount, p.Saved, p.MonthlyAmount, p.MonthsLeft, Month(p.TargetMonth),
                 p.OnTrack, p.IsEssential, p.ExpectedFinish is { } f ? Month(f) : null))
             .ToList();
 
     private static DateOnly Month(string ym) => DateOnly.ParseExact(ym + "-01", "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
 
-    // The month as InsightPromptBuilder takes it: names and amounts only, no IDs or aliases.
-    private async Task<(DateOnly PeriodStart, InsightInput Input)> SummariseAsync(int year, int month)
+    // The month as InsightPromptBuilder takes it: names and amounts only, no IDs or aliases. With no
+    // year and month, the budget month I'm in now (purchase advice uses it too).
+    internal async Task<(DateOnly PeriodStart, InsightInput Input)> SummariseAsync(int? year, int? month)
     {
         var view = await budgets.GetMonthAsync(year, month);
         var b = view.Budget;
