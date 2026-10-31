@@ -1,6 +1,7 @@
 import type {
   Account, AccountAlias, AccountPayment, AvalanchePlan, BudgetLineKey, BudgetMonthView, Category, CreateTransaction,
-  DebtsOverview, ExchangeRate, IncomeMode, Insight, MonthlySummary, SaveAccount, SaveCategory, Settings, Transaction,
+  CreatePlannedPurchase, DebtsOverview, ExchangeRate, IncomeMode, Insight, MarkBought, MonthlySummary, PlannedPurchase,
+  SaveAccount, SaveCategory, SavePlannedPurchase, Settings, Transaction,
   WhatIfComparison,
 } from './types';
 
@@ -121,6 +122,15 @@ export function createApi({ baseUrl, getHeaders, timeoutMs, slowTimeoutMs = time
     generateInsight: (year: number, month: number, regenerate = false, question?: string) =>
       request<Insight>('POST', '/insights', { year, month, regenerate, question: question?.trim() || undefined }, { slow: true }),
     deleteInsight: (id: number) => request<void>('DELETE', `/insights/${id}`),
+
+    // Planned purchases: each saves in its own savings account (created with it unless accountId is
+    // given). Money goes in as transfers; cancelling leaves it there; buying records the expense from it.
+    getPlannedPurchases: () => request<PlannedPurchase[]>('GET', '/planned-purchases'),
+    getPlannedPurchase: (id: number) => request<PlannedPurchase>('GET', `/planned-purchases/${id}`),
+    createPlannedPurchase: (p: CreatePlannedPurchase) => request<PlannedPurchase>('POST', '/planned-purchases', p),
+    updatePlannedPurchase: (id: number, p: SavePlannedPurchase) => request<PlannedPurchase>('PUT', `/planned-purchases/${id}`, p),
+    cancelPlannedPurchase: (id: number) => request<PlannedPurchase>('POST', `/planned-purchases/${id}/cancel`),
+    markPlannedPurchaseBought: (id: number, b: MarkBought) => request<PlannedPurchase>('POST', `/planned-purchases/${id}/bought`, b),
 
     // Debts (read-only views over card and loan accounts)
     getDebts: () => request<DebtsOverview>('GET', '/debts'),

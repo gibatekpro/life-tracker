@@ -1,5 +1,7 @@
 using LifeTracker.Api.Data;
+using LifeTracker.Api.Features.PlannedPurchases;
 using LifeTracker.Api.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace LifeTracker.Api.Features.Accounts;
 
@@ -54,6 +56,7 @@ public class LedgerService(AppDbContext db, ExchangeRateService rates, ILogger<L
         };
 
         Apply(t.Type, t.Amount, t.ToAmount, account!, toAccount);
+        await SyncPlannedPurchasesAsync(account!, toAccount);
         db.Transactions.Add(t);
         await db.SaveChangesAsync();
 
@@ -103,6 +106,7 @@ public class LedgerService(AppDbContext db, ExchangeRateService rates, ILogger<L
         t.Account = account!;
         t.ToAccount = toAccount;
         t.ToAccountId = toAccount?.Id;
+        await SyncPlannedPurchasesAsync(oldAccount, oldTo, account!, toAccount);
         await db.SaveChangesAsync();
 
         logger.LogInformation("Updated transaction {TransactionId}: {Before} -> {After}",
@@ -121,6 +125,7 @@ public class LedgerService(AppDbContext db, ExchangeRateService rates, ILogger<L
         var account = (await db.Accounts.FindAsync(t.AccountId))!;
         var toAccount = t.ToAccountId is { } toId ? await db.Accounts.FindAsync(toId) : null;
         Apply(t.Type, -t.Amount, t.ToAmount is { } toAmount ? -toAmount : null, account, toAccount);
+        await SyncPlannedPurchasesAsync(account, toAccount);
 
         db.Transactions.Remove(t);
         await db.SaveChangesAsync();
@@ -238,6 +243,23 @@ public class LedgerService(AppDbContext db, ExchangeRateService rates, ILogger<L
 
         foreach (var c in changes)
             (c.AccountId == account.Id ? account : toAccount!).Balance += c.Delta;
+    }
+
+    // A planned purchase is Achieved once its savings account reaches the target, and Active again if
+    // money comes back out. Changed on the tracked entities, so it saves with the transaction.
+    private async Task SyncPlannedPurchasesAsync(params Account?[] accounts)
+    {
+        var savings = accounts.OfType<Account>().Where(a => a.Type == AccountType.Savings).DistinctBy(a => a.Id).ToList();
+        if (savings.Count == 0) return;
+
+        var ids = savings.Select(a => a.Id).ToList();
+        foreach (var p in await db.PlannedPurchases.Where(p => ids.Contains(p.AccountId)).ToListAsync())
+        {
+            var status = PlannedPurchaseCalculator.StatusFor(p.Status, savings.First(a => a.Id == p.AccountId).Balance, p.TargetAmount);
+            if (status == p.Status) continue;
+            logger.LogInformation("Planned purchase {PlannedPurchaseId} ({Name}) is now {Status}", p.Id, p.Name, status);
+            p.Status = status;
+        }
     }
 
     private LedgerResult Reject(TransactionType type, decimal amount, string reason)

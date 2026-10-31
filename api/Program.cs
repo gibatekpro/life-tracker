@@ -12,6 +12,7 @@ using LifeTracker.Api.Features.Accounts;
 using LifeTracker.Api.Features.Categories;
 using LifeTracker.Api.Features.Budgets;
 using LifeTracker.Api.Features.Insights;
+using LifeTracker.Api.Features.PlannedPurchases;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,6 +30,7 @@ builder.Services.AddScoped<LedgerService>();
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<BudgetService>();
 builder.Services.AddScoped<InsightService>();
+builder.Services.AddScoped<PlannedPurchaseService>();
 builder.Services.AddSingleton<IInsightModel, OpenAIInsightModel>();
 
 // Enums go over JSON as names ("CreditCard"), not numbers.
@@ -61,6 +63,7 @@ app.MapExchangeRateEndpoints();
 app.MapCategoryEndpoints();
 app.MapBudgetEndpoints();
 app.MapInsightEndpoints();
+app.MapPlannedPurchaseEndpoints();
 app.MapDebtEndpoints();
 app.MapCaptureEndpoints();
 app.MapSummaryEndpoints();

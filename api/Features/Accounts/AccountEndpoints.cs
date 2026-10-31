@@ -1,4 +1,5 @@
 using LifeTracker.Api.Data;
+using LifeTracker.Api.Features.PlannedPurchases;
 using LifeTracker.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -89,8 +90,20 @@ public static class AccountEndpoints
                 return Results.Conflict(new { error = "An account's type and currency can't change once it has transactions." });
             }
 
+            // A planned purchase saves in pounds, in a savings account.
+            var purchase = await db.PlannedPurchases.FirstOrDefaultAsync(p => p.AccountId == id);
+            if (purchase is not null && (req.Type != AccountType.Savings || Currencies.Normalise(req.Currency) != Currencies.Home))
+            {
+                logger.LogWarning("Rejected changing account {AccountId} to {Type} {Currency}: planned purchase {PlannedPurchaseId} saves in it",
+                    id, req.Type, req.Currency, purchase.Id);
+                return Results.Conflict(new { error = $"This account is saving for {purchase.Name}, so it stays a GBP savings account." });
+            }
+
             var oldBalance = account.Balance;
             Copy(req, account);
+            // Lining the balance up can reach a planned purchase's target, or take it back below.
+            if (purchase is not null)
+                purchase.Status = PlannedPurchaseCalculator.StatusFor(purchase.Status, account.Balance, purchase.TargetAmount);
             await db.SaveChangesAsync();
 
             logger.LogInformation("Updated account {AccountId} ({Name}); balance {OldBalance} -> {NewBalance} {Currency}",
@@ -108,6 +121,13 @@ public static class AccountEndpoints
             {
                 logger.LogWarning("Rejected deleting account {AccountId} ({Name}): it has transactions", id, account.Name);
                 return Results.Conflict(new { error = "Move or delete this account's transactions first." });
+            }
+
+            if (await db.PlannedPurchases.FirstOrDefaultAsync(p => p.AccountId == id) is { } purchase)
+            {
+                logger.LogWarning("Rejected deleting account {AccountId} ({Name}): planned purchase {PlannedPurchaseId} saves in it",
+                    id, account.Name, purchase.Id);
+                return Results.Conflict(new { error = $"This account is saving for {purchase.Name}." });
             }
 
             db.Accounts.Remove(account);

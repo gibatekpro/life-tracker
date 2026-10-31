@@ -1,0 +1,44 @@
+namespace LifeTracker.Api.Features.PlannedPurchases;
+
+// Saving towards something each month: a visa fee, a laptop. Each one has its own savings account;
+// money goes in as transfers through /transactions, and the rules live in PlannedPurchaseService.
+public static class PlannedPurchaseEndpoints
+{
+    public static RouteGroupBuilder MapPlannedPurchaseEndpoints(this IEndpointRouteBuilder app)
+    {
+        var group = app.MapGroup("/planned-purchases").WithTags("Planned purchases");
+
+        // Each with what's saved, progress, whether it's on track and when it should finish.
+        group.MapGet("/", async (PlannedPurchaseService purchases) => await purchases.ListAsync());
+
+        group.MapGet("/{id:int}", async (int id, PlannedPurchaseService purchases) =>
+            await purchases.GetAsync(id) is { } p ? Results.Ok(p) : Results.NotFound());
+
+        // Optionally creating its savings account in the same save.
+        group.MapPost("/", async (CreatePlannedPurchaseRequest req, PlannedPurchaseService purchases) =>
+            ToResult(await purchases.CreateAsync(req), created: true));
+
+        group.MapPut("/{id:int}", async (int id, UpdatePlannedPurchaseRequest req, PlannedPurchaseService purchases) =>
+            ToResult(await purchases.UpdateAsync(id, req)));
+
+        // Status only: the money stays in the account until I move it.
+        group.MapPost("/{id:int}/cancel", async (int id, PlannedPurchaseService purchases) =>
+            ToResult(await purchases.CancelAsync(id)));
+
+        // Records the expense from its savings account; anything left over stays there.
+        group.MapPost("/{id:int}/bought", async (int id, BoughtRequest req, PlannedPurchaseService purchases) =>
+            ToResult(await purchases.BoughtAsync(id, req)));
+
+        return group;
+    }
+
+    private static IResult ToResult(PlannedPurchaseResult result, bool created = false) => result switch
+    {
+        { Problem: PlannedPurchaseProblem.NotFound } => Results.NotFound(new { error = result.Error }),
+        { Problem: PlannedPurchaseProblem.Invalid } => Results.BadRequest(new { error = result.Error }),
+        { Problem: PlannedPurchaseProblem.Conflict } => Results.Conflict(new { error = result.Error }),
+        { Purchase: { } p } when created => Results.Created($"/planned-purchases/{p.Id}", p),
+        { Purchase: { } p } => Results.Ok(p),
+        _ => Results.Problem(),
+    };
+}

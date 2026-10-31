@@ -290,6 +290,59 @@ export interface ExchangeRate {
   manualRate: number | null; // my own figure for this direction, if I've set one
 }
 
+// Saving towards something each month, in its own GBP savings account (saved = its balance). Months are
+// "2027-01"; targetMonth is the last month I save in. Achieved is set by the API once saved reaches the
+// target; expectedFinish is null when the pace so far won't get there within 120 months.
+export type PlannedPurchaseStatus = 'Active' | 'Achieved' | 'Bought' | 'Cancelled';
+
+export interface PlannedPurchase {
+  id: number;
+  name: string;
+  targetAmount: number;
+  monthlyAmount: number;
+  startMonth: string;
+  targetMonth: string;
+  isEssential: boolean;
+  status: PlannedPurchaseStatus;
+  notes: string | null;
+  createdAt: string;
+  accountId: number;
+  accountName: string;
+  saved: number;
+  remaining: number;
+  percent: number;
+  neededByNow: number;
+  onTrack: boolean;
+  monthsLeft: number;
+  expectedFinish: string | null;
+}
+
+// Exactly one of monthlyAmount, months and targetMonth; the API works out the other two from what's saved.
+// When editing, the plan can be left out once what's saved covers the target.
+export interface SavePlannedPurchase {
+  name: string;
+  targetAmount: number;
+  monthlyAmount?: number;
+  months?: number;
+  targetMonth?: string;
+  isEssential: boolean;
+  notes: string | null;
+}
+
+// Creating one: an existing GBP savings account, or (accountId left out) a new one named accountName or name.
+export interface CreatePlannedPurchase extends SavePlannedPurchase {
+  accountId?: number;
+  accountName?: string;
+}
+
+// Buying it: an expense from its savings account (description defaults to its name).
+export interface MarkBought {
+  amount: number;
+  categoryId: number;
+  date: string;
+  description?: string;
+}
+
 // An AI insight for a budget month: the checked answer, what it cost, and exactly what was sent.
 export interface WasteItem {
   name: string;

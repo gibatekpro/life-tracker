@@ -58,6 +58,17 @@ describe('createApi', () => {
     await expect(createApi({ baseUrl: '/api' }).getSettings()).rejects.toThrow('Network request failed');
   });
 
+  it('creates a planned purchase with just the one plan choice, and marks one bought', async () => {
+    const calls = fakeFetch(() => json({ id: 3 }, 201));
+    const api = createApi({ baseUrl: '/api' });
+    await api.createPlannedPurchase({ name: 'Visa fees', targetAmount: 3990, targetMonth: '2027-01', isEssential: true, notes: null });
+    await api.markPlannedPurchaseBought(3, { amount: 3990, categoryId: 7, date: '2027-01-10' });
+    expect(calls.map((c) => [c.init.method, c.url, JSON.parse(c.init.body as string)])).toEqual([
+      ['POST', '/api/planned-purchases', { name: 'Visa fees', targetAmount: 3990, targetMonth: '2027-01', isEssential: true, notes: null }],
+      ['POST', '/api/planned-purchases/3/bought', { amount: 3990, categoryId: 7, date: '2027-01-10' }],
+    ]);
+  });
+
   it('sends a question with an insight, trimmed, and none when blank', async () => {
     const bodies: unknown[] = [];
     vi.stubGlobal('fetch', vi.fn(async (_: string, init: RequestInit) => {
