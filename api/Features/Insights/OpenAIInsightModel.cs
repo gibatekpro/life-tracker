@@ -6,14 +6,15 @@ using OpenAI.Chat;
 
 namespace LifeTracker.Api.Features.Insights;
 
-// Asks OpenAI (official OpenAI .NET SDK) for an insight as structured JSON matching
-// InsightResponseValidator.JsonSchema. The only place the API key is used.
+// Asks OpenAI (official OpenAI .NET SDK) for an answer as structured JSON matching the schema it's
+// given: an insight (InsightResponseValidator.JsonSchema) or purchase advice. The only place the API
+// key is used.
 //
 // Cost controls: it's only called when I press Generate, the answer is capped at MaxOutputTokens,
 // the whole call (retries included) has a timeout, and each call logs its token usage, not its content.
 public class OpenAIInsightModel(IOptions<OpenAIOptions> options, ILogger<OpenAIInsightModel> logger) : IInsightModel
 {
-    public async Task<InsightModelReply> AskAsync(string systemPrompt, string prompt, CancellationToken cancellationToken)
+    public async Task<InsightModelReply> AskAsync(string systemPrompt, string prompt, ModelSchema schema, CancellationToken cancellationToken)
     {
         var o = options.Value;
         if (!o.IsConfigured) throw new InvalidOperationException("OpenAI key not configured");
@@ -25,7 +26,7 @@ public class OpenAIInsightModel(IOptions<OpenAIOptions> options, ILogger<OpenAII
         {
             MaxOutputTokenCount = o.MaxOutputTokens,
             ResponseFormat = ChatResponseFormat.CreateJsonSchemaFormat(
-                "insight", BinaryData.FromString(InsightResponseValidator.JsonSchema), jsonSchemaIsStrict: true),
+                schema.Name, BinaryData.FromString(schema.Json), jsonSchemaIsStrict: true),
         };
         // Marked experimental (OPENAI001) in SDK 2.14, so it may change in an update; it's kept because
         // low effort makes reasoning models cheaper and quicker. An empty setting skips it.
@@ -67,8 +68,8 @@ public class OpenAIInsightModel(IOptions<OpenAIOptions> options, ILogger<OpenAII
             };
         }
 
-        logger.LogInformation("OpenAI insight: {Model}, {InputTokens} input + {OutputTokens} output tokens, {Ms} ms, finished: {Finish}",
-            completion.Model, completion.Usage?.InputTokenCount, completion.Usage?.OutputTokenCount, watch.ElapsedMilliseconds,
+        logger.LogInformation("OpenAI {Schema}: {Model}, {InputTokens} input + {OutputTokens} output tokens, {Ms} ms, finished: {Finish}",
+            schema.Name, completion.Model, completion.Usage?.InputTokenCount, completion.Usage?.OutputTokenCount, watch.ElapsedMilliseconds,
             completion.FinishReason);
 
         if (completion.FinishReason == ChatFinishReason.Length)

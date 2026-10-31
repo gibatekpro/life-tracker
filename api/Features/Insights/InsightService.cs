@@ -38,7 +38,7 @@ public class InsightService(
         InsightModelReply reply;
         try
         {
-            reply = await model.AskAsync(InsightPromptBuilder.SystemPrompt, prompt, cancellationToken);
+            reply = await model.AskAsync(InsightPromptBuilder.SystemPrompt, prompt, ModelSchema.Insight, cancellationToken);
         }
         catch (InsightModelException e)
         {

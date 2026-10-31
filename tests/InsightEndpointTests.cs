@@ -38,11 +38,13 @@ public class FakeInsightModel : IInsightModel
     public string Answer { get; set; } = GoodAnswer;
     public InsightModelException? Failure { get; set; }
     public List<string> Prompts { get; } = [];
+    public List<string> Schemas { get; } = [];
 
-    public Task<InsightModelReply> AskAsync(string systemPrompt, string prompt, CancellationToken cancellationToken)
+    public Task<InsightModelReply> AskAsync(string systemPrompt, string prompt, ModelSchema schema, CancellationToken cancellationToken)
     {
         if (Failure is not null) throw Failure;
         Prompts.Add(prompt);
+        Schemas.Add(schema.Name);
         return Task.FromResult(new InsightModelReply(Answer, "fake-model", 1200, 300));
     }
 }
