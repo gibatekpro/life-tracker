@@ -2,6 +2,7 @@ using LifeTracker.Api.Data;
 using LifeTracker.Api.Features.Accounts;
 using LifeTracker.Api.Features.Budgets;
 using LifeTracker.Api.Features.Categories;
+using LifeTracker.Api.Features.PlannedPurchases;
 using LifeTracker.Api.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -19,7 +20,7 @@ public record InsightOutcome(Insight? Insight, bool Created, InsightProblem? Pro
 // The model is only asked when I press Generate; an existing insight is reused unless I regenerate
 // or ask a question (a question always gets a fresh answer, and is saved with it).
 public class InsightService(
-    AppDbContext db, BudgetService budgets, ExchangeRateService rates, IInsightModel model,
+    AppDbContext db, BudgetService budgets, ExchangeRateService rates, PlannedPurchaseService plannedPurchases, IInsightModel model,
     IOptions<OpenAIOptions> options, ILogger<InsightService> logger)
 {
     // question: already checked and masked (InsightPromptBuilder.CleanQuestion), or null.
@@ -93,6 +94,16 @@ public class InsightService(
             .FirstOrDefaultAsync();
     }
 
+    // What I'm saving for now (active or reached), as the prompt shows them.
+    internal async Task<List<InsightPurchase>> PurchasesAsync() =>
+        (await plannedPurchases.ListAsync())
+            .Where(p => p.Status is PlannedPurchaseStatus.Active or PlannedPurchaseStatus.Achieved)
+            .Select(p => new InsightPurchase(p.Name, p.TargetAmount, p.Saved, p.MonthlyAmount, p.MonthsLeft, Month(p.TargetMonth),
+                p.OnTrack, p.IsEssential, p.ExpectedFinish is { } f ? Month(f) : null))
+            .ToList();
+
+    private static DateOnly Month(string ym) => DateOnly.ParseExact(ym + "-01", "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+
     // The month as InsightPromptBuilder takes it: names and amounts only, no IDs or aliases.
     private async Task<(DateOnly PeriodStart, InsightInput Input)> SummariseAsync(int year, int month)
     {
@@ -158,7 +169,9 @@ public class InsightService(
             new InsightPlan(plan.CanBePaidOff, plan.Months, plan.DebtFreeDate, plan.TotalInterest, plan.MonthlyBudget,
                 plan.Payoffs.Select(p => p.Name).ToList()),
             interestAndFees,
-            historySince);
+            historySince,
+            PlannedSavings: b.PlannedSavings,
+            Purchases: await PurchasesAsync());
 
         return (b.PeriodStart, input);
     }

@@ -77,6 +77,33 @@ public class InsightPromptBuilderTests
             InsightPromptBuilder.SystemPrompt.ReplaceLineEndings("\n"));
     }
 
+    // Planned purchases
+
+    [Fact]
+    public void PlannedPurchases_AreListed_AndCountInTheBudget()
+    {
+        var visa = new InsightPurchase("Visa fees", 3990m, 997.5m, 997.5m, 4, new DateOnly(2027, 1, 1), true, true, new DateOnly(2027, 1, 1));
+        var laptop = new InsightPurchase("Laptop 12345678", 1200m, 40m, 100m, 12, new DateOnly(2027, 9, 1), false, false, null);
+
+        var text = InsightPromptBuilder.Build(Input() with { PlannedSavings = 1097.5m, Purchases = [visa, laptop] });
+        var none = InsightPromptBuilder.Build(Input());
+
+        Assert.Contains("planned debt payments 999.13, planned savings 1097.50, unallocated income 715.87", text);
+        Assert.Contains("- Visa fees [essential]: target 3990.00, saved 997.50, 997.50 a month, 4 months left (last month Jan 2027), " +
+                        "on track, expected Jan 2027 at the pace so far", text);
+        Assert.Contains("- Laptop ••• [want]: target 1200.00, saved 40.00, 100.00 a month, 12 months left (last month Sep 2027), " +
+                        "behind, not reached at the pace so far", text);
+        Assert.Contains("Planned purchases (saving towards; [essential] is a need, [want] otherwise):\n- none",
+            none.ReplaceLineEndings("\n"));
+    }
+
+    [Fact]
+    public void SystemPrompt_NeverCutsAnEssentialPlannedPurchase()
+    {
+        Assert.Contains("Never suggest cutting an [essential] planned purchase.", InsightPromptBuilder.SystemPrompt);
+        Assert.Contains("their monthly amounts are\nplanned, not spare money", InsightPromptBuilder.SystemPrompt.ReplaceLineEndings("\n"));
+    }
+
     // Early in the month, unspent is expected; a short history is missing data
 
     [Fact]

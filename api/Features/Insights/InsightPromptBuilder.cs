@@ -18,6 +18,11 @@ public record InsightBudgetLine(string Name, decimal Planned, decimal Spent, IRe
 public record InsightDebt(string Name, string Kind, decimal BalancePounds, decimal Apr,
     decimal PlannedThisMonth, decimal PaidThisMonth, decimal? AvalancheSuggests, bool FixedTotal = false);
 
+// Something being saved for (a planned purchase that's active or reached). MonthsLeft counts this
+// month; ExpectedFinish is null when the pace so far won't get there within 120 months.
+public record InsightPurchase(string Name, decimal Target, decimal Saved, decimal Monthly, int MonthsLeft, DateOnly TargetMonth,
+    bool OnTrack, bool IsEssential, DateOnly? ExpectedFinish);
+
 public record InsightPlan(bool CanBePaidOff, int Months, DateOnly? DebtFreeDate, decimal TotalInterest,
     decimal MonthlyBudget, IReadOnlyList<string> PayoffOrder);
 
@@ -34,7 +39,9 @@ public record InsightInput(
     InsightPlan? Plan,
     decimal InterestAndFees,
     DateOnly? HistorySince,
-    string? Question = null);   // my own question about the month, already checked by CleanQuestion
+    string? Question = null,    // my own question about the month, already checked by CleanQuestion
+    decimal PlannedSavings = 0, // this month's planned purchase lines (part of the planned total)
+    IReadOnlyList<InsightPurchase>? Purchases = null);
 
 public record RecurringPayment(string Merchant, decimal TypicalAmount, int Count, DateOnly LastDate);
 
@@ -96,6 +103,9 @@ public static class InsightPromptBuilder
         Loans marked "fixed total repayable" show APR 0 because their interest and fees are already in
         the balance: they are not interest-free. Flag their instalments as never to be missed, and never
         treat them as 0% balances that can wait.
+        Planned purchases are things the user is saving towards on purpose; their monthly amounts are
+        planned, not spare money. Never suggest cutting an [essential] planned purchase. A [want] may be
+        suggested to wait or slow down while high-interest debt costs more than its savings earn.
         Prioritise paying down high-interest debt: say how savings could speed up the avalanche plan
         (highest APR first) and reduce the interest they pay.
         Estimated savings must be realistic monthly amounts in GBP, based on the figures given.
@@ -199,6 +209,23 @@ public static class InsightPromptBuilder
         return text;
     }
 
+    // Planned purchases, as both the monthly insight and purchase advice show them.
+    internal static void Purchases(StringBuilder s, IReadOnlyList<InsightPurchase> purchases, string heading = "Planned purchases (saving towards; [essential] is a need, [want] otherwise):")
+    {
+        s.AppendLine(heading);
+        if (purchases.Count == 0) s.AppendLine("- none");
+        foreach (var p in purchases)
+        {
+            var finish = p.Saved >= p.Target ? "target reached"
+                : p.ExpectedFinish is { } f ? $"expected {Month(f)} at the pace so far" : "not reached at the pace so far";
+            s.AppendLine($"- {Mask(p.Name)} [{(p.IsEssential ? "essential" : "want")}]: target {M(p.Target)}, saved {M(p.Saved)}, " +
+                         $"{M(p.Monthly)} a month, {p.MonthsLeft} month{(p.MonthsLeft == 1 ? "" : "s")} left (last month {Month(p.TargetMonth)}), " +
+                         $"{(p.OnTrack ? "on track" : "behind")}, {finish}");
+        }
+    }
+
+    internal static string Month(DateOnly month) => month.ToString("MMM yyyy", CultureInfo.InvariantCulture);
+
     public static string Build(InsightInput input)
     {
         var s = new StringBuilder();
@@ -257,8 +284,12 @@ public static class InsightPromptBuilder
         s.AppendLine();
 
         s.AppendLine($"Budget: planned spending {M(input.PlannedSpending)}, planned debt payments {M(input.PlannedDebts)}, " +
-                     $"unallocated income {M(input.Unallocated)}, safe to spend {M(input.SafeToSpendPerDay)} per day.");
+                     $"planned savings {M(input.PlannedSavings)}, unallocated income {M(input.Unallocated)}, " +
+                     $"safe to spend {M(input.SafeToSpendPerDay)} per day.");
         s.AppendLine($"Interest and fees paid this month: {M(input.InterestAndFees)}.");
+        s.AppendLine();
+
+        Purchases(s, input.Purchases ?? []);
         s.AppendLine();
 
         s.AppendLine("Debts (balances converted to GBP):");

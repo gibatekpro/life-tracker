@@ -259,6 +259,21 @@ public class InsightEndpointTests(PostgresFixture pg) : IClassFixture<PostgresFi
     }
 
     [Fact]
+    public async Task APlannedPurchase_IsInWhatIsSent_AndItsSavingsAccountIsntADebt()
+    {
+        using var s = await SetupAsync();
+        var created = await s.Client.PostAsJsonAsync("/planned-purchases",
+            new { name = "Visa fees", targetAmount = 3990m, months = 3, isEssential = true });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+
+        await Generate(s.Client);
+        var prompt = s.Model.Prompts.Single();
+
+        Assert.Contains("- Visa fees [essential]: target 3990.00, saved 0.00, 1330.00 a month, 3 months left", prompt);
+        Assert.DoesNotContain("Visa fees (", prompt);   // not listed among the debts
+    }
+
+    [Fact]
     public async Task ASavingThatCutsAnEssentialLine_IsDropped_TheRestIsSaved()
     {
         using var s = await SetupAsync();
