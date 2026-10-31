@@ -140,7 +140,9 @@ export function addMoneyDraft(p: PlannedPurchase, accounts: Account[], defaultAc
   };
 }
 
-// "Mark as bought": an expense from its savings account. It starts at what's saved (up to the target).
+// "Mark as bought": an expense from its savings account. It starts at what's saved (up to the target),
+// in the top-level "Other" category if there is one (as Apple Pay capture falls back to), since the
+// first category (Food, say) is rarely right for a visa fee or a laptop.
 export interface BoughtFormValues {
   amount: string;
   categoryId: number | undefined;
@@ -150,7 +152,8 @@ export interface BoughtFormValues {
 
 export const boughtFormValues = (p: PlannedPurchase, categories: Category[], today: string): BoughtFormValues => ({
   amount: p.saved > 0 ? String(Math.min(p.saved, p.targetAmount)) : '',
-  categoryId: firstCategoryFor(categories, 'Expense'),
+  categoryId: categories.find((c) => c.kind === 'Expense' && c.parentId === null && !c.isArchived && c.name.toLowerCase() === 'other')?.id
+    ?? firstCategoryFor(categories, 'Expense'),
   date: today,
   description: p.name,
 });

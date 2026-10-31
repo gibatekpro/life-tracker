@@ -72,6 +72,7 @@ describe('adding money and buying it', () => {
     const categories = [category({ id: 5, name: 'Bills' })];
     expect(boughtFormValues(plannedPurchase({ saved: 4000 }), categories, '2027-01-10'))
       .toEqual({ amount: '3990', categoryId: 5, date: '2027-01-10', description: 'Visa fees' });
+    expect(boughtFormValues(plannedPurchase(), [...categories, category({ id: 8, name: 'Other' })], '2027-01-10').categoryId).toBe(8);
     const v = boughtFormValues(plannedPurchase(), categories, '2027-01-10');
     expect(buildBoughtRequest(v).error).toBe('Enter what it cost.');
     expect(buildBoughtRequest({ ...v, amount: '3990', categoryId: undefined }).error).toBe('Choose a category.');

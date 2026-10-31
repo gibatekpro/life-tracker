@@ -162,7 +162,8 @@ export function purchaseStatus(p: PlannedPurchase): { label: string; tone: Purch
 }
 
 // What a card and the detail show. finish: when it should be reached at the pace so far (late: after
-// the target month, or not at all). behind: how far short of where it should be by now.
+// the target month, or not at all); expected: the same under an "Expected" label. behind: how far
+// short of where it should be by now.
 export function purchaseFigures(p: PlannedPurchase) {
   const saving = p.status === 'Active';
   const late = saving && (p.expectedFinish === null || p.expectedFinish > p.targetMonth);
@@ -178,6 +179,8 @@ export function purchaseFigures(p: PlannedPurchase) {
       : p.status === 'Bought' ? 'Bought'
       : p.status === 'Cancelled' ? `${formatMoney(p.saved)} still in ${p.accountName}`
       : p.expectedFinish ? `Expected ${formatYm(p.expectedFinish)}` : 'Not at this pace',
+    expected: p.status === 'Achieved' ? 'Reached' : p.status !== 'Active' ? '—'
+      : p.expectedFinish ? formatYm(p.expectedFinish) : 'Not at this pace',
     late,
     behind: saving && !p.onTrack ? `${formatMoney(Math.max(0, p.neededByNow - p.saved))} behind` : null,
     left: saving ? `${formatMoney(p.remaining)} to go · ${p.monthsLeft} month${p.monthsLeft === 1 ? '' : 's'} left` : null,

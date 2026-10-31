@@ -148,7 +148,7 @@ describe('the planned purchase pages', () => {
   it('gives the figures for a card', () => {
     expect(purchaseFigures(plannedPurchase({ saved: 1330, remaining: 2660, percent: 33.3, monthsLeft: 2 }))).toEqual({
       saved: '£1,330.00 of £3,990.00', percent: '33.3%', progress: 1330 / 3990, progressTone: 'accent',
-      monthly: '£1,330.00 a month', target: 'By Jan 2027', finish: 'Expected Jan 2027', late: false, behind: null,
+      monthly: '£1,330.00 a month', target: 'By Jan 2027', finish: 'Expected Jan 2027', expected: 'Jan 2027', late: false, behind: null,
       left: '£2,660.00 to go · 2 months left',
     });
   });
@@ -156,7 +156,8 @@ describe('the planned purchase pages', () => {
   it('says how far behind, and when the pace finishes late or never', () => {
     const behind = purchaseFigures(plannedPurchase({ onTrack: false, neededByNow: 1330, saved: 500, expectedFinish: '2027-04' }));
     expect(behind).toMatchObject({ behind: '£830.00 behind', finish: 'Expected Apr 2027', late: true, progressTone: 'warning' });
-    expect(purchaseFigures(plannedPurchase({ expectedFinish: null }))).toMatchObject({ finish: 'Not at this pace', late: true });
+    expect(purchaseFigures(plannedPurchase({ expectedFinish: null }))).toMatchObject({ finish: 'Not at this pace', expected: 'Not at this pace', late: true });
+    expect(purchaseFigures(plannedPurchase({ status: 'Achieved' })).expected).toBe('Reached');
     expect(purchaseFigures(plannedPurchase({ status: 'Cancelled', saved: 700 })))
       .toMatchObject({ finish: '£700.00 still in Visa fees', left: null, behind: null });
   });
