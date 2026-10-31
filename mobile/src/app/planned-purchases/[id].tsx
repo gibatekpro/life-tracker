@@ -20,6 +20,7 @@ import ProgressBar from '@/components/ui/ProgressBar';
 import Stat from '@/components/ui/Stat';
 import { useRefresh } from '@/data/refresh';
 import { useData } from '@/data/useData';
+import AdviceCard from '@/features/purchases/AdviceCard';
 import { openMarkBought, openPurchaseForm } from '@/features/purchases/open';
 import { openNewTransaction } from '@/features/transactions/open';
 import { useTokens } from '@/theme/tokens';
@@ -106,6 +107,8 @@ function Detail({ p, loading }: { p: PlannedPurchase; loading: boolean }) {
         </View>
         <ProgressBar label={`${p.name} saved`} value={f.progress} tone={f.progressTone} />
       </Card>
+
+      <AdviceCard purchase={p} />
 
       <Card title="Contributions" description={`Transfers into ${p.accountName}`}
         action={{ label: 'Account', onPress: () => router.push(`/accounts/${p.accountId}`) }}>

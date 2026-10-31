@@ -1,5 +1,5 @@
 import {
-  formatDateTime, formatMoney, generateLabel, generatingNote, hasQuestion, insightFooter, insightsForMonth, isKeyNotConfigured,
+  formatDateTime, formatMoney, generateLabel, generatingNote, hasQuestion, insightFooter, insightsForMonth,
   maxQuestionLength, monthName, parseYm, periodLabel, questionCounter, questionLabel, questionNote, questionPlaceholder,
   savingsNote, shiftMonth, shortQuestion, shownInsight, toYm, type Insight,
 } from '@lifetracker/core';
@@ -9,6 +9,7 @@ import { ActivityIndicator, Alert as NativeAlert, Pressable, StyleSheet, Text, V
 
 import { deleteInsight, generateInsight, getBudgetMonth, getInsights } from '@/api';
 import ErrorCard from '@/components/ErrorCard';
+import OpenAIErrorAlert from '@/features/insights/OpenAIErrorAlert';
 import { TextField } from '@/components/form/Field';
 import KeyboardSaveBar from '@/components/form/KeyboardSaveBar';
 import MonthNav from '@/components/MonthNav';
@@ -20,7 +21,6 @@ import EmptyState from '@/components/ui/EmptyState';
 import { useRefresh } from '@/data/refresh';
 import { useData } from '@/data/useData';
 import { useTokens } from '@/theme/tokens';
-import ErrorAlert from '@/components/ErrorAlert';
 
 // AI insights for a budget month (web: InsightsPage). Generate asks my API, which sends OpenAI a summary
 // of the month (categories, merchants, budgets and debts; no account numbers, ids or aliases) and saves
@@ -99,16 +99,7 @@ export default function InsightsScreen() {
         previousDisabled={!shownYm || generating} nextDisabled={!shownYm || generating} />
 
       {failed && <ErrorCard message={failed.error!} status={failed.errorStatus} />}
-      {error && (isKeyNotConfigured(error) ? (
-        <Alert tone="negative">
-          <Text style={[styles.strong, { color: t.ink }]}>No OpenAI key is set up yet.</Text>
-          <Text style={[styles.text, { color: t.ink }]}>
-            In the <Text style={styles.mono}>api</Text> folder, run{' '}
-            <Text style={styles.mono} selectable>dotnet user-secrets set &quot;OpenAI:ApiKey&quot; &quot;&lt;your key&gt;&quot;</Text>{' '}
-            and restart the API. The key stays in the API; this app never sees it.
-          </Text>
-        </Alert>
-      ) : <ErrorAlert message={error} />)}
+      {error && <OpenAIErrorAlert error={error} />}
       {generating && <Alert>{generatingNote(b?.year, b?.month, asking)}</Alert>}
 
       {!b || !insights.data ? <ActivityIndicator color={t.muted} /> : (

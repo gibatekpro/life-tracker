@@ -1,4 +1,5 @@
 import {
+  adviceSentNote, askAdviceLabel, askingAdviceNote, draftAdviceRequest, withMonthlyAmount, withSuggestion, type PurchaseAdvice,
   buildPurchaseRequest, essentialHint, formatMoney, freeSavingsAccounts, monthsHint, newAccountLabel, planChoices, purchaseFormValues,
   purchaseNamePlaceholder, purchasePreview, targetMonthChoices, toYm, type Account, type PlannedPurchase, type PurchaseFormValues,
 } from '@lifetracker/core';
@@ -7,7 +8,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
-import { createPlannedPurchase, getAccounts, getBudgetMonth, getPlannedPurchases, updatePlannedPurchase } from '@/api';
+import { askPurchaseAdvice, createPlannedPurchase, getAccounts, getBudgetMonth, getPlannedPurchases, updatePlannedPurchase } from '@/api';
 import ErrorAlert from '@/components/ErrorAlert';
 import ErrorCard from '@/components/ErrorCard';
 import { Field, TextField } from '@/components/form/Field';
@@ -16,17 +17,22 @@ import FormSection from '@/components/form/FormSection';
 import MoneyInput from '@/components/form/MoneyInput';
 import SelectRow from '@/components/form/SelectRow';
 import HeaderButton from '@/components/HeaderButton';
+import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
 import Segmented from '@/components/ui/Segmented';
 import { useRefresh } from '@/data/refresh';
 import { useData } from '@/data/useData';
+import OpenAIErrorAlert from '@/features/insights/OpenAIErrorAlert';
+import AdviceView from '@/features/purchases/AdviceView';
 import { useTokens } from '@/theme/tokens';
 
 // Adding or editing a planned purchase, as a modal (web: PlannedPurchaseForm): /planned-purchase-form
 // to add, ?id=3 to edit. One way to plan it (monthly amount, months, or the last month to save in) and
-// the other two worked out as I type, by core's calculator. Adding opens the new one.
+// the other two worked out as I type, by core's calculator. Adding opens the new one, and can ask for AI
+// advice on the draft first; ?suggestedMonthly= starts editing from advice's amount ("Use this amount").
 export default function PlannedPurchaseFormModal() {
   const t = useTokens();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, suggestedMonthly } = useLocalSearchParams<{ id?: string; suggestedMonthly?: string }>();
   const editingId = id ? Number(id) : undefined;
   // The plan starts from the budget month I'm in now, which follows payday.
   const view = useData('budget-now', () => getBudgetMonth());
@@ -46,17 +52,25 @@ export default function PlannedPurchaseFormModal() {
       </ScrollView>
     );
   }
-  return <PurchaseForm purchase={purchase} currentMonth={toYm(b.year, b.month)} savingsAccounts={freeSavingsAccounts(accounts.data, purchases.data)} />;
+  return <PurchaseForm purchase={purchase} currentMonth={toYm(b.year, b.month)} savingsAccounts={freeSavingsAccounts(accounts.data, purchases.data)}
+    suggestedMonthly={suggestedMonthly ? Number(suggestedMonthly) : undefined} />;
 }
 
-function PurchaseForm({ purchase, currentMonth, savingsAccounts }: {
+function PurchaseForm({ purchase, currentMonth, savingsAccounts, suggestedMonthly }: {
   purchase?: PlannedPurchase;
   currentMonth: string;
   savingsAccounts: Account[];
+  suggestedMonthly?: number;
 }) {
   const t = useTokens();
   const { refresh } = useRefresh();
-  const [values, setValues] = useState<PurchaseFormValues>(() => purchaseFormValues(purchase, currentMonth));
+  const [values, setValues] = useState<PurchaseFormValues>(() => {
+    const initial = purchaseFormValues(purchase, currentMonth);
+    return suggestedMonthly ? withMonthlyAmount(initial, suggestedMonthly) : initial;
+  });
+  const [advice, setAdvice] = useState<PurchaseAdvice | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [adviceError, setAdviceError] = useState<string | null>(null);
   const set = (patch: Partial<PurchaseFormValues>) => { setValues((v) => ({ ...v, ...patch })); setError(null); };
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -66,6 +80,21 @@ function PurchaseForm({ purchase, currentMonth, savingsAccounts }: {
   const preview = purchasePreview(values, saved, currentMonth, editing);
   const months = targetMonthChoices(currentMonth);
   const chosenAccount = savingsAccounts.find((a) => a.id === values.accountId);
+
+  // Advice on the draft, before saving it (nothing is saved but the advice itself).
+  async function askFirst() {
+    const built = draftAdviceRequest(values, currentMonth);
+    if (built.error !== undefined) { setAdviceError(built.error); return; }
+    setAsking(true);
+    setAdviceError(null);
+    try {
+      setAdvice(await askPurchaseAdvice({ draft: built.draft }));
+    } catch (e) {
+      setAdviceError((e as Error).message);
+    } finally {
+      setAsking(false);
+    }
+  }
 
   async function save() {
     const built = buildPurchaseRequest(values, saved, currentMonth, editing);
@@ -175,6 +204,16 @@ function PurchaseForm({ purchase, currentMonth, savingsAccounts }: {
           <TextField value={values.notes} onChangeText={(notes) => set({ notes })} multiline maxLength={1000} accessibilityLabel="Notes" />
         </Field>
       </FormSection>
+
+      {!editing && (
+        <Card title="Not sure yet?" description="Get advice before saving.">
+          <Button title={askAdviceLabel(asking, advice !== null)} variant="secondary" disabled={asking} onPress={askFirst} />
+          {asking && <Text style={[styles.caption, { color: t.muted }]}>{askingAdviceNote(values.name.trim())}</Text>}
+          {adviceError && <OpenAIErrorAlert error={adviceError} />}
+          {advice ? <AdviceView advice={advice} onUse={() => setValues((v) => withSuggestion(v, advice))} />
+            : !asking && <Text style={[styles.caption, { color: t.muted }]}>{adviceSentNote}</Text>}
+        </Card>
+      )}
     </ScrollView>
   );
 }
