@@ -1,4 +1,4 @@
-import { accountGroups, accountLabel, type Account, type Settings } from '@lifetracker/core';
+import { accountGroups, accountLabel, captureAccounts, type Account, type Settings } from '@lifetracker/core';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -43,7 +43,7 @@ export default function ApplePayCard({ settings: s, accounts }: { settings: Sett
       {s && accounts ? (
         <PickerButton title="Default account" valueLabel={chosen ? accountLabel(chosen) : noDefault}
           choices={[{ label: noDefault, value: null as number | null },
-            ...accountGroups(accounts).flatMap((g) => g.accounts).map((a) => ({ label: accountLabel(a), value: a.id as number | null }))]}
+            ...accountGroups(captureAccounts(accounts)).flatMap((g) => g.accounts).map((a) => ({ label: accountLabel(a), value: a.id as number | null }))]}
           onChange={changeDefault} />
       ) : <ActivityIndicator color={t.muted} />}
       <Text style={[styles.small, { color: t.muted }]}>Where a payment goes when no card name matches.</Text>

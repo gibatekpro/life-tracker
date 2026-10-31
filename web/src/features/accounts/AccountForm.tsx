@@ -3,7 +3,8 @@ import { createAccount, updateAccount } from '../../api';
 import type { Account, AccountType } from '@lifetracker/core';
 import { useRefresh } from '../../data/refresh';
 import {
-  accountFormValues, accountNamePlaceholder, buildAccountRequest, currencyChoices, currencySymbol, showsLoanAppHint,
+  accountFormValues, accountNamePlaceholder, balanceField, buildAccountRequest, currencyChoices, currencySymbol, isDebtType,
+  showsLoanAppHint,
 } from '@lifetracker/core';
 import Button from '../../components/ui/Button';
 import { Field, Input, MoneyInput, Select } from '../../components/ui/Field';
@@ -11,6 +12,7 @@ import { Alert, SegmentedControl } from '../../components/ui/Bits';
 
 const types: { value: AccountType; label: string }[] = [
   { value: 'Current', label: 'Current' },
+  { value: 'Savings', label: 'Savings' },
   { value: 'CreditCard', label: 'Credit card' },
   { value: 'Loan', label: 'Loan' },
 ];
@@ -26,7 +28,8 @@ export default function AccountForm({ account, onDone }: { account?: Account; on
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const isDebt = type !== 'Current';
+  const isDebt = isDebtType(type);
+  const balanceAs = balanceField(type);
   const symbol = currencySymbol(currency);
   const loanAppHint = showsLoanAppHint(values);
 
@@ -82,9 +85,9 @@ export default function AccountForm({ account, onDone }: { account?: Account; on
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={isDebt ? 'Amount owed' : 'Balance'} hint={isDebt ? undefined : 'Can be negative if overdrawn'}>
+        <Field label={balanceAs.label} hint={balanceAs.hint}>
           {(id) => (
-            <MoneyInput id={id} symbol={symbol} required placeholder="0.00" min={isDebt ? 0 : undefined}
+            <MoneyInput id={id} symbol={symbol} required placeholder="0.00" min={balanceAs.allowNegative ? undefined : 0}
               value={balance} onChange={(e) => set({ balance: e.target.value })} />
           )}
         </Field>

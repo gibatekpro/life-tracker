@@ -4,11 +4,17 @@ import type { Account, AccountType, PayoffProjection, WhatIfComparison } from '.
 
 export const typeLabel: Record<AccountType, string> = {
   Current: 'Current account',
+  Savings: 'Savings account',
   CreditCard: 'Credit card',
   Loan: 'Loan',
 };
 
-export const isDebt = (a: Account) => a.type !== 'Current';
+// Money I owe (cards and loans); everything else is money I have.
+export const isDebtType = (type: AccountType) => type === 'CreditCard' || type === 'Loan';
+export const isDebt = (a: Account) => isDebtType(a.type);
+
+// The accounts Apple Pay can spend from: anything but a savings account.
+export const captureAccounts = (accounts: Account[]) => accounts.filter((a) => a.type !== 'Savings');
 
 // "Pay" on a debt opens the transaction form as a transfer to it, from a current account in the
 // same currency if I have one (PalmPay for a naira loan), with the usual instalment filled in.
@@ -69,6 +75,7 @@ export const accountLabel = (a: Account) => `${a.name}${a.currency !== 'GBP' ? `
 // Accounts grouped the way I think about them: money I have, then what I owe. Empty groups are left out.
 export const accountGroupOrder: { label: string; types: AccountType[] }[] = [
   { label: 'Money', types: ['Current'] },
+  { label: 'Savings', types: ['Savings'] },
   { label: 'Credit cards', types: ['CreditCard'] },
   { label: 'Loans', types: ['Loan'] },
 ];

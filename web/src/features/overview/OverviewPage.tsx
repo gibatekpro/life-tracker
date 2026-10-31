@@ -2,7 +2,7 @@ import { Link } from 'react-router';
 import { getAccounts, getDebts, getMonthlySummary, getTransactions } from '../../api';
 import { useData } from '../../data/useData';
 import {
-  categoryShares, earlierMonths, formatMoney, leftNote, moneyHeld, owedNote, periodLabel, spentNote, spentShare, spentShareTone,
+  categoryShares, earlierMonths, formatMoney, isDebt, leftNote, moneyHeld, owedNote, periodLabel, spentNote, spentShare, spentShareTone,
 } from '@lifetracker/core';
 import { cn } from '../../lib/cn';
 import Button from '../../components/ui/Button';
@@ -117,8 +117,8 @@ export default function OverviewPage() {
                   <li key={a.id}>
                     <Link to={`/accounts/${a.id}`} className="-mx-2 flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 hover:bg-surface-muted">
                       <span className="truncate text-sm">{a.name}</span>
-                      <span className={cn('text-sm font-medium tabular-nums', a.type === 'Current' ? 'text-ink' : 'text-negative')}>
-                        {a.type === 'Current' ? '' : '−'}{formatMoney(a.balance, a.currency)}
+                      <span className={cn('text-sm font-medium tabular-nums', isDebt(a) ? 'text-negative' : 'text-ink')}>
+                        {isDebt(a) ? '−' : ''}{formatMoney(a.balance, a.currency)}
                       </span>
                     </Link>
                   </li>

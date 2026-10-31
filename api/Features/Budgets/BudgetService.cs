@@ -249,7 +249,7 @@ public class BudgetService(
         {
             var account = await db.Accounts.FindAsync(a);
             if (account is null) return $"Account {a} doesn't exist.";
-            if (account.Type == AccountType.Current) return $"{account.Name} isn't a card or loan.";
+            if (!account.Type.IsDebt()) return $"{account.Name} isn't a card or loan.";
         }
         return null;
     }

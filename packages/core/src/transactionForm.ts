@@ -1,3 +1,4 @@
+import { isDebt } from './accounts';
 import { formatMoney } from './format';
 import { describeSource, formatRate, quoteFor } from './rates';
 import type {
@@ -151,7 +152,7 @@ export function buildTransactionRequest(v: TransactionFormValues, view: Transact
       type: v.type,
       amount: Number(v.amount),
       // A transfer's description can be left blank: it's clear from the accounts.
-      description: v.description.trim() || (to ? `${to.type === 'Current' ? 'Transfer' : 'Payment'} to ${to.name}` : ''),
+      description: v.description.trim() || (to ? `${isDebt(to) ? 'Payment' : 'Transfer'} to ${to.name}` : ''),
       // Spending and income need a category; a transfer between my accounts has none.
       categoryId: isTransfer ? null : chosenCategoryId ?? null,
       date: v.date,

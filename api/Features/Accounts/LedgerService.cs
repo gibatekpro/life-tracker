@@ -146,6 +146,11 @@ public class LedgerService(AppDbContext db, ExchangeRateService rates, ILogger<L
         if (gbpAmount is not null && (gbpAmount <= 0 || account.Currency == Currencies.Home))
             return (null, null, "A £ value is only for something in another currency, and must be above zero.");
 
+        // A savings account has no overdraft, so what leaves it can't be more than it holds.
+        // (When editing, the old transaction has already been undone, so its money is back in.)
+        if (type != TransactionType.Income && account.Type == AccountType.Savings && amount > account.Balance)
+            return (null, null, $"That's more than the {account.Balance:0.00} {account.Currency} in {account.Name}.");
+
         // Expenses and income only involve one account.
         if (type != TransactionType.Transfer)
         {
@@ -170,7 +175,7 @@ public class LedgerService(AppDbContext db, ExchangeRateService rates, ILogger<L
 
         // Paying off more than I owe is almost always a typo (£1000 instead of £100).
         var received = toAmount ?? amount;
-        if (toAccount.Type != AccountType.Current && received > toAccount.Balance)
+        if (toAccount.Type.IsDebt() && received > toAccount.Balance)
             return (null, null, $"That's more than the {toAccount.Balance:0.00} {toAccount.Currency} owed on {toAccount.Name}.");
 
         return (account, toAccount, null);

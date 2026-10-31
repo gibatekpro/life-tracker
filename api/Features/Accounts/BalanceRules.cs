@@ -19,8 +19,9 @@ public record BalanceChange(int AccountId, decimal Delta);
 // LedgerService does the saving and the logging.
 public static class BalanceRules
 {
+    // A savings account is money I have, so it works like a current account.
     public static decimal MoneyOut(AccountType type, decimal amount) =>
-        type == AccountType.Current ? -amount : amount;
+        type.IsAsset() ? -amount : amount;
 
     public static decimal MoneyIn(AccountType type, decimal amount) =>
         -MoneyOut(type, amount);

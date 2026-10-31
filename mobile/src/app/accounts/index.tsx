@@ -1,5 +1,5 @@
 import {
-  approxPounds, creditUsage, foreignCurrencies, formatMoney, formatMonthYear, payDraft, payoffStat, rateNote, typeLabel,
+  approxPounds, creditUsage, foreignCurrencies, formatMoney, formatMonthYear, isDebt, payDraft, payoffStat, rateNote, typeLabel,
   type Account, type DebtWithProjection, type ExchangeRate,
 } from '@lifetracker/core';
 import { router, Stack } from 'expo-router';
@@ -100,7 +100,7 @@ export default function AccountsScreen() {
   const rates = useData('rates', getExchangeRates);
   const add = () => router.push('/account-form');
 
-  const current = (accounts.data ?? []).filter((a) => a.type === 'Current');
+  const current = (accounts.data ?? []).filter((a) => !isDebt(a));
   const o = debts.data;
   const foreign = foreignCurrencies(accounts.data ?? []);
   const failed = [accounts, debts].find((d) => d.error);

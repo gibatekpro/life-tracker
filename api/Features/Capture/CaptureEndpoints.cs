@@ -51,8 +51,10 @@ public static class CaptureEndpoints
             var merchant = string.IsNullOrWhiteSpace(req.Merchant) ? "Apple Pay" : req.Merchant.Trim();
 
             // Work out which account paid. This is cheap: there are only a handful of accounts,
-            // so they're all loaded with their aliases and matched in memory.
+            // so they're all loaded with their aliases and matched in memory. Savings accounts
+            // aren't cards, so a card name never lands a payment in one.
             var accounts = await db.Accounts
+                .Where(a => a.Type != AccountType.Savings)
                 .Select(a => new ResolvableAccount(a.Id, a.Name, a.Aliases.Select(x => x.Alias).ToList()))
                 .ToListAsync();
             var resolution = AccountResolver.Resolve(req.Card, accounts, (await settings.GetAsync()).DefaultAccountId);

@@ -1,4 +1,5 @@
-export type AccountType = 'Current' | 'CreditCard' | 'Loan';
+// Current and Savings hold money; CreditCard and Loan are owed.
+export type AccountType = 'Current' | 'Savings' | 'CreditCard' | 'Loan';
 export type TransactionType = 'Expense' | 'Income' | 'Transfer';
 // What the summary measures spending against: the take-home pay setting, or recorded Income.
 export type IncomeMode = 'Fixed' | 'Recorded';
@@ -14,7 +15,7 @@ export interface Account {
   name: string;
   type: AccountType;
   currency: string; // e.g. 'GBP', 'NGN'; balance and payments are in this currency
-  balance: number; // Current: money held. CreditCard/Loan: amount owed.
+  balance: number; // Current/Savings: money held. CreditCard/Loan: amount owed.
   apr: number;
   minimumPayment: number;
   monthlyPayment: number;

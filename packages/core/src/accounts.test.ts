@@ -1,22 +1,34 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  accountGroups, accountLabel, creditUsage, defaultWhatIfPayment, foreignCurrencies, payDraft, payoffStat, whatIfSummary,
+  accountGroups, accountLabel, captureAccounts, creditUsage, isDebt, defaultWhatIfPayment, foreignCurrencies, payDraft, payoffStat, whatIfSummary,
 } from './accounts';
 import { account } from './testData';
 import type { PayoffProjection } from './types';
 
 describe('accountGroups', () => {
-  it('orders money, then cards, then loans, leaving out empty groups and keeping order within one', () => {
+  it('orders money, savings, then cards, then loans, leaving out empty groups and keeping order within one', () => {
     const groups = accountGroups([
       account({ id: 1, name: 'Ease Cash', type: 'Loan', currency: 'NGN' }),
       account({ id: 2, name: 'Lloyds' }),
+      account({ id: 4, name: 'Visa fees', type: 'Savings' }),
       account({ id: 3, name: 'PalmPay', currency: 'NGN' }),
     ]);
     expect(groups.map((g) => [g.label, g.accounts.map(accountLabel)])).toEqual([
       ['Money', ['Lloyds', 'PalmPay (NGN)']],
+      ['Savings', ['Visa fees']],
       ['Loans', ['Ease Cash (NGN)']],
     ]);
+  });
+});
+
+describe('savings accounts', () => {
+  const visaFees = account({ id: 9, name: 'Visa fees', type: 'Savings' });
+
+  it('are money I have, not a debt, and Apple Pay never spends from one', () => {
+    expect(isDebt(visaFees)).toBe(false);
+    expect(isDebt(account({ id: 1, name: 'Aqua', type: 'CreditCard' }))).toBe(true);
+    expect(captureAccounts([account({ id: 1, name: 'Lloyds' }), visaFees]).map((a) => a.name)).toEqual(['Lloyds']);
   });
 });
 

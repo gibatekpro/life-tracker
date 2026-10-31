@@ -151,6 +151,29 @@ public class LedgerEditTests(PostgresFixture pg) : IClassFixture<PostgresFixture
     }
 
     [Fact]
+    public async Task ASavingsAccount_CantGiveMoreThanItHolds_EvenWhenEditing()
+    {
+        var s = await SetupAsync();
+        await using var _ = s.Db;
+        var savings = new Account { Name = "Visa fees", Type = AccountType.Savings };
+        s.Db.Accounts.Add(savings);
+        await s.Db.SaveChangesAsync();
+        await s.Ledger.RecordAsync(new LedgerEntry(300m, "Saving", null, Oct1, TransactionType.Transfer, s.Lloyds.Id, savings.Id));
+
+        var tooMuch = await s.Ledger.RecordAsync(Expense(300.01m, savings.Id, "Visa"));
+        var spent = (await s.Ledger.RecordAsync(Expense(200m, savings.Id, "Visa"))).Transaction!;
+        // Editing 200 up to 300 is fine: the old 200 goes back in before the check.
+        var edited = await s.Ledger.UpdateAsync(spent.Id, Expense(300m, savings.Id, "Visa"));
+        var back = await s.Ledger.RecordAsync(new LedgerEntry(1m, "Back", null, Oct1, TransactionType.Transfer, savings.Id, s.Lloyds.Id));
+
+        Assert.Equal("That's more than the 300.00 GBP in Visa fees.", tooMuch.Error);
+        Assert.Null(edited!.Error);
+        Assert.Equal("That's more than the 0.00 GBP in Visa fees.", back.Error);
+        Assert.Equal(0m, savings.Balance);
+        Assert.Equal(700m, s.Lloyds.Balance);
+    }
+
+    [Fact]
     public async Task DeletingAMissingTransaction_IsFalse()
     {
         var s = await SetupAsync();

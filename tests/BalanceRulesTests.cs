@@ -102,6 +102,26 @@ public class BalanceRulesTests
     }
 
     [Fact]
+    public void SavingIntoASavingsAccount_MovesMoneyLikeBetweenCurrentAccounts()
+    {
+        var visaFees = new AccountRef(7, AccountType.Savings);
+
+        var changes = BalanceRules.For(TransactionType.Transfer, 250m, Lloyds, visaFees);
+
+        Assert.Equal([new BalanceChange(1, -250m), new BalanceChange(7, 250m)], changes);
+    }
+
+    [Fact]
+    public void SpendingFromASavingsAccount_LowersWhatsSaved()
+    {
+        var visaFees = new AccountRef(7, AccountType.Savings);
+
+        var changes = BalanceRules.For(TransactionType.Expense, 3990m, visaFees);
+
+        Assert.Equal([new BalanceChange(7, -3990m)], changes);
+    }
+
+    [Fact]
     public void TransferWithoutDestination_Throws()
     {
         Assert.Throws<ArgumentException>(() => BalanceRules.For(TransactionType.Transfer, 30m, Lloyds));

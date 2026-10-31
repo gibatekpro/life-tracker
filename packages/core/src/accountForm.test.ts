@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { accountFormValues, accountNamePlaceholder, buildAccountRequest, showsLoanAppHint } from './accountForm';
+import { accountFormValues, accountNamePlaceholder, balanceField, buildAccountRequest, showsLoanAppHint } from './accountForm';
 import { account } from './testData';
 
 const blank = accountFormValues();
@@ -37,5 +37,15 @@ describe('the account form', () => {
 
   it('suggests a name for each type', () => {
     expect(accountNamePlaceholder('Loan')).toBe('e.g. FairMoney');
+    expect(accountNamePlaceholder('Savings')).toBe('e.g. Visa fees');
+  });
+
+  it('builds a savings account like a current one, but never overdrawn', () => {
+    const savings = { ...blank, name: 'Visa fees', type: 'Savings' as const, balance: '0', monthlyPayment: '60' };
+    expect(buildAccountRequest(savings).request).toMatchObject({ type: 'Savings', balance: 0, monthlyPayment: 0, apr: 0 });
+    expect(buildAccountRequest({ ...savings, balance: '-1' }).error).toBe("A savings account's balance can't be negative.");
+    expect(balanceField('Savings')).toEqual({ label: 'Balance', hint: undefined, allowNegative: false });
+    expect(balanceField('Current')).toMatchObject({ hint: 'Can be negative if overdrawn', allowNegative: true });
+    expect(balanceField('Loan')).toMatchObject({ label: 'Amount owed', allowNegative: false });
   });
 });

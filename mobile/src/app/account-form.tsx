@@ -1,5 +1,5 @@
 import {
-  accountFormValues, accountNamePlaceholder, buildAccountRequest, currencyChoices, currencySymbol, showsLoanAppHint,
+  accountFormValues, accountNamePlaceholder, balanceField, buildAccountRequest, currencyChoices, currencySymbol, isDebtType, showsLoanAppHint,
   type Account, type AccountFormValues, type AccountType,
 } from '@lifetracker/core';
 import * as Haptics from 'expo-haptics';
@@ -23,6 +23,7 @@ import ErrorAlert from '@/components/ErrorAlert';
 
 const types: { value: AccountType; label: string }[] = [
   { value: 'Current', label: 'Current' },
+  { value: 'Savings', label: 'Savings' },
   { value: 'CreditCard', label: 'Credit card' },
   { value: 'Loan', label: 'Loan' },
 ];
@@ -54,7 +55,8 @@ function AccountForm({ account }: { account?: Account }) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const isDebt = values.type !== 'Current';
+  const isDebt = isDebtType(values.type);
+  const balanceAs = balanceField(values.type);
   const symbol = currencySymbol(values.currency);
 
   async function save() {
@@ -116,9 +118,9 @@ function AccountForm({ account }: { account?: Account }) {
       )}
 
       <FormSection>
-        <Field label={isDebt ? 'Amount owed' : 'Balance'} hint={isDebt ? undefined : 'Can be negative if overdrawn'}>
-          <MoneyInput symbol={symbol} value={values.balance} onChangeText={(balance) => set({ balance })} allowNegative={!isDebt}
-            accessibilityLabel={isDebt ? 'Amount owed' : 'Balance'} />
+        <Field label={balanceAs.label} hint={balanceAs.hint}>
+          <MoneyInput symbol={symbol} value={values.balance} onChangeText={(balance) => set({ balance })} allowNegative={balanceAs.allowNegative}
+            accessibilityLabel={balanceAs.label} />
         </Field>
         {isDebt && (
           <Field label="APR" hint="Yearly interest rate, e.g. 24.9">

@@ -32,11 +32,11 @@ public static class AccountEndpoints
         var logger = app.ServiceProvider.GetRequiredService<ILoggerFactory>()
             .CreateLogger("LifeTracker.Api.Features.Accounts");
 
-        // All accounts, current accounts first, so the dashboard can show "what I have" above "what I owe".
+        // All accounts, current then savings accounts first, so the dashboard can show "what I have" above "what I owe".
         group.MapGet("/", async (AppDbContext db) =>
             await db.Accounts
                 .Include(a => a.Aliases)
-                .OrderBy(a => a.Type == AccountType.Current ? 0 : 1)
+                .OrderBy(a => a.Type == AccountType.Current ? 0 : a.Type == AccountType.Savings ? 1 : 2)
                 .ThenBy(a => a.Name)
                 .ToListAsync());
 
@@ -183,12 +183,15 @@ public static class AccountEndpoints
         if (req.Apr < 0 || req.MinimumPayment < 0 || req.MonthlyPayment < 0)
             return "APR and payments can't be negative.";
 
-        // A current account can dip below zero (an overdraft), but I can't owe a negative amount.
-        if (req.Type != AccountType.Current && req.Balance < 0)
+        // A current account can dip below zero (an overdraft), but I can't owe a negative amount,
+        // and a savings account has no overdraft.
+        if (req.Type.IsDebt() && req.Balance < 0)
             return "The amount owed can't be negative.";
+        if (req.Type == AccountType.Savings && req.Balance < 0)
+            return "A savings account's balance can't be negative.";
 
         // The payoff projections divide the debt by this, so a card or loan needs one.
-        if (req.Type != AccountType.Current && req.MonthlyPayment <= 0)
+        if (req.Type.IsDebt() && req.MonthlyPayment <= 0)
             return "A card or loan needs a monthly payment above zero.";
 
         if (req.CreditLimit is not null && (req.Type != AccountType.CreditCard || req.CreditLimit < 0))

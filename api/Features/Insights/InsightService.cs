@@ -138,7 +138,7 @@ public class InsightService(
         // Debts with their balance in pounds, and this month's line from the budget.
         var lines = b.Debts.ToDictionary(d => d.AccountId);
         var debts = new List<InsightDebt>();
-        foreach (var a in await db.Accounts.Where(a => a.Type != AccountType.Current && a.Balance > 0).OrderByDescending(a => a.Apr).ToListAsync())
+        foreach (var a in await db.Accounts.Where(a => (a.Type == AccountType.CreditCard || a.Type == AccountType.Loan) && a.Balance > 0).OrderByDescending(a => a.Apr).ToListAsync())
         {
             var pounds = await rates.ToPoundsAsync(a.Balance, a.Currency);
             var kind = (a.Type == AccountType.CreditCard ? "credit card" : "loan") + (pounds is null ? ", no £ rate yet" : "");

@@ -55,10 +55,21 @@ public static class SettingsEndpoints
         // dashboard (which doesn't know about this field) can't wipe the default by leaving it out.
         group.MapPut("/default-account", async (DefaultAccountRequest req, SettingsService settings, AppDbContext db) =>
         {
-            if (req.AccountId is { } id && await db.Accounts.FindAsync(id) is null)
+            if (req.AccountId is { } id)
             {
-                logger.LogWarning("Rejected default capture account {AccountId}: it doesn't exist", id);
-                return Results.BadRequest(new { error = $"Account {id} doesn't exist." });
+                var account = await db.Accounts.FindAsync(id);
+                if (account is null)
+                {
+                    logger.LogWarning("Rejected default capture account {AccountId}: it doesn't exist", id);
+                    return Results.BadRequest(new { error = $"Account {id} doesn't exist." });
+                }
+
+                // Apple Pay spends from a card or current account, never from money put aside.
+                if (account.Type == AccountType.Savings)
+                {
+                    logger.LogWarning("Rejected default capture account {AccountId}: it's a savings account", id);
+                    return Results.BadRequest(new { error = $"{account.Name} is a savings account, so Apple Pay can't spend from it." });
+                }
             }
 
             return Results.Ok(await settings.SetDefaultAccountAsync(req.AccountId));

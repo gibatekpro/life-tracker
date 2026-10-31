@@ -1,5 +1,5 @@
 import {
-  categoryShares, earlierMonths, formatMoney, leftNote, moneyHeld, owedNote, periodLabel, spentNote, spentShare, spentShareTone,
+  categoryShares, earlierMonths, formatMoney, isDebt, leftNote, moneyHeld, owedNote, periodLabel, spentNote, spentShare, spentShareTone,
 } from '@lifetracker/core';
 import { router } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -106,8 +106,8 @@ export default function HomeScreen() {
             style={({ pressed }) => [styles.accountRow, i > 0 && { borderTopColor: t.line, borderTopWidth: StyleSheet.hairlineWidth },
               pressed && { opacity: 0.6 }]}>
             <Text style={[styles.accountName, { color: t.ink }]} numberOfLines={1}>{a.name}</Text>
-            <Text style={[styles.money, { color: a.type === 'Current' ? t.ink : t.negative }]}>
-              {a.type === 'Current' ? '' : '−'}{formatMoney(a.balance, a.currency)}
+            <Text style={[styles.money, { color: isDebt(a) ? t.negative : t.ink }]}>
+              {isDebt(a) ? '−' : ''}{formatMoney(a.balance, a.currency)}
             </Text>
           </Pressable>
         ))}

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router';
 import { getAccounts, getDebts, getExchangeRates } from '../../api';
 import type { Account, DebtWithProjection, ExchangeRate } from '@lifetracker/core';
 import { useData } from '../../data/useData';
-import { creditUsage, foreignCurrencies, formatMoney, formatMonthYear, payDraft, payoffStat, typeLabel } from '@lifetracker/core';
+import { creditUsage, foreignCurrencies, formatMoney, formatMonthYear, isDebt, payDraft, payoffStat, typeLabel } from '@lifetracker/core';
 import { cn } from '../../lib/cn';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -91,7 +91,7 @@ export default function AccountsPage() {
   const navigate = useNavigate();
   const [adding, setAdding] = useState(false);
 
-  const current = (accounts.data ?? []).filter((a) => a.type === 'Current');
+  const current = (accounts.data ?? []).filter((a) => !isDebt(a));
   const o = debts.data;
   const foreign = foreignCurrencies(accounts.data ?? []);
 

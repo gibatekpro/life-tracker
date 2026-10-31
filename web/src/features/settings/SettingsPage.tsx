@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { getAccounts, getSettings, setDefaultAccount, updateSettings } from '../../api';
-import type { Settings } from '@lifetracker/core';
+import { captureAccounts, type Settings } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
 import Button from '../../components/ui/Button';
@@ -134,7 +134,7 @@ export default function SettingsPage() {
 
           <Field label="Default account" hint="Where a payment goes when no card name matches.">
             {(id) => s && accounts.data ? (
-              <AccountSelect id={id} accounts={accounts.data} allLabel="No default (reject unmatched payments)"
+              <AccountSelect id={id} accounts={captureAccounts(accounts.data)} allLabel="No default (reject unmatched payments)"
                 value={s.defaultAccountId ?? ''} onChange={(e) => changeDefault(e.target.value)} />
             ) : <Skeleton className="h-10" />}
           </Field>
