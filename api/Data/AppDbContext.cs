@@ -14,6 +14,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ExchangeRate> ExchangeRates => Set<ExchangeRate>();
     public DbSet<Insight> Insights => Set<Insight>();
     public DbSet<PlannedPurchase> PlannedPurchases => Set<PlannedPurchase>();
+    public DbSet<PurchaseAdvice> PurchaseAdvice => Set<PurchaseAdvice>();
 
 
     public DbSet<AppSettings> Settings => Set<AppSettings>();
@@ -159,6 +160,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
                 "CK_PlannedPurchases_AmountsAndMonths",
                 "\"TargetAmount\" > 0 AND \"MonthlyAmount\" > 0 AND \"TargetMonth\" >= \"StartMonth\" " +
                 "AND EXTRACT(DAY FROM \"StartMonth\") = 1 AND EXTRACT(DAY FROM \"TargetMonth\") = 1"));
+        });
+
+        modelBuilder.Entity<PurchaseAdvice>(e =>
+        {
+            e.Property(a => a.Name).HasMaxLength(100);
+            e.Property(a => a.Model).HasMaxLength(100);
+
+            e.HasOne(a => a.PlannedPurchase)
+            .WithMany()
+            .HasForeignKey(a => a.PlannedPurchaseId)
+            .OnDelete(DeleteBehavior.SetNull);   // advice outlives a planned purchase as a record of what was asked
+
+            e.HasIndex(a => a.PlannedPurchaseId);   // "the advice for this planned purchase"
         });
 
         modelBuilder.Entity<AccountAlias>(e =>

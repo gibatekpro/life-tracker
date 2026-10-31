@@ -359,6 +359,51 @@ namespace LifeTracker.Api.Migrations
                         });
                 });
 
+            modelBuilder.Entity("LifeTracker.Api.Models.PurchaseAdvice", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("InputTokens")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<int>("OutputTokens")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("PlannedPurchaseId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PromptSent")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ResponseJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlannedPurchaseId");
+
+                    b.ToTable("PurchaseAdvice");
+                });
+
             modelBuilder.Entity("LifeTracker.Api.Models.Transaction", b =>
                 {
                     b.Property<int>("Id")
@@ -475,6 +520,16 @@ namespace LifeTracker.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Account");
+                });
+
+            modelBuilder.Entity("LifeTracker.Api.Models.PurchaseAdvice", b =>
+                {
+                    b.HasOne("LifeTracker.Api.Models.PlannedPurchase", "PlannedPurchase")
+                        .WithMany()
+                        .HasForeignKey("PlannedPurchaseId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("PlannedPurchase");
                 });
 
             modelBuilder.Entity("LifeTracker.Api.Models.Transaction", b =>
