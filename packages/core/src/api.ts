@@ -1,7 +1,7 @@
 import type {
   Account, AccountAlias, AccountPayment, AvalanchePlan, BudgetLineKey, BudgetMonthView, Category, CreateTransaction,
-  CreatePlannedPurchase, DebtsOverview, ExchangeRate, IncomeMode, Insight, MarkBought, MonthlySummary, PlannedPurchase,
-  SaveAccount, SaveCategory, SavePlannedPurchase, Settings, Transaction,
+  AdviceDraft, CreatePlannedPurchase, DebtsOverview, ExchangeRate, IncomeMode, Insight, MarkBought, MonthlySummary, PlannedPurchase,
+  PurchaseAdvice, SaveAccount, SaveCategory, SavePlannedPurchase, Settings, Transaction,
   WhatIfComparison,
 } from './types';
 
@@ -131,6 +131,10 @@ export function createApi({ baseUrl, getHeaders, timeoutMs, slowTimeoutMs = time
     updatePlannedPurchase: (id: number, p: SavePlannedPurchase) => request<PlannedPurchase>('PUT', `/planned-purchases/${id}`, p),
     cancelPlannedPurchase: (id: number) => request<PlannedPurchase>('POST', `/planned-purchases/${id}/cancel`),
     markPlannedPurchaseBought: (id: number, b: MarkBought) => request<PlannedPurchase>('POST', `/planned-purchases/${id}/bought`, b),
+    // AI advice (the API asks OpenAI, like insights): about a saved one, or a draft before saving it.
+    getPurchaseAdvice: (id: number) => request<PurchaseAdvice[]>('GET', `/planned-purchases/${id}/advice`),
+    askPurchaseAdvice: (about: { plannedPurchaseId: number } | { draft: AdviceDraft }) =>
+      request<PurchaseAdvice>('POST', '/planned-purchases/advice', about, { slow: true }),
 
     // Debts (read-only views over card and loan accounts)
     getDebts: () => request<DebtsOverview>('GET', '/debts'),

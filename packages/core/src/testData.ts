@@ -1,7 +1,8 @@
 // Builders for tests only (not exported from the package): each fills in every field with
 // something plausible, so a test only spells out what it's about.
 import type {
-  Account, BudgetLine, BudgetMonth, Category, DebtLine, DebtsOverview, ExchangeRate, MonthlySummary, PlannedPurchase, SavingsLine,
+  Account, BudgetLine, BudgetMonth, Category, DebtLine, DebtsOverview, ExchangeRate, MonthlySummary, PlannedPurchase, PurchaseAdvice,
+  SavingsLine,
   Transaction,
 } from './types';
 
@@ -63,4 +64,11 @@ export const plannedPurchase = (p: Partial<PlannedPurchase> = {}): PlannedPurcha
 export const savingsLine = (l: Partial<SavingsLine> = {}): SavingsLine => ({
   plannedPurchaseId: 1, accountId: 9, name: 'Visa fees', isEssential: true, defaultAmount: 1330, monthAmount: null,
   stillNeeded: 3990, planned: 1330, paid: 0, remaining: 1330, percentUsed: 0, ...l,
+});
+
+export const purchaseAdvice = (r: Partial<PurchaseAdvice['result']> = {}, a: Partial<PurchaseAdvice> = {}): PurchaseAdvice => ({
+  id: 1, plannedPurchaseId: 1, name: 'Visa fees', createdAt: '2026-11-01T10:30:00Z', model: 'gpt-5.4-mini', inputTokens: 1800, outputTokens: 320,
+  promptSent: 'Purchase to advise on: ...',
+  result: { verdict: 'GoodIdea', suggestedMonthlyAmount: 1000, suggestedMonths: 4, reasoning: 'It fits.', risks: [], alternatives: [], ...r },
+  ...a,
 });

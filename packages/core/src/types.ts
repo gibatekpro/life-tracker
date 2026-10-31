@@ -343,6 +343,39 @@ export interface MarkBought {
   description?: string;
 }
 
+// AI advice on a planned purchase (or a draft of one): the checked answer, what it cost and exactly what
+// was sent. suggestedMonths is worked out from suggestedMonthlyAmount, so the two always agree.
+export type AdviceVerdict = 'GoodIdea' | 'GoodIdeaLater' | 'Reconsider';
+
+export interface PurchaseAdvice {
+  id: number;
+  plannedPurchaseId: number | null; // null: asked about a draft
+  name: string;
+  createdAt: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  promptSent: string;
+  result: {
+    verdict: AdviceVerdict;
+    suggestedMonthlyAmount: number;
+    suggestedMonths: number;
+    reasoning: string;
+    risks: string[];
+    alternatives: string[];
+  };
+}
+
+// Asking before saving: the plan so far (monthly amount and months may be left out).
+export interface AdviceDraft {
+  name: string;
+  targetAmount: number;
+  monthlyAmount?: number;
+  months?: number;
+  isEssential: boolean;
+  notes: string | null;
+}
+
 // An AI insight for a budget month: the checked answer, what it cost, and exactly what was sent.
 export interface WasteItem {
   name: string;
