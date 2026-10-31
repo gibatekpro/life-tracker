@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { planPurchase, purchaseProgress, type PlanBy } from './plannedPurchases';
+import {
+  cancelPurchaseMessage, formatYm, formatYmLong, homePurchases, planPurchase, purchaseFigures, purchaseGroups, purchaseProgress,
+  purchaseStatus, savingsCardDescription, savingsLineNote, type PlanBy,
+} from './plannedPurchases';
+import { budgetMonth, plannedPurchase, savingsLine } from './testData';
 
 // The same cases as the API's PlannedPurchaseCalculatorTests: the forms preview with this copy and
 // the API saves with that one, so they must agree.
@@ -123,5 +127,63 @@ describe('purchaseProgress', () => {
   it('has no finish when the pace takes more than 120 months', () => {
     // £10 over two whole months is £5 a month: 796 more months.
     expect(progress('2027-01', 10, 10, 0).expectedFinish).toBeNull();
+  });
+});
+
+describe('the planned purchase pages', () => {
+  it('badges it reached, on track or behind while saving, and bought or cancelled after', () => {
+    expect(purchaseStatus(plannedPurchase())).toEqual({ label: 'On track', tone: 'positive' });
+    expect(purchaseStatus(plannedPurchase({ onTrack: false }))).toEqual({ label: 'Behind', tone: 'warning' });
+    expect(purchaseStatus(plannedPurchase({ status: 'Achieved' }))).toEqual({ label: 'Reached', tone: 'positive' });
+    expect(purchaseStatus(plannedPurchase({ status: 'Cancelled' })).label).toBe('Cancelled');
+  });
+
+  it('gives the figures for a card', () => {
+    expect(purchaseFigures(plannedPurchase({ saved: 1330, remaining: 2660, percent: 33.3, monthsLeft: 2 }))).toEqual({
+      saved: '£1,330.00 of £3,990.00', percent: '33.3%', progress: 1330 / 3990, progressTone: 'accent',
+      monthly: '£1,330.00 a month', target: 'By Jan 2027', finish: 'Expected Jan 2027', late: false, behind: null,
+      left: '£2,660.00 to go · 2 months left',
+    });
+  });
+
+  it('says how far behind, and when the pace finishes late or never', () => {
+    const behind = purchaseFigures(plannedPurchase({ onTrack: false, neededByNow: 1330, saved: 500, expectedFinish: '2027-04' }));
+    expect(behind).toMatchObject({ behind: '£830.00 behind', finish: 'Expected Apr 2027', late: true, progressTone: 'warning' });
+    expect(purchaseFigures(plannedPurchase({ expectedFinish: null }))).toMatchObject({ finish: 'Not at this pace', late: true });
+    expect(purchaseFigures(plannedPurchase({ status: 'Cancelled', saved: 700 })))
+      .toMatchObject({ finish: '£700.00 still in Visa fees', left: null, behind: null });
+  });
+
+  it('groups saving before finished, and sums the saving ones for Home', () => {
+    const list = [plannedPurchase({ id: 1, saved: 1000 }), plannedPurchase({ id: 2, status: 'Bought' }),
+      plannedPurchase({ id: 3, name: 'Laptop', targetAmount: 1000, saved: 250, status: 'Achieved' })];
+    expect(purchaseGroups(list).map((g) => [g.label, g.items.map((p) => p.id)])).toEqual([['Saving', [1, 3]], ['Finished', [2]]]);
+    expect(homePurchases(list)).toMatchObject({ summary: '£1,250.00 saved of £4,990.00', more: null });
+    expect(homePurchases([plannedPurchase({ status: 'Cancelled' })])).toBeNull();
+  });
+
+  it("says what cancelling leaves where", () => {
+    expect(cancelPurchaseMessage(plannedPurchase({ saved: 700 }))).toBe('The £700.00 saved stays in Visa fees until you move it.');
+    expect(cancelPurchaseMessage(plannedPurchase())).toBe('Nothing has been saved for it yet.');
+  });
+
+  it('formats budget months', () => {
+    expect([formatYm('2027-01'), formatYmLong('2027-01')]).toEqual(['Jan 2027', 'January 2027']);
+  });
+});
+
+describe("the budget's savings lines", () => {
+  it('says what is still to put aside, and when it is all that was needed', () => {
+    expect(savingsLineNote(savingsLine({ paid: 330, remaining: 1000 })).parts).toEqual([{ text: '£1,000.00 still to put aside' }]);
+    expect(savingsLineNote(savingsLine({ paid: 1330, remaining: 0 }))).toEqual({
+      parts: [{ text: 'Saved for this month', tone: 'positive' }], progressTone: 'positive',
+    });
+    expect(savingsLineNote(savingsLine({ planned: 90, remaining: 90, stillNeeded: 90 })).parts)
+      .toEqual([{ text: '£90.00 still to put aside' }, { text: 'only £90.00 still needed' }]);
+    expect(savingsLineNote(savingsLine({ planned: 0, remaining: 0, stillNeeded: 0 })).parts).toEqual([{ text: 'Target reached', tone: 'positive' }]);
+  });
+
+  it('describes the section', () => {
+    expect(savingsCardDescription(budgetMonth({ savingsPaid: 500, plannedSavings: 1330 }))).toBe('£500.00 saved of £1,330.00 planned');
   });
 });

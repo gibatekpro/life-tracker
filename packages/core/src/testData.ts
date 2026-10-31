@@ -1,7 +1,8 @@
 // Builders for tests only (not exported from the package): each fills in every field with
 // something plausible, so a test only spells out what it's about.
 import type {
-  Account, BudgetLine, BudgetMonth, Category, DebtLine, DebtsOverview, ExchangeRate, MonthlySummary, Transaction,
+  Account, BudgetLine, BudgetMonth, Category, DebtLine, DebtsOverview, ExchangeRate, MonthlySummary, PlannedPurchase, SavingsLine,
+  Transaction,
 } from './types';
 
 export const category = (c: Partial<Category> & Pick<Category, 'id' | 'name'>): Category => ({
@@ -50,4 +51,16 @@ export const summary = (s: Partial<MonthlySummary> = {}): MonthlySummary => ({
 
 export const debtsOverview = (d: Partial<DebtsOverview> = {}): DebtsOverview => ({
   totalBalance: 0, totalMonthlyPayment: 0, totalInterest: 0, debtFreeDate: null, debts: [], currenciesWithoutRate: [], ...d,
+});
+
+// Visa fees: £3,990 at £1,330 a month, November to January, nothing saved yet.
+export const plannedPurchase = (p: Partial<PlannedPurchase> = {}): PlannedPurchase => ({
+  id: 1, name: 'Visa fees', targetAmount: 3990, monthlyAmount: 1330, startMonth: '2026-11', targetMonth: '2027-01',
+  isEssential: true, status: 'Active', notes: null, createdAt: '2026-11-01T00:00:00Z', accountId: 9, accountName: 'Visa fees',
+  saved: 0, remaining: 3990, percent: 0, neededByNow: 0, onTrack: true, monthsLeft: 3, expectedFinish: '2027-01', ...p,
+});
+
+export const savingsLine = (l: Partial<SavingsLine> = {}): SavingsLine => ({
+  plannedPurchaseId: 1, accountId: 9, name: 'Visa fees', isEssential: true, defaultAmount: 1330, monthAmount: null,
+  stillNeeded: 3990, planned: 1330, paid: 0, remaining: 1330, percentUsed: 0, ...l,
 });

@@ -1,5 +1,7 @@
-import { formatMoney } from './format';
+import type { NotePart } from './budget';
+import { formatMoney, formatMonthYear, monthName } from './format';
 import { parseYm, shiftMonth } from './months';
+import type { BudgetMonth, PlannedPurchase, SavingsLine } from './types';
 
 // The maths of saving for something, the same as the API's PlannedPurchaseCalculator (and tested
 // with the same cases), so a form can preview a plan as I type. Months are "2027-01" strings; the
@@ -135,4 +137,94 @@ export function purchaseProgress(p: PurchaseProgressInput): PurchaseProgress {
     monthsLeft,
     expectedFinish,
   };
+}
+
+// ---- The pages (web: PlannedPurchasesPage, PlannedPurchaseDetailPage; phone: planned-purchases/) ----
+
+// "2027-01" as "Jan 2027", or in full as "January 2027".
+export const formatYm = (ym: string) => formatMonthYear(`${ym}-01`);
+export const formatYmLong = (ym: string) => { const { year, month } = parseYm(ym); return monthName(year, month); };
+
+export type PurchaseTone = 'positive' | 'warning' | 'neutral' | 'accent';
+
+const isSaving = (p: PlannedPurchase) => p.status === 'Active' || p.status === 'Achieved';
+
+// The badge: reached, on track or behind while saving; bought or cancelled once finished.
+export function purchaseStatus(p: PlannedPurchase): { label: string; tone: PurchaseTone } {
+  switch (p.status) {
+    case 'Bought': return { label: 'Bought', tone: 'neutral' };
+    case 'Cancelled': return { label: 'Cancelled', tone: 'neutral' };
+    case 'Achieved': return { label: 'Reached', tone: 'positive' };
+    default: return p.onTrack ? { label: 'On track', tone: 'positive' } : { label: 'Behind', tone: 'warning' };
+  }
+}
+
+// What a card and the detail show. finish: when it should be reached at the pace so far (late: after
+// the target month, or not at all). behind: how far short of where it should be by now.
+export function purchaseFigures(p: PlannedPurchase) {
+  const saving = p.status === 'Active';
+  const late = saving && (p.expectedFinish === null || p.expectedFinish > p.targetMonth);
+  return {
+    saved: `${formatMoney(p.saved)} of ${formatMoney(p.targetAmount)}`,
+    percent: `${p.percent}%`,
+    progress: p.targetAmount > 0 ? p.saved / p.targetAmount : 0,
+    progressTone: (p.status === 'Achieved' || p.status === 'Bought' ? 'positive' : saving && !p.onTrack ? 'warning' : 'accent') as
+      'positive' | 'warning' | 'accent',
+    monthly: `${formatMoney(p.monthlyAmount)} a month`,
+    target: `By ${formatYm(p.targetMonth)}`,
+    finish: p.status === 'Achieved' ? 'Target reached'
+      : p.status === 'Bought' ? 'Bought'
+      : p.status === 'Cancelled' ? `${formatMoney(p.saved)} still in ${p.accountName}`
+      : p.expectedFinish ? `Expected ${formatYm(p.expectedFinish)}` : 'Not at this pace',
+    late,
+    behind: saving && !p.onTrack ? `${formatMoney(Math.max(0, p.neededByNow - p.saved))} behind` : null,
+    left: saving ? `${formatMoney(p.remaining)} to go · ${p.monthsLeft} month${p.monthsLeft === 1 ? '' : 's'} left` : null,
+  };
+}
+
+// The list: what I'm saving for, then what's finished (bought or cancelled). Empty groups are left out.
+// The API already sends them in order (by target month).
+export function purchaseGroups(purchases: PlannedPurchase[]) {
+  return [
+    { label: 'Saving', items: purchases.filter(isSaving) },
+    { label: 'Finished', items: purchases.filter((p) => !isSaving(p)) },
+  ].filter((g) => g.items.length > 0);
+}
+
+// Home's card: up to three I'm saving for, and what's saved across all of them (null with none).
+export function homePurchases(purchases: PlannedPurchase[]) {
+  const saving = purchases.filter(isSaving);
+  if (saving.length === 0) return null;
+  const saved = saving.reduce((sum, p) => sum + p.saved, 0);
+  const target = saving.reduce((sum, p) => sum + p.targetAmount, 0);
+  return {
+    items: saving.slice(0, 3),
+    more: saving.length > 3 ? `and ${saving.length - 3} more` : null,
+    summary: `${formatMoney(saved)} saved of ${formatMoney(target)}`,
+  };
+}
+
+export const canChangePurchase = (p: PlannedPurchase) => isSaving(p);
+
+export const cancelPurchaseMessage = (p: PlannedPurchase) =>
+  p.saved > 0
+    ? `The ${formatMoney(p.saved)} saved stays in ${p.accountName} until you move it.`
+    : 'Nothing has been saved for it yet.';
+
+// ---- The budget's Savings section (web: SavingsLineRow; phone: SavingsLineRow) ----
+
+export const savingsCardDescription = (b: BudgetMonth) =>
+  `${formatMoney(b.savingsPaid)} saved of ${formatMoney(b.plannedSavings)} planned`;
+
+// A planned purchase's line note: how much is still to put aside this month, and when the line is
+// smaller than usual because only that much was still needed.
+export function savingsLineNote(s: SavingsLine) {
+  const usual = s.monthAmount ?? s.defaultAmount;
+  const parts: NotePart[] = [
+    s.planned === 0 ? (s.stillNeeded <= 0 ? { text: 'Target reached', tone: 'positive' } : { text: 'Nothing planned this month' })
+      : s.remaining <= 0 ? { text: 'Saved for this month', tone: 'positive' }
+      : { text: `${formatMoney(s.remaining)} still to put aside` },
+  ];
+  if (s.planned > 0 && s.planned < usual) parts.push({ text: `only ${formatMoney(s.planned)} still needed` });
+  return { parts, progressTone: (s.planned > 0 && s.remaining <= 0 ? 'positive' : 'accent') as 'positive' | 'accent' };
 }
