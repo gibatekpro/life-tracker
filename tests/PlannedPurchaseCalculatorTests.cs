@@ -142,6 +142,15 @@ public class PlannedPurchaseCalculatorTests
     }
 
     [Fact]
+    public void AnUnevenPace_StillCountsWholeMonthsExactly()
+    {
+        // £1,000 over three months (£333.33...) with £2,000 to go is exactly 6 more months, not 7.
+        var p = PlannedPurchaseCalculator.Progress(new ProgressInput(3000m, 1000m, 500m, Nov, M(2027, 10), M(2027, 2), 1000m, 0));
+
+        Assert.Equal(M(2027, 7), p.ExpectedFinish);
+    }
+
+    [Fact]
     public void APaceThatTakesMoreThan120Months_HasNoFinish()
     {
         // £10 over two whole months is £5 a month: 796 more months.

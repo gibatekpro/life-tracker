@@ -38,7 +38,7 @@ public static class PlannedPurchaseCalculator
 
     public static PlanResult Plan(decimal target, decimal saved, DateOnly currentMonth, PlanBy by)
     {
-        target = Math.Round(target, 2);
+        target = ToPenny(target);
         if (target <= 0) return Fail("Enter a target above zero.");
         var remaining = target - Math.Max(0, saved);
         if (remaining <= 0) return Fail($"That's already saved: {Pounds(saved)} of {Pounds(target)}.");
@@ -46,7 +46,7 @@ public static class PlannedPurchaseCalculator
         switch (by)
         {
             case ByMonthlyAmount { Amount: var raw }:
-                var amount = Math.Round(raw, 2);
+                var amount = ToPenny(raw);
                 if (amount <= 0) return Fail("Enter a monthly amount above zero.");
                 var needed = Math.Ceiling(remaining / amount);
                 if (needed > MaxMonths)
@@ -73,7 +73,7 @@ public static class PlannedPurchaseCalculator
     {
         var saved = Math.Max(0, p.Saved);
         var remaining = Math.Max(0, p.Target - saved);
-        var percent = p.Target > 0 ? Math.Min(100, Math.Floor(saved / p.Target * 1000) / 10) : 0;
+        var percent = p.Target > 0 ? Math.Min(100, Math.Floor(saved * 1000 / p.Target) / 10) : 0;
 
         // Counting this month: on track means the monthly amount over the months left still gets there.
         var monthsLeft = Math.Max(0, MonthsBetween(p.CurrentMonth, p.TargetMonth) + 1);
@@ -81,18 +81,17 @@ public static class PlannedPurchaseCalculator
 
         // The pace: what came in per month since the start, counting this month once money has come in
         // (until then, this month's payment may still be on its way). With nothing to go on yet, the plan.
+        // More months = remaining ÷ pace, written as remaining × months ÷ contributed so it stays exact.
         var paidThisMonth = p.ContributedThisMonth > 0;
         var counted = Math.Max(0, MonthsBetween(p.StartMonth, p.CurrentMonth)) + (paidThisMonth ? 1 : 0);
-        var pace = counted == 0 ? p.MonthlyAmount : (p.ContributedBefore + p.ContributedThisMonth) / counted;
+        var contributed = p.ContributedBefore + p.ContributedThisMonth;
+        decimal? more = counted == 0 ? (p.MonthlyAmount > 0 ? Math.Ceiling(remaining / p.MonthlyAmount) : null)
+            : contributed > 0 ? Math.Ceiling(remaining * counted / contributed) : null;
 
         DateOnly? finish = null;
         if (remaining == 0) finish = p.CurrentMonth;
-        else if (pace > 0)
-        {
-            // This month still counts as a saving month until money has come in.
-            var more = Math.Ceiling(remaining / pace);
-            if (more <= MaxMonths) finish = p.CurrentMonth.AddMonths((int)more - (paidThisMonth ? 0 : 1));
-        }
+        // This month still counts as a saving month until money has come in.
+        else if (more <= MaxMonths) finish = p.CurrentMonth.AddMonths((int)more.Value - (paidThisMonth ? 0 : 1));
 
         return new PurchaseProgress(saved, remaining, percent, neededByNow, remaining == 0 || saved >= neededByNow,
             monthsLeft, finish);
@@ -121,6 +120,9 @@ public static class PlannedPurchaseCalculator
     }
 
     private static decimal UpToPenny(decimal amount) => Math.Ceiling(amount * 100) / 100;
+
+    // Half a penny rounds up, as JavaScript's Math.round does in the core copy.
+    private static decimal ToPenny(decimal amount) => Math.Round(amount, 2, MidpointRounding.AwayFromZero);
 
     private static PlanResult Fail(string error) => new(null, error);
 
