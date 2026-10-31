@@ -44,6 +44,9 @@ export function draftAdviceRequest(v: PurchaseFormValues, currentMonth: string):
   };
 }
 
-// "Use this amount": the form planned by the suggested monthly amount.
-export const withSuggestion = (v: PurchaseFormValues, a: PurchaseAdvice): PurchaseFormValues =>
-  ({ ...v, choice: 'monthly', monthly: String(a.result.suggestedMonthlyAmount) });
+// "Use this amount": the form planned by the suggested monthly amount (the phone passes just the amount
+// to its form modal).
+export const withMonthlyAmount = (v: PurchaseFormValues, amount: number): PurchaseFormValues =>
+  ({ ...v, choice: 'monthly', monthly: String(amount) });
+
+export const withSuggestion = (v: PurchaseFormValues, a: PurchaseAdvice) => withMonthlyAmount(v, a.result.suggestedMonthlyAmount);

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { cancelPlannedPurchase, getAccountPayments, getAccounts, getPlannedPurchase, getSettings } from '../../api';
+import type { PurchaseAdvice } from '@lifetracker/core';
 import {
   addMoneyDraft, canChangePurchase, cancelPurchaseMessage, formatDate, formatMoney, formatYmLong, purchaseFigures, purchaseStatus,
 } from '@lifetracker/core';
@@ -13,12 +14,14 @@ import Icon from '../../components/ui/Icon';
 import Modal from '../../components/ui/Modal';
 import { Alert, Badge, EmptyState, ProgressBar, Skeleton, Stat } from '../../components/ui/Bits';
 import { useQuickAdd } from '../transactions/quickAdd';
+import AdviceCard from './AdviceCard';
 import BoughtForm from './BoughtForm';
 import PlannedPurchaseForm from './PlannedPurchaseForm';
 
 // One planned purchase in full: what's saved against the target, the plan, whether it's on track, and
 // every contribution (transfers into its savings account). "Add money" opens the transaction form as a
-// transfer from my default current account; it can also be edited, marked as bought or cancelled.
+// transfer from my default current account; it can also be edited, marked as bought or cancelled, and
+// AI advice says whether it's a good idea and what a reasonable monthly amount is.
 export default function PlannedPurchaseDetailPage() {
   const id = Number(useParams().id);
   const purchase = useData(`planned-purchase-${id}`, () => getPlannedPurchase(id));
@@ -28,7 +31,8 @@ export default function PlannedPurchaseDetailPage() {
   const settings = useData('settings', getSettings);
   const openQuickAdd = useQuickAdd();
   const { refresh } = useRefresh();
-  const [editing, setEditing] = useState(false);
+  // Editing, optionally starting from advice's suggested monthly amount ("Use this amount").
+  const [editing, setEditing] = useState<{ suggestion?: PurchaseAdvice } | null>(null);
   const [buying, setBuying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
@@ -75,7 +79,7 @@ export default function PlannedPurchaseDetailPage() {
         </div>
         {open && (
           <div className="flex gap-2">
-            <Button icon="pencil" onClick={() => setEditing(true)}>Edit</Button>
+            <Button icon="pencil" onClick={() => setEditing({})}>Edit</Button>
             <Button variant="primary" icon="plus"
               onClick={() => openQuickAdd(addMoneyDraft(p, accounts.data ?? [], settings.data?.defaultAccountId ?? null))}>
               Add money
@@ -97,6 +101,8 @@ export default function PlannedPurchaseDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="grid content-start gap-6 lg:col-span-2">
+          <AdviceCard purchase={p} onUse={(suggestion) => setEditing({ suggestion })} />
+
           <Card title="Contributions" description={`Transfers into ${p.accountName}`}
             action={<Link to={`/accounts/${p.accountId}`} className="text-sm font-medium text-accent hover:underline">Account</Link>}>
             {!contributions.data ? <Skeleton className="h-24" /> : contributions.data.length === 0 ? (
@@ -138,8 +144,8 @@ export default function PlannedPurchaseDetailPage() {
         </div>
       </div>
 
-      <Modal open={editing} onClose={() => setEditing(false)} title={`Edit ${p.name}`}>
-        <PlannedPurchaseForm purchase={p} onDone={() => setEditing(false)} />
+      <Modal open={editing !== null} onClose={() => setEditing(null)} title={`Edit ${p.name}`}>
+        <PlannedPurchaseForm purchase={p} suggestion={editing?.suggestion} onDone={() => setEditing(null)} />
       </Modal>
 
       <Modal open={buying} onClose={() => setBuying(false)} title={`Mark ${p.name} as bought`}>

@@ -5,7 +5,7 @@ import type { Insight } from '@lifetracker/core';
 import { useData } from '../../data/useData';
 import { useRefresh } from '../../data/refresh';
 import {
-  formatDateTime, formatMoney, generateLabel, generatingNote, hasQuestion, insightFooter, insightsForMonth, isKeyNotConfigured,
+  formatDateTime, formatMoney, generateLabel, generatingNote, hasQuestion, insightFooter, insightsForMonth,
   maxQuestionLength, monthName, periodLabel, questionCounter, questionLabel, questionNote, questionPlaceholder, savingsNote,
   shiftMonth, shortQuestion, shownInsight, toYm,
 } from '@lifetracker/core';
@@ -15,6 +15,7 @@ import Card from '../../components/ui/Card';
 import ExpandButton from '../../components/tree/ExpandButton';
 import { Field, Textarea } from '../../components/ui/Field';
 import { Alert, EmptyState, PageHeader, Skeleton } from '../../components/ui/Bits';
+import OpenAIError from './OpenAIError';
 
 // AI insights for a budget month. Generate asks my API, which sends OpenAI a summary of the month
 // (categories, merchants, budgets and debts; no account numbers, ids or aliases) and saves the answer.
@@ -96,16 +97,7 @@ export default function InsightsPage() {
       {(view.error || insights.error) && <Alert tone="negative" className="mb-6">{view.error ?? insights.error}</Alert>}
       {error && (
         <Alert tone="negative" className="mb-6">
-          {isKeyNotConfigured(error) ? (
-            <>
-              <p className="font-medium">No OpenAI key is set up yet.</p>
-              <p className="mt-1">
-                In the <code className="font-mono">api</code> folder, run{' '}
-                <code className="font-mono break-all">dotnet user-secrets set "OpenAI:ApiKey" "&lt;your key&gt;"</code>{' '}
-                and restart the API. The key stays in the API; this page never sees it.
-              </p>
-            </>
-          ) : error}
+          <OpenAIError error={error} />
         </Alert>
       )}
       {generating && (

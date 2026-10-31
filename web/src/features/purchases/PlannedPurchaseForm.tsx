@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { createPlannedPurchase, getAccounts, getBudgetMonth, getPlannedPurchases, updatePlannedPurchase } from '../../api';
-import type { Account, PlannedPurchase } from '@lifetracker/core';
+import { askPurchaseAdvice, createPlannedPurchase, getAccounts, getBudgetMonth, getPlannedPurchases, updatePlannedPurchase } from '../../api';
+import type { Account, PlannedPurchase, PurchaseAdvice } from '@lifetracker/core';
 import {
-  buildPurchaseRequest, essentialHint, formatMoney, freeSavingsAccounts, monthsHint, newAccountLabel, planChoices,
+  adviceSentNote, askAdviceLabel, askingAdviceNote, buildPurchaseRequest, draftAdviceRequest, withSuggestion, essentialHint, formatMoney, freeSavingsAccounts, monthsHint, newAccountLabel, planChoices,
   purchaseFormValues, purchaseNamePlaceholder, purchasePreview, targetMonthChoices, toYm,
 } from '@lifetracker/core';
 import { useData } from '../../data/useData';
@@ -10,12 +10,16 @@ import { useRefresh } from '../../data/refresh';
 import Button from '../../components/ui/Button';
 import { Field, Input, MoneyInput, Select, Textarea } from '../../components/ui/Field';
 import { Alert, SegmentedControl, Skeleton } from '../../components/ui/Bits';
+import OpenAIError from '../insights/OpenAIError';
+import AdviceView from './AdviceView';
 
 // Adding or editing a planned purchase: its name and target, then one way to plan it (a monthly
 // amount, a number of months, or the last month to save in) with the other two worked out as I type
-// (core's calculator, the same one the API saves with). Adding can make its savings account too.
-export default function PlannedPurchaseForm({ purchase, onDone }: {
+// (core's calculator, the same one the API saves with). Adding can make its savings account too, and
+// can ask for AI advice on the draft first. suggestion: advice whose monthly amount to start from.
+export default function PlannedPurchaseForm({ purchase, suggestion, onDone }: {
   purchase?: PlannedPurchase;
+  suggestion?: PurchaseAdvice;
   onDone: (created?: PlannedPurchase) => void;
 }) {
   // The plan starts from the budget month I'm in now, which follows payday.
@@ -27,18 +31,25 @@ export default function PlannedPurchaseForm({ purchase, onDone }: {
 
   if (error) return <Alert tone="negative">{error}</Alert>;
   if (!b || !accounts.data || !purchases.data) return <Skeleton className="h-96" />;
-  return <Form purchase={purchase} onDone={onDone} currentMonth={toYm(b.year, b.month)}
+  return <Form purchase={purchase} suggestion={suggestion} onDone={onDone} currentMonth={toYm(b.year, b.month)}
     savingsAccounts={freeSavingsAccounts(accounts.data, purchases.data)} />;
 }
 
-function Form({ purchase, onDone, currentMonth, savingsAccounts }: {
+function Form({ purchase, suggestion, onDone, currentMonth, savingsAccounts }: {
   purchase?: PlannedPurchase;
+  suggestion?: PurchaseAdvice;
   onDone: (created?: PlannedPurchase) => void;
   currentMonth: string;
   savingsAccounts: Account[];
 }) {
   const { refresh } = useRefresh();
-  const [values, setValues] = useState(() => purchaseFormValues(purchase, currentMonth));
+  const [values, setValues] = useState(() => {
+    const initial = purchaseFormValues(purchase, currentMonth);
+    return suggestion ? withSuggestion(initial, suggestion) : initial;
+  });
+  const [advice, setAdvice] = useState<PurchaseAdvice | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [adviceError, setAdviceError] = useState<string | null>(null);
   const set = (patch: Partial<typeof values>) => setValues((v) => ({ ...v, ...patch }));
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -47,6 +58,21 @@ function Form({ purchase, onDone, currentMonth, savingsAccounts }: {
   // What's saved already comes off the target: the purchase's own savings, or the chosen account's balance.
   const saved = purchase?.saved ?? savingsAccounts.find((a) => a.id === values.accountId)?.balance ?? 0;
   const preview = purchasePreview(values, saved, currentMonth, editing);
+
+  // Advice on the draft, before saving it (nothing is saved but the advice itself).
+  async function askFirst() {
+    const built = draftAdviceRequest(values, currentMonth);
+    if (built.error !== undefined) { setAdviceError(built.error); return; }
+    setAsking(true);
+    setAdviceError(null);
+    try {
+      setAdvice(await askPurchaseAdvice({ draft: built.draft }));
+    } catch (err) {
+      setAdviceError((err as Error).message);
+    } finally {
+      setAsking(false);
+    }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -150,6 +176,20 @@ function Form({ purchase, onDone, currentMonth, savingsAccounts }: {
       <Field label="Notes" hint="Optional, e.g. when it's due.">
         {(id) => <Textarea id={id} rows={2} maxLength={1000} value={values.notes} onChange={(e) => set({ notes: e.target.value })} />}
       </Field>
+
+      {!editing && (
+        <div className="rounded-xl border border-line p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-medium">Not sure yet? Get advice before saving.</p>
+            <Button size="sm" icon="sparkles" disabled={asking} onClick={askFirst}>{askAdviceLabel(asking, advice !== null)}</Button>
+          </div>
+          {asking && <p className="mt-2 text-xs text-muted">{askingAdviceNote(values.name.trim())}</p>}
+          {adviceError && <Alert tone="negative" className="mt-3"><OpenAIError error={adviceError} /></Alert>}
+          {advice ? (
+            <div className="mt-3"><AdviceView advice={advice} onUse={() => setValues((v) => withSuggestion(v, advice))} /></div>
+          ) : !asking && <p className="mt-2 text-xs text-muted">{adviceSentNote}</p>}
+        </div>
+      )}
 
       {error && <Alert tone="negative">{error}</Alert>}
 
